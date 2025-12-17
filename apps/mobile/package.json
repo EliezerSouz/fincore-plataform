@@ -1,0 +1,28 @@
+{
+  "name": "@financeiro/mobile",
+  "version": "1.0.0",
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web"
+  },
+  "dependencies": {
+    "@financeiro/ui": "*",
+    "@financeiro/core": "*",
+    "expo": "~54.0.29",
+    "expo-constants": "^18.0.12",
+    "expo-linking": "^8.0.10",
+    "expo-router": "^6.0.19",
+    "expo-status-bar": "~3.0.9",
+    "react": "19.1.0",
+    "react-dom": "^19.2.3",
+    "react-native": "0.81.5",
+    "react-native-safe-area-context": "^5.6.2",
+    "react-native-screens": "^4.19.0",
+    "react-native-web": "^0.21.2",
+    "solito": "^5.0.0"
+  },
+  "private": true
+}

@@ -1,0 +1,8 @@
+{
+    "name": "@financeiro/config",
+    "version": "0.0.0",
+    "dependencies": {
+        "eslint-config-next": "16.0.10",
+        "typescript": "^5.0.0"
+    }
+}
