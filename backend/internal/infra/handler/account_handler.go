@@ -3,6 +3,7 @@ package handler
 import (
 	"financeiro-api/internal/entity"
 	"financeiro-api/internal/infra/repository"
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -18,6 +19,7 @@ func NewAccountHandler(repo *repository.AccountRepository) *AccountHandler {
 
 // GET /api/accounts
 func (h *AccountHandler) List(c *gin.Context) {
+	fmt.Println("DEBUG HANDLER: List Accounts called")
 	userID := c.GetString("user_id")
 	if userID == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
