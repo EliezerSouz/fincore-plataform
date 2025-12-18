@@ -3,7 +3,6 @@ package handler
 import (
 	"financeiro-api/internal/entity"
 	"financeiro-api/internal/infra/repository"
-	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -19,14 +18,19 @@ func NewAccountHandler(repo *repository.AccountRepository) *AccountHandler {
 
 // GET /api/accounts
 func (h *AccountHandler) List(c *gin.Context) {
-	fmt.Println("DEBUG HANDLER: List Accounts called")
 	userID := c.GetString("user_id")
 	if userID == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
 
-	includeInactive := c.Query("include_inactive") == "true"
+	// Default to include inactive accounts to prevent empty lists if user deactivated them accidentally
+	// Explicitly pass 'false' to hide them
+	includeInactiveQuery := c.Query("include_inactive")
+	includeInactive := true
+	if includeInactiveQuery == "false" {
+		includeInactive = false
+	}
 	accounts, err := h.repo.FindAll(c.Request.Context(), userID, includeInactive)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
