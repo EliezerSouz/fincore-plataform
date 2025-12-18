@@ -1,7 +1,7 @@
 import { ReactNode } from "react"
 import { LucideIcon } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
-import { PageWatermark } from "@/components/page-watermark"
+import { PageWatermark } from "./page-watermark"
 import { PageHeader } from "@/components/ui/page-header"
 
 interface PageLayoutProps {
