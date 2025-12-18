@@ -1,11 +1,31 @@
--- Fix permissions for account_balance_adjustments table
--- Error 42501 occurred because 'authenticated' role was not granted access to the table
+-- Fix permissions and policies for account_balance_adjustments safely
 
-GRANT ALL ON TABLE account_balance_adjustments TO authenticated;
-GRANT ALL ON TABLE account_balance_adjustments TO service_role;
-
--- Ensure RLS is enabled
+-- 1. Enable RLS
 ALTER TABLE account_balance_adjustments ENABLE ROW LEVEL SECURITY;
 
--- Re-apply policies just in case (using IF NOT EXISTS logic via DO block or just relying on existing migration)
--- For safety, we just allow the GRANTS here. The previous migration created the policies.
+-- 2. Drop existing policies to avoid "policy already exists" errors
+DROP POLICY IF EXISTS "Users can view their own balance adjustments" ON account_balance_adjustments;
+DROP POLICY IF EXISTS "Users can insert their own balance adjustments" ON account_balance_adjustments;
+DROP POLICY IF EXISTS "Users can update their own balance adjustments" ON account_balance_adjustments;
+DROP POLICY IF EXISTS "Users can delete their own balance adjustments" ON account_balance_adjustments;
+
+-- 3. Recreate policies
+CREATE POLICY "Users can view their own balance adjustments"
+ON account_balance_adjustments FOR SELECT
+USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own balance adjustments"
+ON account_balance_adjustments FOR INSERT
+WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own balance adjustments"
+ON account_balance_adjustments FOR UPDATE
+USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own balance adjustments"
+ON account_balance_adjustments FOR DELETE
+USING (auth.uid() = user_id);
+
+-- 4. Grant permissions (The Fix for 42501)
+GRANT ALL ON TABLE account_balance_adjustments TO authenticated;
+GRANT ALL ON TABLE account_balance_adjustments TO service_role;
