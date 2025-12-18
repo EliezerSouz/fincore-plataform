@@ -18,7 +18,10 @@ export function TransactionsView({ accounts, categories, initialInsights }: { ac
     const router = useRouter()
 
     // Fallback fetching for accounts using client-side hook if server-side failed (empty)
-    const { accounts: clientAccounts } = useAccounts({ includeInactive: true })
+    const { accounts: clientAccounts } = useAccounts({
+        includeInactive: true,
+        enabled: !accounts || accounts.length === 0
+    })
     const activeAccounts = accounts && accounts.length > 0 ? accounts : clientAccounts
 
     const pathname = usePathname()

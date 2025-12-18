@@ -9,7 +9,7 @@ import { useState, useEffect } from 'react'
 import { accountService, type Account, type CreateAccountInput, type UpdateAccountInput } from '@financeiro/core'
 import { apiClient } from '@/lib/api-client'
 
-export function useAccounts(params?: { includeInactive?: boolean }) {
+export function useAccounts(params?: { includeInactive?: boolean, enabled?: boolean }) {
     const [accounts, setAccounts] = useState<Account[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
@@ -76,8 +76,10 @@ export function useAccounts(params?: { includeInactive?: boolean }) {
 
     // Carregar contas ao montar o componente
     useEffect(() => {
-        fetchAccounts()
-    }, [params?.includeInactive])
+        if (params?.enabled !== false) {
+            fetchAccounts()
+        }
+    }, [params?.includeInactive, params?.enabled])
 
     return {
         accounts,
