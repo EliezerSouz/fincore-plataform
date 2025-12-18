@@ -11,6 +11,7 @@ import {
     Edit,
     Trash2,
     RefreshCw,
+    Plus,
 } from 'lucide-react'
 
 import {
@@ -57,6 +58,7 @@ export function BalanceAdjustmentHistory({
     const [editingAdjustment, setEditingAdjustment] = useState<BalanceAdjustment | null>(null)
     const [deletingAdjustmentId, setDeletingAdjustmentId] = useState<string | null>(null)
     const [convertingPeriod, setConvertingPeriod] = useState<ControlledPeriod | null>(null)
+    const [isCreating, setIsCreating] = useState(false)
 
     const loadData = async () => {
         setIsLoading(true)
@@ -131,14 +133,20 @@ export function BalanceAdjustmentHistory({
     return (
         <>
             <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Calendar className="h-5 w-5" />
-                        Períodos de Controle
-                    </CardTitle>
-                    <CardDescription>
-                        Histórico de ajustes de saldo e períodos controlados
-                    </CardDescription>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <div className="space-y-1">
+                        <CardTitle className="flex items-center gap-2">
+                            <Calendar className="h-5 w-5" />
+                            Períodos de Controle
+                        </CardTitle>
+                        <CardDescription>
+                            Histórico de ajustes de saldo e períodos controlados
+                        </CardDescription>
+                    </div>
+                    <Button onClick={() => setIsCreating(true)} size="sm" variant="outline" className="h-8 gap-2">
+                        <Plus className="h-4 w-4" />
+                        Novo Ajuste
+                    </Button>
                 </CardHeader>
                 <CardContent className="space-y-6">
                     {periods.length === 0 ? (
@@ -283,6 +291,17 @@ export function BalanceAdjustmentHistory({
                 accountName={accountName}
                 adjustment={editingAdjustment || undefined}
                 onSuccess={loadData}
+            />
+
+            <BalanceAdjustmentDialog
+                open={isCreating}
+                onOpenChange={setIsCreating}
+                accountId={accountId}
+                accountName={accountName}
+                onSuccess={() => {
+                    loadData()
+                    setIsCreating(false)
+                }}
             />
 
             {convertingPeriod && (

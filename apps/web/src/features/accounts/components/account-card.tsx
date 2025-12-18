@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { MoreHorizontal, Trash2, Edit2, TrendingUp, Wallet, Landmark, PiggyBank, Smartphone, Globe, Utensils, CreditCard, RefreshCw } from "lucide-react"
+import { MoreHorizontal, Trash2, Edit2, TrendingUp, Wallet, Landmark, PiggyBank, Smartphone, Globe, Utensils, CreditCard, RefreshCw, History } from "lucide-react"
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -16,6 +16,8 @@ import { formatCurrency } from "@/lib/utils"
 import { deleteAccount } from "@/app/(protected)/caixa/accounts/actions"
 import { EditAccountDialog } from "./edit-account-dialog"
 import { PayInvoiceDialog } from "@/features/accounts/components/pay-invoice-dialog"
+import { BalanceAdjustmentHistory } from "./balance-adjustment-history"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
 
 
 const getAccountIcon = (type: string) => {
@@ -67,6 +69,7 @@ export function AccountCard({ account, allAccounts = [], paymentMethods = [] }: 
     const [showEdit, setShowEdit] = useState(false)
     const [showPayInvoice, setShowPayInvoice] = useState(false)
     const [showDelete, setShowDelete] = useState(false)
+    const [showHistory, setShowHistory] = useState(false)
     const [isDeleting, setIsDeleting] = useState(false)
 
     const Icon = getAccountIcon(account.type)
@@ -165,6 +168,16 @@ export function AccountCard({ account, allAccounts = [], paymentMethods = [] }: 
                                 <Edit2 className="mr-2 h-4 w-4" />
                                 Editar
                             </DropdownMenuItem>
+                            <DropdownMenuItem
+                                onSelect={(e) => {
+                                    e.preventDefault()
+                                    setShowHistory(true)
+                                }}
+                                className="cursor-pointer"
+                            >
+                                <History className="mr-2 h-4 w-4" />
+                                Histórico e Ajustes
+                            </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                                 className="text-red-600 focus:text-red-600 cursor-pointer"
@@ -256,6 +269,15 @@ export function AccountCard({ account, allAccounts = [], paymentMethods = [] }: 
                     paymentMethods={paymentMethods}
                 />
             )}
+
+            <Dialog open={showHistory} onOpenChange={setShowHistory}>
+                <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+                    <BalanceAdjustmentHistory
+                        accountId={account.id}
+                        accountName={account.name}
+                    />
+                </DialogContent>
+            </Dialog>
 
             <DeleteDialog
                 open={showDelete}

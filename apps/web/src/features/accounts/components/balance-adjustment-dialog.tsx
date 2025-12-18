@@ -43,7 +43,7 @@ import {
 } from '@/components/ui/popover'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { cn } from '@/lib/utils'
-import { createBalanceAdjustment, updateBalanceAdjustment } from '../balance-adjustments-actions'
+import { createBalanceAdjustment, updateBalanceAdjustment } from '@/app/(protected)/caixa/accounts/balance-adjustments-actions'
 import type { BalanceAdjustment, BalanceAdjustmentType } from '@/lib/types/balance-adjustments'
 
 const formSchema = z.object({
