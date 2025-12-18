@@ -140,6 +140,8 @@ func (r *AccountRepository) FindAll(ctx context.Context, userID string, includeI
 
 	query += " ORDER BY a.is_active DESC, a.name ASC"
 
+	fmt.Printf("DEBUG ACCOUNT REPO: Buscando contas para UserID: %s, IncludeInactive: %v\n", userID, includeInactive)
+
 	rows, err := r.db.Query(ctx, query, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query accounts: %w", err)
@@ -170,6 +172,8 @@ func (r *AccountRepository) FindAll(ctx context.Context, userID string, includeI
 
 		accounts = append(accounts, acc)
 	}
+
+	fmt.Printf("DEBUG ACCOUNT REPO: Total contas encontradas: %d\n", len(accounts))
 
 	return accounts, nil
 }
