@@ -9,7 +9,7 @@ import { useState, useEffect } from 'react'
 import { accountService, type Account, type CreateAccountInput, type UpdateAccountInput } from '@financeiro/core'
 import { apiClient } from '@/lib/api-client'
 
-export function useAccounts() {
+export function useAccounts(params?: { includeInactive?: boolean }) {
     const [accounts, setAccounts] = useState<Account[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
@@ -20,7 +20,11 @@ export function useAccounts() {
             setLoading(true)
             setError(null)
             // Use local apiClient for better control and consistency with useTransactions
-            const data = await apiClient.get<Account[]>('/api/accounts')
+            const query = new URLSearchParams()
+            if (params?.includeInactive) query.append('include_inactive', 'true')
+            const qStr = query.toString() ? `?${query.toString()}` : ''
+
+            const data = await apiClient.get<Account[]>(`/api/accounts${qStr}`)
             setAccounts(data || [])
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Erro ao carregar contas')
@@ -73,7 +77,7 @@ export function useAccounts() {
     // Carregar contas ao montar o componente
     useEffect(() => {
         fetchAccounts()
-    }, [])
+    }, [params?.includeInactive])
 
     return {
         accounts,

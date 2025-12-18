@@ -18,7 +18,7 @@ export function TransactionsView({ accounts, categories, initialInsights }: { ac
     const router = useRouter()
 
     // Fallback fetching for accounts using client-side hook if server-side failed (empty)
-    const { accounts: clientAccounts } = useAccounts()
+    const { accounts: clientAccounts } = useAccounts({ includeInactive: true })
     const activeAccounts = accounts && accounts.length > 0 ? accounts : clientAccounts
 
     const pathname = usePathname()
@@ -32,8 +32,8 @@ export function TransactionsView({ accounts, categories, initialInsights }: { ac
     const currentPage = parseInt(searchParams.get('page') || "1")
 
     // Sorting Logic
-    const sortBy = searchParams.get('sort_by')
-    const sortOrder = searchParams.get('sort_order') as 'asc' | 'desc' | null
+    const sortBy = searchParams.get('sort_by') || 'date'
+    const sortOrder = (searchParams.get('sort_order') as 'asc' | 'desc') || 'desc'
 
     const { defaultFrom, defaultTo } = useMemo(() => {
         const now = new Date();

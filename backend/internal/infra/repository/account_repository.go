@@ -119,7 +119,7 @@ func (r *AccountRepository) applyYield(ctx context.Context, acc *entity.Account)
 	return totalYielded, lastDailyYield, nil
 }
 
-func (r *AccountRepository) FindAll(ctx context.Context, userID string) ([]entity.Account, error) {
+func (r *AccountRepository) FindAll(ctx context.Context, userID string, includeInactive bool) ([]entity.Account, error) {
 	// Query includes subqueries for Yield Display
 	// yield_today: fetches the very last yield record (most recent)
 	// yield_month: sums yield for current month
@@ -131,9 +131,14 @@ func (r *AccountRepository) FindAll(ctx context.Context, userID string) ([]entit
 			COALESCE((SELECT yield_amount FROM liquidity_yields WHERE account_id = a.id ORDER BY date DESC LIMIT 1), 0) as yield_today,
 			COALESCE((SELECT SUM(yield_amount) FROM liquidity_yields WHERE account_id = a.id AND date >= date_trunc('month', CURRENT_DATE)), 0) as yield_month
 		FROM accounts a
-		WHERE a.user_id = $1 AND a.is_active = true
-		ORDER BY a.name ASC
+		WHERE a.user_id = $1
 	`
+
+	if !includeInactive {
+		query += " AND a.is_active = true"
+	}
+
+	query += " ORDER BY a.is_active DESC, a.name ASC"
 
 	rows, err := r.db.Query(ctx, query, userID)
 	if err != nil {

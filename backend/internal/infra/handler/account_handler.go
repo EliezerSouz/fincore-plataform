@@ -24,7 +24,8 @@ func (h *AccountHandler) List(c *gin.Context) {
 		return
 	}
 
-	accounts, err := h.repo.FindAll(c.Request.Context(), userID)
+	includeInactive := c.Query("include_inactive") == "true"
+	accounts, err := h.repo.FindAll(c.Request.Context(), userID, includeInactive)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
