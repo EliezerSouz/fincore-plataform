@@ -9,7 +9,7 @@ import { CATEGORY_ICONS } from "@/lib/icons"
 import { usePermission } from "@/hooks/use-permission"
 import { UpsellModal } from "@/components/ui/upsell-modal"
 import { DeleteDialog } from "@/components/ui/delete-dialog"
-import { EditCategoryDialog } from "@/components/categories/edit-category-dialog"
+import { EditCategoryDialog } from "@/features/categories/components/edit-category-dialog"
 
 export function CategoryList({ categories, type }: { categories: Category[], type: 'receita' | 'despesa' }) {
     const filtered = categories.filter(c => c.type === type)

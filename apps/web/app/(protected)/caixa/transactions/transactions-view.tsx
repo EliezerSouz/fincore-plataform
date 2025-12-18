@@ -3,13 +3,13 @@
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
-import { useTransactions } from './use-transactions'
+import { useTransactions } from '@/hooks/use-transactions'
 import { PageLayout } from "@/components/page-layout"
 import { FilterBar } from "@/components/filter-bar"
 import { TransactionBalanceCard } from "@/features/transactions/components/transaction-balance-card"
 import { TransactionsFilters } from "@/features/transactions/components/transactions-filters"
 import { TransactionRow } from "@/features/transactions/components/transactions-row"
-import { CreateTransactionDialog } from "./create-transaction-dialog"
+import { CreateTransactionDialog } from "@/features/transactions/components/create-transaction-dialog"
 import { ReceiptText, CircleDashed, ChevronLeft, ChevronRight } from "lucide-react"
 import { useMemo } from 'react'
 
@@ -45,7 +45,7 @@ export function TransactionsView({ accounts, categories, initialInsights }: { ac
         offset: (currentPage - 1) * parseInt(currentLimit),
     }), [searchParams, defaultFrom, defaultTo, currentLimit, currentPage])
 
-    const { transactions: tableTransactions, loading: tableLoading, refetch: refetchTable } = useTransactions(filters)
+    const { transactions: tableTransactions, loading: tableLoading, refresh: refetchTable } = useTransactions(filters)
 
     // Chart Data (No pagination limits)
     const chartFilters = useMemo(() => ({
@@ -54,7 +54,7 @@ export function TransactionsView({ accounts, categories, initialInsights }: { ac
         offset: 0
     }), [filters.accountId, filters.categoryId, filters.type, filters.from, filters.to, filters.month, filters.year])
 
-    const { transactions: chartTransactions, loading: chartLoading, refetch: refetchChart } = useTransactions(chartFilters)
+    const { transactions: chartTransactions, loading: chartLoading, refresh: refetchChart } = useTransactions(chartFilters)
 
     const refetchAll = () => {
         refetchTable()

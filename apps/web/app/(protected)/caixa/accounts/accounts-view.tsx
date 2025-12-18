@@ -1,6 +1,6 @@
 ﻿'use client'
 
-import { useAccounts } from './use-accounts'
+import { useAccounts } from '@/hooks/use-accounts'
 import { AccountCard } from "@/features/accounts/components/account-card"
 import { CreateAccountDialog } from "@/features/accounts/components/create-account-dialog"
 import { ConsolidatedBalanceCard } from "@/features/accounts/components/consolidated-balance-card"
@@ -8,7 +8,7 @@ import { Wallet, Landmark, PiggyBank, TrendingUp, Activity, CreditCard, CircleDa
 import { PageLayout } from "@/components/page-layout"
 
 export function AccountsView() {
-    const { accounts, paymentMethods, loading } = useAccounts()
+    const { accounts, loading } = useAccounts()
 
     // Separação de Contas
     const activeAccounts = accounts.filter((a: any) => a.is_active !== false)
@@ -208,7 +208,7 @@ export function AccountsView() {
                                             key={account.id}
                                             account={account}
                                             allAccounts={activeAccounts}
-                                            paymentMethods={paymentMethods}
+
                                         />
                                     ))}
                                 </div>

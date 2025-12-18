@@ -2,7 +2,7 @@
 
 import { Bell } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { UserDropdown } from "./user-dropdown"
+import { UserDropdown } from "@/components/layout/user-dropdown"
 import { useUser } from "@/providers/user-provider"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Logo } from "@/components/logo"

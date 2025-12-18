@@ -19,7 +19,11 @@ import { getCategories, getSubcategories, createTransaction, Category, Subcatego
 import { cn } from "@/lib/utils"
 import { CreateButton } from "@/components/ui/create-button"
 
-export function CreateTransactionDialog() {
+interface CreateTransactionDialogProps {
+    onSuccess?: () => void
+}
+
+export function CreateTransactionDialog({ onSuccess }: CreateTransactionDialogProps) {
     const [open, setOpen] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
     const [type, setType] = useState<'receita' | 'despesa'>('despesa')
@@ -87,6 +91,7 @@ export function CreateTransactionDialog() {
 
             await createTransaction(formData)
 
+            onSuccess?.()
             setOpen(false)
             resetForm()
             setTimeout(() => {

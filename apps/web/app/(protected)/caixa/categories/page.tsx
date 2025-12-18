@@ -1,7 +1,7 @@
 import { getCategories } from "./actions"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { CategoryList } from "@/components/categories/category-list"
-import { CreateCategoryDialog } from "@/components/categories/create-category-dialog"
+import { CategoryList } from "@/features/categories/components/category-list"
+import { CreateCategoryDialog } from "@/features/categories/components/create-category-dialog"
 import { PageLayout } from "@/components/page-layout"
 import { Tag, TrendingUp, TrendingDown, Layers } from "lucide-react"
 

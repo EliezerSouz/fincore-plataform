@@ -1,5 +1,5 @@
 import { SidebarProvider } from "@/components/ui/sidebar"
-import { AppSidebar } from "@/components/app-sidebar"
+import { AppSidebar } from "@/components/layout/app-sidebar"
 import { TopBar } from "@/components/top-bar"
 import { UserProvider } from "@/providers/user-provider"
 import { getFinancialSummary } from "./summary-actions"
