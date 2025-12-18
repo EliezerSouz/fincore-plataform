@@ -124,7 +124,7 @@ export function InvoiceDetailsModal({ invoiceId, open, onOpenChange }: InvoiceDe
         switch (status) {
             case 'paid':
             case 'paid':
-                return <Badge className="bg-emerald-500 hover:bg-emerald-600 border-none text-white">Fatura Paga</Badge>
+                return <Badge className="bg-emerald-500 hover:bg-emerald-600 border-none shadow-none text-white text-sm font-semibold px-3 py-1.5">Fatura Paga</Badge>
             case 'closed':
                 return <Badge variant="secondary" className="bg-slate-200 dark:bg-slate-800">Fechada</Badge>
             case 'open':
