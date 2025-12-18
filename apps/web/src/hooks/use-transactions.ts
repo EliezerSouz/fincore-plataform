@@ -9,7 +9,17 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { transactionService, type Transaction, type CreateTransactionInput, type UpdateTransactionInput, type TransactionListParams } from '@financeiro/core'
 import { apiClient } from '@/lib/api-client'
 
-export function useTransactions(params?: TransactionListParams) {
+export interface ExtendedTransactionListParams extends TransactionListParams {
+    accountId?: string
+    categoryId?: string
+    type?: string
+    from?: string
+    to?: string
+    month?: string
+    year?: string
+}
+
+export function useTransactions(params?: ExtendedTransactionListParams) {
     const [transactions, setTransactions] = useState<Transaction[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)

@@ -7,6 +7,7 @@
 
 import { useState, useEffect } from 'react'
 import { accountService, type Account, type CreateAccountInput, type UpdateAccountInput } from '@financeiro/core'
+import { apiClient } from '@/lib/api-client'
 
 export function useAccounts() {
     const [accounts, setAccounts] = useState<Account[]>([])
@@ -18,8 +19,9 @@ export function useAccounts() {
         try {
             setLoading(true)
             setError(null)
-            const data = await accountService.list()
-            setAccounts(data)
+            // Use local apiClient for better control and consistency with useTransactions
+            const data = await apiClient.get<Account[]>('/api/accounts')
+            setAccounts(data || [])
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Erro ao carregar contas')
             console.error('Error fetching accounts:', err)

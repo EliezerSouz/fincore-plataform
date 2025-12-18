@@ -14,8 +14,15 @@ import { ReceiptText, CircleDashed, ChevronLeft, ChevronRight } from "lucide-rea
 import { useMemo } from 'react'
 import { DebugOverlay } from "@/components/debug-overlay"
 
+import { useAccounts } from '@/hooks/use-accounts'
+
 export function TransactionsView({ accounts, categories, initialInsights }: { accounts: any[], categories: any[], initialInsights?: any[] }) {
     const router = useRouter()
+
+    // Fallback fetching for accounts using client-side hook if server-side failed (empty)
+    const { accounts: clientAccounts } = useAccounts()
+    const activeAccounts = accounts && accounts.length > 0 ? accounts : clientAccounts
+
     const pathname = usePathname()
     const searchParams = useSearchParams()
 
