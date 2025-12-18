@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { CheckCircle2, ShoppingBag, Trash2, Edit2, RotateCcw, CreditCard } from "lucide-react"
 import { EditTransactionDialog } from "./edit-transaction-dialog"
 import { PayCardInvoiceDialog } from "./pay-invoice-dialog"
-import { BrandIcon } from "@/components/transactions/brand-icon"
+import { BrandIcon } from "@/features/transactions/components/brand-icon"
 import {
     Table,
     TableBody,
