@@ -290,6 +290,38 @@ func (r *TransactionRepository) Update(ctx context.Context, id, userID string, i
 	}
 	defer tx.Rollback(ctx)
 
+	// Determine if we need to recalculate is_historical
+	var newIsHistorical = original.IsHistorical
+	if input.Date != nil {
+		// Date changed, need to recalculate is_historical
+		var lastAdjustmentDate *time.Time
+		adjustmentQuery := `
+			SELECT adjustment_date 
+			FROM account_balance_adjustments
+			WHERE account_id = $1
+			ORDER BY adjustment_date DESC
+			LIMIT 1
+		`
+		accountID := original.AccountID
+		if input.AccountID != nil {
+			accountID = *input.AccountID
+		}
+
+		err = tx.QueryRow(ctx, adjustmentQuery, accountID).Scan(&lastAdjustmentDate)
+		if err != nil && err.Error() != "no rows in result set" {
+			return nil, fmt.Errorf("failed to check balance adjustments: %w", err)
+		}
+
+		if lastAdjustmentDate != nil {
+			transactionDate := time.Date(input.Date.Year(), input.Date.Month(), input.Date.Day(), 0, 0, 0, 0, input.Date.Location())
+			adjustmentDate := time.Date(lastAdjustmentDate.Year(), lastAdjustmentDate.Month(), lastAdjustmentDate.Day(), 0, 0, 0, 0, lastAdjustmentDate.Location())
+
+			newIsHistorical = transactionDate.Before(adjustmentDate)
+		} else {
+			newIsHistorical = false
+		}
+	}
+
 	// Build dynamic update query
 	query := `UPDATE transactions SET updated_at = NOW()`
 	args := []interface{}{id, userID}
@@ -334,12 +366,17 @@ func (r *TransactionRepository) Update(ctx context.Context, id, userID string, i
 		argCount++
 		query += fmt.Sprintf(", date = $%d", argCount)
 		args = append(args, *input.Date)
+
+		// Update is_historical if date changed
+		argCount++
+		query += fmt.Sprintf(", is_historical = $%d", argCount)
+		args = append(args, newIsHistorical)
 	}
 
 	query += ` WHERE id = $1 AND user_id = $2 
 	           RETURNING id, user_id, account_id, category_id, subcategory_id,
 	                     payment_method_id, credit_card_invoice_id, payable_id, related_transaction_id,
-	                     description, amount, type, date, created_at, updated_at`
+	                     description, amount, type, date, is_historical, created_at, updated_at`
 
 	var updated entity.Transaction
 	err = tx.QueryRow(ctx, query, args...).Scan(
@@ -347,67 +384,102 @@ func (r *TransactionRepository) Update(ctx context.Context, id, userID string, i
 		&updated.CategoryID, &updated.SubcategoryID, &updated.PaymentMethodID,
 		&updated.InvoiceID, &updated.PayableID, &updated.RelatedTransactionID,
 		&updated.Description, &updated.Amount, &updated.Type,
-		&updated.Date, &updated.CreatedAt, &updated.UpdatedAt,
+		&updated.Date, &updated.IsHistorical, &updated.CreatedAt, &updated.UpdatedAt,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update transaction: %w", err)
 	}
 
-	// Update account balance if amount or type changed
-	// Update account balance if amount, type or ACCOUNT changed
-	if input.Amount != nil || input.Type != nil || input.AccountID != nil {
-		// Revert result of original transaction
+	// Update account balance ONLY if BOTH original AND updated are NOT historical
+	// If either is historical, we don't touch the balance
+	if !original.IsHistorical && !updated.IsHistorical {
+		if input.Amount != nil || input.Type != nil || input.AccountID != nil {
+			// Revert result of original transaction
+			originalChange := original.Amount
+			if original.Type == "despesa" {
+				originalChange = -originalChange
+			}
+
+			// Calculate result of updated transaction
+			newChange := updated.Amount
+			if updated.Type == "despesa" {
+				newChange = -newChange
+			}
+
+			if original.AccountID != updated.AccountID {
+				// Account changed: Revert from Old and Apply to New
+
+				// 1. Revert from Old Account (Subtract original change)
+				revertQuery := `
+					UPDATE accounts
+					SET balance = balance - $1, updated_at = NOW()
+					WHERE id = $2 AND user_id = $3
+				`
+				_, err = tx.Exec(ctx, revertQuery, originalChange, original.AccountID, userID)
+				if err != nil {
+					return nil, fmt.Errorf("failed to revert balance from old account: %w", err)
+				}
+
+				// 2. Apply to New Account (Add new change)
+				applyQuery := `
+					UPDATE accounts
+					SET balance = balance + $1, updated_at = NOW()
+					WHERE id = $2 AND user_id = $3
+				`
+				_, err = tx.Exec(ctx, applyQuery, newChange, updated.AccountID, userID)
+				if err != nil {
+					return nil, fmt.Errorf("failed to apply balance to new account: %w", err)
+				}
+			} else {
+				// Same Account: Apply difference
+				balanceDiff := newChange - originalChange
+				if balanceDiff != 0 {
+					updateBalanceQuery := `
+                    UPDATE accounts
+                    SET balance = balance + $1, updated_at = NOW()
+                    WHERE id = $2 AND user_id = $3
+                `
+					_, err = tx.Exec(ctx, updateBalanceQuery, balanceDiff, updated.AccountID, userID)
+					if err != nil {
+						return nil, fmt.Errorf("failed to update account balance: %w", err)
+					}
+				}
+			}
+		}
+	} else if !original.IsHistorical && updated.IsHistorical {
+		// Transaction became historical: revert the balance
 		originalChange := original.Amount
 		if original.Type == "despesa" {
 			originalChange = -originalChange
 		}
 
-		// Calculate result of updated transaction
+		revertQuery := `
+			UPDATE accounts
+			SET balance = balance - $1, updated_at = NOW()
+			WHERE id = $2 AND user_id = $3
+		`
+		_, err = tx.Exec(ctx, revertQuery, originalChange, original.AccountID, userID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to revert balance (became historical): %w", err)
+		}
+	} else if original.IsHistorical && !updated.IsHistorical {
+		// Transaction became current: apply the balance
 		newChange := updated.Amount
 		if updated.Type == "despesa" {
 			newChange = -newChange
 		}
 
-		if original.AccountID != updated.AccountID {
-			// Account changed: Revert from Old and Apply to New
-
-			// 1. Revert from Old Account (Subtract original change)
-			revertQuery := `
-				UPDATE accounts
-				SET balance = balance - $1, updated_at = NOW()
-				WHERE id = $2 AND user_id = $3
-			`
-			_, err = tx.Exec(ctx, revertQuery, originalChange, original.AccountID, userID)
-			if err != nil {
-				return nil, fmt.Errorf("failed to revert balance from old account: %w", err)
-			}
-
-			// 2. Apply to New Account (Add new change)
-			applyQuery := `
-				UPDATE accounts
-				SET balance = balance + $1, updated_at = NOW()
-				WHERE id = $2 AND user_id = $3
-			`
-			_, err = tx.Exec(ctx, applyQuery, newChange, updated.AccountID, userID)
-			if err != nil {
-				return nil, fmt.Errorf("failed to apply balance to new account: %w", err)
-			}
-		} else {
-			// Same Account: Apply difference
-			balanceDiff := newChange - originalChange
-			if balanceDiff != 0 {
-				updateBalanceQuery := `
-                    UPDATE accounts
-                    SET balance = balance + $1, updated_at = NOW()
-                    WHERE id = $2 AND user_id = $3
-                `
-				_, err = tx.Exec(ctx, updateBalanceQuery, balanceDiff, updated.AccountID, userID)
-				if err != nil {
-					return nil, fmt.Errorf("failed to update account balance: %w", err)
-				}
-			}
+		applyQuery := `
+			UPDATE accounts
+			SET balance = balance + $1, updated_at = NOW()
+			WHERE id = $2 AND user_id = $3
+		`
+		_, err = tx.Exec(ctx, applyQuery, newChange, updated.AccountID, userID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to apply balance (became current): %w", err)
 		}
 	}
+	// If both are historical, do nothing with balance
 
 	// Commit transaction
 	if err := tx.Commit(ctx); err != nil {
@@ -442,21 +514,23 @@ func (r *TransactionRepository) Delete(ctx context.Context, id, userID string) e
 		return fmt.Errorf("transaction not found")
 	}
 
-	// Revert balance change
-	balanceChange := transaction.Amount
-	if transaction.Type == "despesa" {
-		balanceChange = -balanceChange
-	}
+	// Revert balance change ONLY if transaction is NOT historical
+	if !transaction.IsHistorical {
+		balanceChange := transaction.Amount
+		if transaction.Type == "despesa" {
+			balanceChange = -balanceChange
+		}
 
-	updateBalanceQuery := `
-		UPDATE accounts
-		SET balance = balance - $1, updated_at = NOW()
-		WHERE id = $2 AND user_id = $3
-	`
+		updateBalanceQuery := `
+			UPDATE accounts
+			SET balance = balance - $1, updated_at = NOW()
+			WHERE id = $2 AND user_id = $3
+		`
 
-	_, err = tx.Exec(ctx, updateBalanceQuery, balanceChange, transaction.AccountID, userID)
-	if err != nil {
-		return fmt.Errorf("failed to update account balance: %w", err)
+		_, err = tx.Exec(ctx, updateBalanceQuery, balanceChange, transaction.AccountID, userID)
+		if err != nil {
+			return fmt.Errorf("failed to update account balance: %w", err)
+		}
 	}
 
 	// Commit transaction

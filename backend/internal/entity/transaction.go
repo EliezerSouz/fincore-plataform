@@ -16,6 +16,7 @@ type Transaction struct {
 	Amount               float64        `json:"amount" db:"amount"`
 	Type                 string         `json:"type" db:"type"` // 'receita' ou 'despesa'
 	Date                 time.Time      `json:"date" db:"date"`
+	IsHistorical         bool           `json:"is_historical" db:"is_historical"`
 	CreatedAt            time.Time      `json:"created_at" db:"created_at"`
 	UpdatedAt            time.Time      `json:"updated_at" db:"updated_at"`
 	Category             *Category      `json:"category,omitempty" db:"-"`
