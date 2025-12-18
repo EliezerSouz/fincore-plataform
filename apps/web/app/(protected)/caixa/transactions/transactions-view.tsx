@@ -12,8 +12,7 @@ import { TransactionRow } from "@/features/transactions/components/transactions-
 import { CreateTransactionDialog } from "@/features/transactions/components/create-transaction-dialog"
 import { ReceiptText, CircleDashed, ChevronLeft, ChevronRight } from "lucide-react"
 import { useMemo } from 'react'
-
-
+import { DebugOverlay } from "@/components/debug-overlay"
 
 export function TransactionsView({ accounts, categories, initialInsights }: { accounts: any[], categories: any[], initialInsights?: any[] }) {
     const router = useRouter()
@@ -87,7 +86,6 @@ export function TransactionsView({ accounts, categories, initialInsights }: { ac
                 <FilterBar
                     summary={
                         <div className="w-full min-w-[300px] scale-90 origin-right">
-                            {/* Uses chartTransactions (full period) instead of tableTransactions */}
                             <TransactionBalanceCard transactions={chartLoading ? [] : chartTransactions} />
                         </div>
                     }
@@ -96,10 +94,8 @@ export function TransactionsView({ accounts, categories, initialInsights }: { ac
                 </FilterBar>
             }
         >
-
-
             <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/50 shadow-sm overflow-hidden relative z-10">
-                {tableLoading && tableTransactions.length === 0 ? ( // Mostra loading apenas se não tiver dados (primeira carga ou mudança drástica)
+                {tableLoading && tableTransactions.length === 0 ? (
                     <div className="p-12 flex flex-col items-center justify-center gap-3 text-slate-500">
                         <CircleDashed className="w-8 h-8 animate-spin text-blue-500" />
                         <p>Carregando transações...</p>
@@ -140,7 +136,6 @@ export function TransactionsView({ accounts, categories, initialInsights }: { ac
                             </table>
                         </div>
 
-                        {/* Pagination Footer */}
                         <div className="p-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-sm text-slate-500 bg-slate-50/30 dark:bg-slate-900/10 transition-all">
                             <div className="flex items-center gap-2">
                                 <span>Linhas por página:</span>
@@ -183,6 +178,16 @@ export function TransactionsView({ accounts, categories, initialInsights }: { ac
                     </>
                 )}
             </div>
+
+            <DebugOverlay
+                title="Debug Transactions"
+                data={{
+                    urlParams: searchParams.toString(),
+                    filters: filters,
+                    accountsCount: accounts?.length,
+                    categoriesCount: categories?.length
+                }}
+            />
         </PageLayout>
     )
 }
