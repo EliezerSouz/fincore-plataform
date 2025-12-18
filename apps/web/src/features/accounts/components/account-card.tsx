@@ -15,7 +15,7 @@ import { DeleteDialog } from "@/components/ui/delete-dialog"
 import { formatCurrency } from "@/lib/utils"
 import { deleteAccount } from "@/app/(protected)/caixa/accounts/actions"
 import { EditAccountDialog } from "./edit-account-dialog"
-import { PayInvoiceDialog } from "@/components/accounts/pay-invoice-dialog"
+import { PayInvoiceDialog } from "@/features/accounts/components/pay-invoice-dialog"
 
 
 const getAccountIcon = (type: string) => {
