@@ -55,7 +55,7 @@ export async function createBalanceAdjustment(
 
     if (error) {
         console.error('Error creating balance adjustment:', error)
-        throw new Error('Failed to create balance adjustment')
+        throw new Error(`Failed to create balance adjustment: ${error.message} (${error.code})`)
     }
 
     revalidatePath('/caixa/accounts')

@@ -130,7 +130,7 @@ export function BalanceAdjustmentDialog({
         } catch (error) {
             console.error('Error saving balance adjustment:', error)
             form.setError('root', {
-                message: 'Erro ao salvar ajuste de saldo. Tente novamente.',
+                message: error instanceof Error ? error.message : 'Erro ao salvar ajuste de saldo. Tente novamente.',
             })
         } finally {
             setIsSubmitting(false)
