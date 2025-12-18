@@ -4,6 +4,7 @@ import (
 	"context"
 	"financeiro-api/internal/entity"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -191,13 +192,42 @@ func (r *TransactionRepository) Create(ctx context.Context, userID string, input
 	}
 	defer tx.Rollback(ctx)
 
-	// Insert transaction
+	// 1. Check if transaction is retroactive (historical)
+	// Get last balance adjustment date for the account
+	var lastAdjustmentDate *time.Time
+	adjustmentQuery := `
+		SELECT adjustment_date 
+		FROM account_balance_adjustments
+		WHERE account_id = $1
+		ORDER BY adjustment_date DESC
+		LIMIT 1
+	`
+	err = tx.QueryRow(ctx, adjustmentQuery, input.AccountID).Scan(&lastAdjustmentDate)
+	if err != nil && err.Error() != "no rows in result set" {
+		return nil, fmt.Errorf("failed to check balance adjustments: %w", err)
+	}
+
+	// Determine if transaction is historical
+	isHistorical := false
+	if lastAdjustmentDate != nil {
+		// If transaction date is before last adjustment, it's historical
+		// Compare only the date part (ignore time)
+		transactionDate := time.Date(input.Date.Year(), input.Date.Month(), input.Date.Day(), 0, 0, 0, 0, input.Date.Location())
+		adjustmentDate := time.Date(lastAdjustmentDate.Year(), lastAdjustmentDate.Month(), lastAdjustmentDate.Day(), 0, 0, 0, 0, lastAdjustmentDate.Location())
+
+		if transactionDate.Before(adjustmentDate) {
+			isHistorical = true
+		}
+	}
+
+	// 2. Insert transaction with is_historical flag
 	query := `
 		INSERT INTO transactions (
 			user_id, account_id, category_id, subcategory_id,
-			payment_method_id, description, amount, type, date, payable_id, credit_card_invoice_id
+			payment_method_id, description, amount, type, date, payable_id, credit_card_invoice_id,
+			is_historical
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 		RETURNING id, user_id, account_id, category_id, subcategory_id,
 		          payment_method_id, credit_card_invoice_id, payable_id, related_transaction_id,
 		          description, amount, type, date, created_at, updated_at
@@ -207,6 +237,7 @@ func (r *TransactionRepository) Create(ctx context.Context, userID string, input
 	err = tx.QueryRow(ctx, query,
 		userID, input.AccountID, input.CategoryID, input.SubcategoryID,
 		input.PaymentMethodID, input.Description, input.Amount, input.Type, input.Date, input.PayableID, input.InvoiceID,
+		isHistorical,
 	).Scan(
 		&transaction.ID, &transaction.UserID, &transaction.AccountID,
 		&transaction.CategoryID, &transaction.SubcategoryID, &transaction.PaymentMethodID,
@@ -218,21 +249,23 @@ func (r *TransactionRepository) Create(ctx context.Context, userID string, input
 		return nil, fmt.Errorf("failed to create transaction: %w", err)
 	}
 
-	// Update account balance
-	balanceChange := input.Amount
-	if input.Type == "despesa" {
-		balanceChange = -balanceChange
-	}
+	// 3. Update account balance ONLY if transaction is NOT historical
+	if !isHistorical {
+		balanceChange := input.Amount
+		if input.Type == "despesa" {
+			balanceChange = -balanceChange
+		}
 
-	updateBalanceQuery := `
-		UPDATE accounts
-		SET balance = balance + $1, updated_at = NOW()
-		WHERE id = $2 AND user_id = $3
-	`
+		updateBalanceQuery := `
+			UPDATE accounts
+			SET balance = balance + $1, updated_at = NOW()
+			WHERE id = $2 AND user_id = $3
+		`
 
-	_, err = tx.Exec(ctx, updateBalanceQuery, balanceChange, input.AccountID, userID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to update account balance: %w", err)
+		_, err = tx.Exec(ctx, updateBalanceQuery, balanceChange, input.AccountID, userID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to update account balance: %w", err)
+		}
 	}
 
 	// Commit transaction

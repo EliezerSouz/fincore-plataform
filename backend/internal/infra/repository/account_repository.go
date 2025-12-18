@@ -215,6 +215,14 @@ func (r *AccountRepository) FindByID(ctx context.Context, id, userID string) (*e
 }
 
 func (r *AccountRepository) Create(ctx context.Context, userID string, input entity.CreateAccountInput) (*entity.Account, error) {
+	// Start transaction
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	// 1. Create account
 	query := `
 		INSERT INTO accounts (user_id, name, type, balance, color, yield_rate, last_yield_date)
 		VALUES ($1::uuid, $2, $3, $4, $5, $6, NOW())
@@ -222,12 +230,29 @@ func (r *AccountRepository) Create(ctx context.Context, userID string, input ent
 	`
 
 	var acc entity.Account
-	err := r.db.QueryRow(ctx, query, userID, input.Name, input.Type, input.Balance, input.Color, input.YieldRate).Scan(
+	err = tx.QueryRow(ctx, query, userID, input.Name, input.Type, input.Balance, input.Color, input.YieldRate).Scan(
 		&acc.ID, &acc.UserID, &acc.Name, &acc.Type,
 		&acc.Balance, &acc.Color, &acc.IsActive, &acc.YieldRate, &acc.LastYieldDate, &acc.CreatedAt, &acc.UpdatedAt,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create account: %w", err)
+	}
+
+	// 2. Register initial balance in account_balance_adjustments
+	// This creates a "starting point" for retroactive transactions
+	adjustmentQuery := `
+		INSERT INTO account_balance_adjustments 
+		(account_id, user_id, adjustment_date, balance, type, starts_controlled_period, notes)
+		VALUES ($1, $2::uuid, CURRENT_DATE, $3, 'initial', true, 'Saldo inicial da conta')
+	`
+	_, err = tx.Exec(ctx, adjustmentQuery, acc.ID, userID, input.Balance)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create balance adjustment: %w", err)
+	}
+
+	// Commit transaction
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	return &acc, nil
