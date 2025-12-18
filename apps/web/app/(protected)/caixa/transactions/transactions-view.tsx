@@ -20,6 +20,9 @@ export function TransactionsView({ accounts, categories, initialInsights }: { ac
     const pathname = usePathname()
     const searchParams = useSearchParams()
 
+    // Debug log
+    console.log('[TransactionsView] Search Params:', searchParams.toString())
+
     // Pagination & Limit Logic
     const currentLimit = searchParams.get('limit') || "25"
     const currentPage = parseInt(searchParams.get('page') || "1")

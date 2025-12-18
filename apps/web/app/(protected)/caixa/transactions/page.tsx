@@ -1,3 +1,4 @@
+import { Suspense } from "react"
 import { getCategories, getTransactions } from "./actions"
 import { getAccounts } from "../accounts/actions"
 import { TransactionsView } from "./transactions-view"
@@ -22,10 +23,12 @@ export default async function TransactionsPage() {
     ])
 
     return (
-        <TransactionsView
-            accounts={accounts}
-            categories={categories}
-            initialInsights={[]}
-        />
+        <Suspense fallback={<div className="p-8 text-center text-muted-foreground">Carregando visualização...</div>}>
+            <TransactionsView
+                accounts={accounts}
+                categories={categories}
+                initialInsights={[]}
+            />
+        </Suspense>
     )
 }
