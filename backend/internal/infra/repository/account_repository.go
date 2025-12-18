@@ -126,12 +126,11 @@ func (r *AccountRepository) FindAll(ctx context.Context, userID string, includeI
 	query := `
 		SELECT 
 			a.id, a.user_id, a.name, a.type, 
-			calculate_account_balance_with_adjustments(a.id, CURRENT_DATE) as balance, 
-			a.color, a.is_active, a.yield_rate, a.last_yield_date, a.created_at, a.updated_at,
-			COALESCE((SELECT yield_amount FROM liquidity_yields WHERE account_id = a.id ORDER BY date DESC LIMIT 1), 0) as yield_today,
-			COALESCE((SELECT SUM(yield_amount) FROM liquidity_yields WHERE account_id = a.id AND date >= date_trunc('month', CURRENT_DATE)), 0) as yield_month
+			a.balance, a.color, a.is_active, a.yield_rate, a.last_yield_date, a.created_at, a.updated_at,
+			0 as yield_today,
+			0 as yield_month
 		FROM accounts a
-		WHERE a.user_id = $1
+		WHERE TRIM(a.user_id::text) = TRIM($1::text)
 	`
 
 	if !includeInactive {
@@ -139,6 +138,9 @@ func (r *AccountRepository) FindAll(ctx context.Context, userID string, includeI
 	}
 
 	query += " ORDER BY a.is_active DESC, a.name ASC"
+
+	// DEBUG: Print final query
+	fmt.Printf("DEBUG: Final Query: %s\n", query)
 
 	// DIAG_START
 	fmt.Printf("DIAGNOSTIC: Searching accounts for UserID: '%s' (len: %d)\n", userID, len(userID))
