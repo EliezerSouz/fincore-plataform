@@ -1,4 +1,4 @@
-import { AccountsView } from "./accounts-view"
+import { AccountsView } from "@/features/accounts/components/accounts-view"
 
 export const metadata = {
     title: "Minhas Contas - Financeiro",
