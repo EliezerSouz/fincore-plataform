@@ -141,16 +141,19 @@ func (r *AccountRepository) FindAll(ctx context.Context, userID string, includeI
 	query += " ORDER BY a.is_active DESC, a.name ASC"
 
 	// DIAG_START
-	fmt.Printf("DIAGNOSTIC: Searching accounts for UserID: %s\n", userID)
-	drows, _ := r.db.Query(ctx, "SELECT DISTINCT user_id FROM accounts")
-	fmt.Print("DIAGNOSTIC: Available UserIDs in DB: ")
-	for drows.Next() {
-		var u string
-		drows.Scan(&u)
-		fmt.Printf("[%s] ", u)
+	fmt.Printf("DIAGNOSTIC: Searching accounts for UserID: '%s' (len: %d)\n", userID, len(userID))
+	rowsAll, _ := r.db.Query(ctx, "SELECT id, user_id, name, is_active FROM accounts")
+	fmt.Println("DIAGNOSTIC: All Accounts in System Table:")
+	foundCount := 0
+	for rowsAll.Next() {
+		var id, uid, name string
+		var active bool
+		rowsAll.Scan(&id, &uid, &name, &active)
+		fmt.Printf(" - AccountID: %s | Name: %s | OwnerUserID: '%s' (len: %d) | Active: %v\n", id, name, uid, len(uid), active)
+		foundCount++
 	}
-	fmt.Println()
-	drows.Close()
+	fmt.Printf("DIAGNOSTIC: Total accounts found in table (any user): %d\n", foundCount)
+	rowsAll.Close()
 	// DIAG_END
 
 	rows, err := r.db.Query(ctx, query, userID)
