@@ -26,8 +26,8 @@ import { revertInvoicePayment } from "@/app/(protected)/compromissos/cards/actio
 import { useTransition, useState } from "react"
 import { EditTransactionDialog } from "@/app/(protected)/caixa/transactions/edit-transaction-dialog"
 import { useRouter } from "next/navigation"
-import { InvoiceDetailsModal } from "./invoice-details-modal"
-import { PayableDetailsModal } from "./payable-details-modal"
+import { InvoiceDetailsModal } from "@/features/cards/components/invoice-details-modal"
+import { PayableDetailsModal } from "@/features/payables/components/payable-details-modal"
 
 interface TransactionActionsProps {
     transaction: any

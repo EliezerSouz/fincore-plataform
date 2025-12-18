@@ -38,6 +38,22 @@ $migrations = @{
         @{ From = "components\transactions\transactions-row.tsx"; To = "features\transactions\components\transactions-row.tsx" },
         @{ From = "components\transactions\transactions-table.tsx"; To = "features\transactions\components\transactions-table.tsx" }
     )
+    "cards"        = @(
+        @{ From = "components\summary-card.tsx"; To = "features\cards\components\summary-card.tsx" },
+        @{ From = "components\accounts\pay-invoice-dialog.tsx"; To = "features\cards\components\pay-invoice-dialog.tsx" },
+        @{ From = "components\transactions\invoice-details-modal.tsx"; To = "features\cards\components\invoice-details-modal.tsx" },
+        @{ From = "components\transactions\invoice-link-icon.tsx"; To = "features\cards\components\invoice-link-icon.tsx" },
+        @{ From = "components\ui\card.tsx"; To = "features\cards\components\card.tsx" }
+    )
+    "payables"     = @(
+        @{ From = "components\payable-status-filter.tsx"; To = "features\payables\components\payable-status-filter.tsx" },
+        @{ From = "components\transactions\payable-details-modal.tsx"; To = "features\payables\components\payable-details-modal.tsx" },
+        @{ From = "components\transactions\payable-link-icon.tsx"; To = "features\payables\components\payable-link-icon.tsx" }
+    )
+    "reports"      = @(
+        @{ From = "components\overview-chart.tsx"; To = "features\reports\components\overview-chart.tsx" },
+        @{ From = "components\ui\chart.tsx"; To = "features\reports\components\chart.tsx" }
+    )
 }
 
 # Função para mover um componente

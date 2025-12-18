@@ -10,8 +10,8 @@ import * as LucideIcons from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
-import { InvoiceLinkIcon } from "./invoice-link-icon"
-import { PayableLinkIcon } from "./payable-link-icon"
+import { InvoiceLinkIcon } from "@/features/cards/components/invoice-link-icon"
+import { PayableLinkIcon } from "@/features/payables/components/payable-link-icon"
 import { TransactionActions } from "./transaction-actions"
 
 // Mapeamento simples de ícones de categoria
