@@ -38,7 +38,7 @@ func (r *CategoryRepository) FindAll(ctx context.Context, userID, catType string
 	queryCat = `
 		SELECT id, user_id, name, type, icon, color, is_active, created_at, updated_at
 		FROM categories
-		WHERE user_id = $1 AND type = $2
+		WHERE user_id = $1::uuid AND type = $2
 		ORDER BY name ASC
 	`
 	rows, err := r.db.Query(ctx, queryCat, userID, catType)
@@ -72,7 +72,7 @@ func (r *CategoryRepository) FindAll(ctx context.Context, userID, catType string
 		SELECT s.id, s.user_id, s.category_id, s.name, s.is_active, s.created_at, s.updated_at
 		FROM subcategories s
 		JOIN categories c ON s.category_id = c.id
-		WHERE c.user_id = $1 AND c.type = $2
+		WHERE c.user_id = $1::uuid AND c.type = $2
 		ORDER BY s.name ASC
 	`
 	rowsSub, err := r.db.Query(ctx, querySub, userID, catType)
@@ -102,7 +102,7 @@ func (r *CategoryRepository) FindAll(ctx context.Context, userID, catType string
 func (r *CategoryRepository) Create(ctx context.Context, userID string, input entity.CreateCategoryInput) (*entity.Category, error) {
 	query := `
 		INSERT INTO categories (user_id, name, type, icon, color, is_active)
-		VALUES ($1, $2, $3, $4, $5, true)
+		VALUES ($1::uuid, $2, $3, $4, $5, true)
 		RETURNING id, user_id, name, type, icon, color, is_active, created_at, updated_at
 	`
 	var cat entity.Category
@@ -142,7 +142,7 @@ func (r *CategoryRepository) Update(ctx context.Context, id, userID string, inpu
 		args = append(args, *input.IsActive)
 	}
 
-	query += ` WHERE id = $1 AND user_id = $2 RETURNING id, user_id, name, type, icon, color, is_active, created_at, updated_at`
+	query += ` WHERE id = $1 AND user_id = $2::uuid RETURNING id, user_id, name, type, icon, color, is_active, created_at, updated_at`
 
 	var cat entity.Category
 	err := r.db.QueryRow(ctx, query, args...).Scan(
@@ -156,7 +156,7 @@ func (r *CategoryRepository) Update(ctx context.Context, id, userID string, inpu
 }
 
 func (r *CategoryRepository) Delete(ctx context.Context, id, userID string) error {
-	query := `DELETE FROM categories WHERE id = $1 AND user_id = $2`
+	query := `DELETE FROM categories WHERE id = $1 AND user_id = $2::uuid`
 	_, err := r.db.Exec(ctx, query, id, userID)
 	if err != nil {
 		return fmt.Errorf("failed to delete category: %w", err)
@@ -169,14 +169,14 @@ func (r *CategoryRepository) Delete(ctx context.Context, id, userID string) erro
 func (r *CategoryRepository) CreateSubcategory(ctx context.Context, userID, categoryID, name string) (*entity.Subcategory, error) {
 	// Validate category ownership
 	var exists bool
-	err := r.db.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM categories WHERE id=$1 AND user_id=$2)", categoryID, userID).Scan(&exists)
+	err := r.db.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM categories WHERE id=$1 AND user_id=$2::uuid)", categoryID, userID).Scan(&exists)
 	if err != nil || !exists {
 		return nil, fmt.Errorf("category not found or unauthorized")
 	}
 
 	query := `
 		INSERT INTO subcategories (user_id, category_id, name, is_active)
-		VALUES ($1, $2, $3, true)
+		VALUES ($1::uuid, $2, $3, true)
 		RETURNING id, user_id, category_id, name, is_active, created_at, updated_at
 	`
 	var sub entity.Subcategory
@@ -205,7 +205,7 @@ func (r *CategoryRepository) UpdateSubcategory(ctx context.Context, id, userID s
 		args = append(args, *input.IsActive)
 	}
 
-	query += ` WHERE id = $1 AND user_id = $2 RETURNING id, user_id, category_id, name, is_active, created_at, updated_at`
+	query += ` WHERE id = $1 AND user_id = $2::uuid RETURNING id, user_id, category_id, name, is_active, created_at, updated_at`
 
 	var sub entity.Subcategory
 	err := r.db.QueryRow(ctx, query, args...).Scan(
@@ -218,7 +218,7 @@ func (r *CategoryRepository) UpdateSubcategory(ctx context.Context, id, userID s
 }
 
 func (r *CategoryRepository) DeleteSubcategory(ctx context.Context, id, userID string) error {
-	query := `DELETE FROM subcategories WHERE id = $1 AND user_id = $2`
+	query := `DELETE FROM subcategories WHERE id = $1 AND user_id = $2::uuid`
 	_, err := r.db.Exec(ctx, query, id, userID)
 	if err != nil {
 		return fmt.Errorf("failed to delete subcategory: %w", err)

@@ -29,11 +29,17 @@ interface DashboardClientProps {
 export function DashboardClient({ userData }: DashboardClientProps) {
     // ... (rest of code)
 
-    const [date, setDate] = React.useState<Date | undefined>(new Date())
+    const [date, setDate] = React.useState<Date | undefined>(undefined)
+    const [isMounted, setIsMounted] = useState(false)
     const [period, setPeriod] = React.useState("3m")
     const [, setTransactions] = useState<any[]>([])
     const [chartData, setChartData] = useState<any[]>([])
     const [showUpsell, setShowUpsell] = useState(false)
+
+    useEffect(() => {
+        setIsMounted(true)
+        setDate(new Date())
+    }, [])
 
     // Permission Control - implementado localmente baseado em userData
     const can = (feature: Feature): boolean => {
@@ -162,43 +168,47 @@ export function DashboardClient({ userData }: DashboardClientProps) {
                 description="Boas vindas ao seu Financial OS."
                 icon={Activity}
                 action={
-                    <>
-                        <div className="flex items-center gap-2 bg-white dark:bg-slate-900 p-1 rounded-lg border border-slate-200 dark:border-slate-800 shadow-sm">
-                            {can('advanced_reports') ? (
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button
-                                            variant={"ghost"}
-                                            size="sm"
-                                            className={cn("w-[220px] justify-start text-left font-medium text-sm text-slate-600 dark:text-slate-300", !date && "text-muted-foreground")}
-                                        >
-                                            <CalendarIcon className="mr-2 h-4 w-4 text-primary" />
-                                            {date ? format(date, "PPP", { locale: ptBR }) : <span>Selecione o período</span>}
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0" align="end">
-                                        <Calendar mode="single" selected={date} onSelect={setDate} initialFocus />
-                                    </PopoverContent>
-                                </Popover>
-                            ) : (
-                                <Button
-                                    variant={"ghost"}
-                                    size="sm"
-                                    className={cn("w-[220px] justify-start text-left font-medium text-sm text-slate-400 cursor-not-allowed")}
-                                    onClick={() => setShowUpsell(true)}
-                                >
-                                    <CalendarIcon className="mr-2 h-4 w-4 text-slate-400" />
-                                    <span className="flex items-center gap-2">Mês Atual <Lock className="w-3 h-3" /></span>
-                                </Button>
-                            )}
-                        </div>
-                        <UpsellModal
-                            open={showUpsell}
-                            onOpenChange={setShowUpsell}
-                            title="Análise Avançada"
-                            description="No plano Gratuito, a visão é limitada ao trimestre atual. Desbloqueie histórico completo, comparativos anuais e filtros personalizados no Premium."
-                        />
-                    </>
+                    !isMounted ? (
+                        <div className="h-10 w-[220px] bg-slate-100 dark:bg-slate-800 animate-pulse rounded-lg" />
+                    ) : (
+                        <>
+                            <div className="flex items-center gap-2 bg-white dark:bg-slate-900 p-1 rounded-lg border border-slate-200 dark:border-slate-800 shadow-sm">
+                                {can('advanced_reports') ? (
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button
+                                                variant={"ghost"}
+                                                size="sm"
+                                                className={cn("w-[220px] justify-start text-left font-medium text-sm text-slate-600 dark:text-slate-300", !date && "text-muted-foreground")}
+                                            >
+                                                <CalendarIcon className="mr-2 h-4 w-4 text-primary" />
+                                                {date ? format(date, "PPP", { locale: ptBR }) : <span>Selecione o período</span>}
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0" align="end">
+                                            <Calendar mode="single" selected={date} onSelect={setDate} initialFocus />
+                                        </PopoverContent>
+                                    </Popover>
+                                ) : (
+                                    <Button
+                                        variant={"ghost"}
+                                        size="sm"
+                                        className={cn("w-[220px] justify-start text-left font-medium text-sm text-slate-400 cursor-not-allowed")}
+                                        onClick={() => setShowUpsell(true)}
+                                    >
+                                        <CalendarIcon className="mr-2 h-4 w-4 text-slate-400" />
+                                        <span className="flex items-center gap-2">Mês Atual <Lock className="w-3 h-3" /></span>
+                                    </Button>
+                                )}
+                            </div>
+                            <UpsellModal
+                                open={showUpsell}
+                                onOpenChange={setShowUpsell}
+                                title="Análise Avançada"
+                                description="No plano Gratuito, a visão é limitada ao trimestre atual. Desbloqueie histórico completo, comparativos anuais e filtros personalizados no Premium."
+                            />
+                        </>
+                    )
                 }
                 summaryCards={
                     <div className="flex flex-col gap-6">

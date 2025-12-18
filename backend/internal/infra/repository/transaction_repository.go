@@ -41,7 +41,7 @@ func (r *TransactionRepository) FindAll(ctx context.Context, userID string, filt
 		LEFT JOIN accounts a ON t.account_id = a.id
 		LEFT JOIN subcategories s ON t.subcategory_id = s.id
 		LEFT JOIN payment_methods pm ON t.payment_method_id = pm.id
-		WHERE t.user_id = $1
+		WHERE t.user_id = $1::uuid
 	`
 
 	args := []interface{}{userID}
@@ -167,7 +167,7 @@ func (r *TransactionRepository) FindByID(ctx context.Context, id, userID string)
 		       payment_method_id, credit_card_invoice_id, payable_id, related_transaction_id,
 		       description, amount, type, date, created_at, updated_at
 		FROM transactions
-		WHERE id = $1 AND user_id = $2
+		WHERE id = $1 AND user_id = $2::uuid
 	`
 
 	var tx entity.Transaction

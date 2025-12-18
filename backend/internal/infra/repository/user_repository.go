@@ -27,7 +27,7 @@ func (r *UserRepository) Create(ctx context.Context, user *entity.User) error {
 			is_temp_access, temp_access_expires_at, temp_access_origin,
 			subscription_start_date, billing_cycle
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		RETURNING created_at, updated_at
 	`
 	// Normalmente o ID vem do Auth (Supabase), então já deve estar setado.
@@ -68,7 +68,7 @@ func (r *UserRepository) FindByID(ctx context.Context, id uuid.UUID) (*entity.Us
 			is_temp_access, temp_access_expires_at, temp_access_origin, used_promo_code,
 			subscription_start_date, subscription_due_date, subscription_end_date, 
 			billing_cycle, created_at, updated_at 
-		FROM public.users WHERE id = $1`
+		FROM public.users WHERE id = $1::uuid`
 
 	var user entity.User
 	err := r.DB.QueryRow(ctx, query, id).Scan(
@@ -97,7 +97,7 @@ func (r *UserRepository) FindByID(ctx context.Context, id uuid.UUID) (*entity.Us
 }
 
 func (r *UserRepository) UpdateSubscription(ctx context.Context, id uuid.UUID, status entity.SubscriptionStatus, plan entity.SubscriptionPlan) error {
-	query := `UPDATE public.users SET subscription_status = $1, subscription_plan = $2, updated_at = $3 WHERE id = $4`
+	query := `UPDATE public.users SET subscription_status = $1, subscription_plan = $2, updated_at = $3 WHERE id = $4::uuid`
 	_, err := r.DB.Exec(ctx, query, status, plan, time.Now(), id)
 	return err
 }
@@ -112,7 +112,7 @@ func (r *UserRepository) UpdatePlanDetails(ctx context.Context, user *entity.Use
 			temp_access_origin = $5,
 			used_promo_code = $6,
 			updated_at = $7
-		WHERE id = $8
+		WHERE id = $8::uuid
 	`
 	_, err := r.DB.Exec(ctx, query,
 		user.SubscriptionPlan,

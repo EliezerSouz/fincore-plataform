@@ -7,6 +7,7 @@ import (
 	"math"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -123,24 +124,27 @@ func (r *AccountRepository) FindAll(ctx context.Context, userID string, includeI
 	// Query includes subqueries for Yield Display
 	// yield_today: fetches the very last yield record (most recent)
 	// yield_month: sums yield for current month
+	uid, err := uuid.Parse(userID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid user id: %w", err)
+	}
+
 	query := `
 		SELECT 
-			a.id, a.user_id, a.name, a.type, 
-			COALESCE(calculate_account_balance_with_adjustments(a.id, CURRENT_DATE), a.balance) as balance, 
-			a.color, a.is_active, a.yield_rate, a.last_yield_date, a.created_at, a.updated_at,
-			COALESCE((SELECT yield_amount FROM liquidity_yields WHERE account_id = a.id ORDER BY date DESC LIMIT 1), 0) as yield_today,
-			COALESCE((SELECT SUM(yield_amount) FROM liquidity_yields WHERE account_id = a.id AND date >= date_trunc('month', CURRENT_DATE)), 0) as yield_month
-		FROM accounts a
-		WHERE TRIM(a.user_id::text) = TRIM($1::text)
+			id, user_id, name, type, balance, color, is_active, yield_rate, last_yield_date, created_at, updated_at,
+			COALESCE((SELECT yield_amount FROM liquidity_yields WHERE account_id = accounts.id ORDER BY date DESC LIMIT 1), 0) as yield_today,
+			COALESCE((SELECT SUM(yield_amount) FROM liquidity_yields WHERE account_id = accounts.id AND date >= date_trunc('month', CURRENT_DATE)), 0) as yield_month
+		FROM accounts
+		WHERE user_id = $1
 	`
 
 	if !includeInactive {
-		query += " AND a.is_active = true"
+		query += " AND is_active = true"
 	}
 
-	query += " ORDER BY a.is_active DESC, a.name ASC"
+	query += " ORDER BY is_active DESC, name ASC"
 
-	rows, err := r.db.Query(ctx, query, userID)
+	rows, err := r.db.Query(ctx, query, uid)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query accounts: %w", err)
 	}
@@ -175,19 +179,22 @@ func (r *AccountRepository) FindAll(ctx context.Context, userID string, includeI
 }
 
 func (r *AccountRepository) FindByID(ctx context.Context, id, userID string) (*entity.Account, error) {
+	uid, err := uuid.Parse(userID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid user id: %w", err)
+	}
+
 	query := `
 		SELECT 
-			a.id, a.user_id, a.name, a.type, 
-			COALESCE(calculate_account_balance_with_adjustments(a.id, CURRENT_DATE), a.balance) as balance, 
-			a.color, a.is_active, a.yield_rate, a.last_yield_date, a.created_at, a.updated_at,
-			COALESCE((SELECT yield_amount FROM liquidity_yields WHERE account_id = a.id ORDER BY date DESC LIMIT 1), 0) as yield_today,
-			COALESCE((SELECT SUM(yield_amount) FROM liquidity_yields WHERE account_id = a.id AND date >= date_trunc('month', CURRENT_DATE)), 0) as yield_month
-		FROM accounts a
-		WHERE a.id = $1 AND TRIM(a.user_id::text) = TRIM($2::text)
+			id, user_id, name, type, balance, color, is_active, yield_rate, last_yield_date, created_at, updated_at,
+			COALESCE((SELECT yield_amount FROM liquidity_yields WHERE account_id = accounts.id ORDER BY date DESC LIMIT 1), 0) as yield_today,
+			COALESCE((SELECT SUM(yield_amount) FROM liquidity_yields WHERE account_id = accounts.id AND date >= date_trunc('month', CURRENT_DATE)), 0) as yield_month
+		FROM accounts
+		WHERE id = $1 AND user_id = $2
 	`
 
 	var acc entity.Account
-	err := r.db.QueryRow(ctx, query, id, userID).Scan(
+	err = r.db.QueryRow(ctx, query, id, uid).Scan(
 		&acc.ID, &acc.UserID, &acc.Name, &acc.Type,
 		&acc.Balance, &acc.Color, &acc.IsActive, &acc.YieldRate, &acc.LastYieldDate, &acc.CreatedAt, &acc.UpdatedAt,
 		&acc.YieldToday, &acc.YieldMonth,
@@ -210,7 +217,7 @@ func (r *AccountRepository) FindByID(ctx context.Context, id, userID string) (*e
 func (r *AccountRepository) Create(ctx context.Context, userID string, input entity.CreateAccountInput) (*entity.Account, error) {
 	query := `
 		INSERT INTO accounts (user_id, name, type, balance, color, yield_rate, last_yield_date)
-		VALUES ($1, $2, $3, $4, $5, $6, NOW())
+		VALUES ($1::uuid, $2, $3, $4, $5, $6, NOW())
 		RETURNING id, user_id, name, type, balance, color, is_active, yield_rate, last_yield_date, created_at, updated_at
 	`
 
@@ -263,7 +270,7 @@ func (r *AccountRepository) Update(ctx context.Context, id, userID string, input
 		args = append(args, *input.YieldRate)
 	}
 
-	query += ` WHERE id = $1 AND user_id = $2 RETURNING id, user_id, name, type, balance, color, is_active, yield_rate, last_yield_date, created_at, updated_at`
+	query += ` WHERE id = $1 AND user_id = $2::uuid RETURNING id, user_id, name, type, balance, color, is_active, yield_rate, last_yield_date, created_at, updated_at`
 
 	var acc entity.Account
 	err := r.db.QueryRow(ctx, query, args...).Scan(
@@ -278,7 +285,7 @@ func (r *AccountRepository) Update(ctx context.Context, id, userID string, input
 }
 
 func (r *AccountRepository) Delete(ctx context.Context, id, userID string) error {
-	query := `UPDATE accounts SET is_active = false WHERE id = $1 AND user_id = $2`
+	query := `UPDATE accounts SET is_active = false WHERE id = $1 AND user_id = $2::uuid`
 
 	result, err := r.db.Exec(ctx, query, id, userID)
 	if err != nil {

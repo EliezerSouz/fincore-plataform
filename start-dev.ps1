@@ -37,7 +37,7 @@ Write-Host ""
 
 # Função para iniciar o backend
 $backendJob = Start-Job -ScriptBlock {
-    Set-Location "F:\Antigravity\Financeiro\backend"
+    Set-Location "$($using:PSScriptRoot)\backend"
     go run cmd/api/main.go
 }
 
@@ -49,7 +49,7 @@ Start-Sleep -Seconds 3
 
 # Função para iniciar o frontend
 $frontendJob = Start-Job -ScriptBlock {
-    Set-Location "F:\Antigravity\Financeiro\web"
+    Set-Location "$($using:PSScriptRoot)\apps\web"
     npm run dev
 }
 

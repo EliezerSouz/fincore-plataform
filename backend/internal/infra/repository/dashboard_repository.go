@@ -31,7 +31,7 @@ func (r *DashboardRepository) GetSummary(ctx context.Context, userID string) (*F
 			COALESCE(SUM(CASE WHEN type != 'investimento' THEN balance ELSE 0 END), 0) as liquidez,
 			COALESCE(SUM(CASE WHEN type = 'investimento' THEN balance ELSE 0 END), 0) as patrimonio
 		FROM accounts
-		WHERE user_id = $1 AND is_active = true
+		WHERE user_id = $1::uuid AND is_active = true
 	`
 	err := r.db.QueryRow(ctx, queryAccounts, userID).Scan(&summary.Liquidez, &summary.Patrimonio)
 	if err != nil {
@@ -52,7 +52,7 @@ func (r *DashboardRepository) GetSummary(ctx context.Context, userID string) (*F
 	queryPayables := `
 		SELECT COALESCE(SUM(amount), 0)
 		FROM payables
-		WHERE user_id = $1 AND status = 'pending' AND due_date <= $2
+		WHERE user_id = $1::uuid AND status = 'pending' AND due_date <= $2
 	`
 	var payablesTotal float64
 	err = r.db.QueryRow(ctx, queryPayables, userID, eomStr).Scan(&payablesTotal)
@@ -67,7 +67,7 @@ func (r *DashboardRepository) GetSummary(ctx context.Context, userID string) (*F
 	queryInvoices := `
 		SELECT COALESCE(SUM(total_amount - paid_amount), 0)
 		FROM credit_card_invoices
-		WHERE user_id = $1 AND status != 'paid' AND due_date <= $2
+		WHERE user_id = $1::uuid AND status != 'paid' AND due_date <= $2
 	`
 	var invoicesTotal float64
 	err = r.db.QueryRow(ctx, queryInvoices, userID, eomStr).Scan(&invoicesTotal)
