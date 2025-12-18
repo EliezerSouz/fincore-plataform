@@ -125,7 +125,9 @@ func (r *AccountRepository) FindAll(ctx context.Context, userID string) ([]entit
 	// yield_month: sums yield for current month
 	query := `
 		SELECT 
-			a.id, a.user_id, a.name, a.type, a.balance, a.color, a.is_active, a.yield_rate, a.last_yield_date, a.created_at, a.updated_at,
+			a.id, a.user_id, a.name, a.type, 
+			calculate_account_balance_with_adjustments(a.id, CURRENT_DATE) as balance, 
+			a.color, a.is_active, a.yield_rate, a.last_yield_date, a.created_at, a.updated_at,
 			COALESCE((SELECT yield_amount FROM liquidity_yields WHERE account_id = a.id ORDER BY date DESC LIMIT 1), 0) as yield_today,
 			COALESCE((SELECT SUM(yield_amount) FROM liquidity_yields WHERE account_id = a.id AND date >= date_trunc('month', CURRENT_DATE)), 0) as yield_month
 		FROM accounts a
@@ -170,7 +172,9 @@ func (r *AccountRepository) FindAll(ctx context.Context, userID string) ([]entit
 func (r *AccountRepository) FindByID(ctx context.Context, id, userID string) (*entity.Account, error) {
 	query := `
 		SELECT 
-			a.id, a.user_id, a.name, a.type, a.balance, a.color, a.is_active, a.yield_rate, a.last_yield_date, a.created_at, a.updated_at,
+			a.id, a.user_id, a.name, a.type, 
+			calculate_account_balance_with_adjustments(a.id, CURRENT_DATE) as balance, 
+			a.color, a.is_active, a.yield_rate, a.last_yield_date, a.created_at, a.updated_at,
 			COALESCE((SELECT yield_amount FROM liquidity_yields WHERE account_id = a.id ORDER BY date DESC LIMIT 1), 0) as yield_today,
 			COALESCE((SELECT SUM(yield_amount) FROM liquidity_yields WHERE account_id = a.id AND date >= date_trunc('month', CURRENT_DATE)), 0) as yield_month
 		FROM accounts a
