@@ -12,7 +12,7 @@ import { TransactionRow } from "@/features/transactions/components/transactions-
 import { CreateTransactionDialog } from "@/features/transactions/components/create-transaction-dialog"
 import { ReceiptText, CircleDashed, ChevronLeft, ChevronRight } from "lucide-react"
 import { useMemo } from 'react'
-import { DebugOverlay } from "@/components/debug-overlay"
+
 
 import { useAccounts } from '@/hooks/use-accounts'
 
@@ -186,15 +186,7 @@ export function TransactionsView({ accounts, categories, initialInsights }: { ac
                 )}
             </div>
 
-            <DebugOverlay
-                title="Debug Transactions"
-                data={{
-                    urlParams: searchParams.toString(),
-                    filters: filters,
-                    accountsCount: accounts?.length,
-                    categoriesCount: categories?.length
-                }}
-            />
+
         </PageLayout>
     )
 }
