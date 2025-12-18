@@ -3,6 +3,7 @@ package handler
 import (
 	"financeiro-api/internal/entity"
 	"financeiro-api/internal/infra/repository"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -26,6 +27,7 @@ func (h *TransactionHandler) List(c *gin.Context) {
 	}
 
 	// Pagination
+	fmt.Printf("DEBUG HANDLER: Query Params: %v\n", c.Request.URL.Query())
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 

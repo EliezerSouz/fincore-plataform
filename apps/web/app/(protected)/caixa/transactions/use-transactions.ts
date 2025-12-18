@@ -73,6 +73,7 @@ export function useTransactions(filters: TransactionFilters) {
             }
 
             // Passar signal para o client
+            console.log('Fetching transactions with:', params.toString())
             const data = await apiClient.get<Transaction[]>(`/api/transactions?${params.toString()}`, {
                 signal: controller.signal
             } as any) // Cast as any temporário se ApiClient type não estiver atualizado, mas fetch aceita
