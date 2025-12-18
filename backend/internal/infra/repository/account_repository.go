@@ -178,12 +178,12 @@ func (r *AccountRepository) FindByID(ctx context.Context, id, userID string) (*e
 	query := `
 		SELECT 
 			a.id, a.user_id, a.name, a.type, 
-			calculate_account_balance_with_adjustments(a.id, CURRENT_DATE) as balance, 
+			COALESCE(calculate_account_balance_with_adjustments(a.id, CURRENT_DATE), a.balance) as balance, 
 			a.color, a.is_active, a.yield_rate, a.last_yield_date, a.created_at, a.updated_at,
 			COALESCE((SELECT yield_amount FROM liquidity_yields WHERE account_id = a.id ORDER BY date DESC LIMIT 1), 0) as yield_today,
 			COALESCE((SELECT SUM(yield_amount) FROM liquidity_yields WHERE account_id = a.id AND date >= date_trunc('month', CURRENT_DATE)), 0) as yield_month
 		FROM accounts a
-		WHERE a.id = $1 AND a.user_id = $2
+		WHERE a.id = $1 AND TRIM(a.user_id::text) = TRIM($2::text)
 	`
 
 	var acc entity.Account
