@@ -5,7 +5,7 @@ import { CreateCardDialog } from "./create-card-dialog"
 import { PrimaryCardManager } from "./primary-card-manager"
 import { CreditCard, Wallet, TrendingUp, AlertCircle } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
-import { PageLayout } from "@/components/page-layout"
+import { PageLayout } from "@/components/layout/page-layout"
 import { SummaryCard, SummaryCardsGrid } from "@/components/summary-card"
 
 export const metadata: Metadata = {

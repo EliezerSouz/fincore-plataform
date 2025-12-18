@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { ShieldCheck } from "lucide-react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import Link from 'next/link'
-import { Logo } from "@/components/logo"
+import { Logo } from "@/components/ui/logo"
 
 export function SignupForm() {
     const [error, setError] = useState<string | null>(null)

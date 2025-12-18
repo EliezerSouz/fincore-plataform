@@ -2,7 +2,7 @@ import { getCategories } from "./actions"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { CategoryList } from "@/features/categories/components/category-list"
 import { CreateCategoryDialog } from "@/features/categories/components/create-category-dialog"
-import { PageLayout } from "@/components/page-layout"
+import { PageLayout } from "@/components/layout/page-layout"
 import { Tag, TrendingUp, TrendingDown, Layers } from "lucide-react"
 
 export default async function CategoriesPage() {

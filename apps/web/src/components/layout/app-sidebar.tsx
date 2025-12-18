@@ -39,11 +39,11 @@ import {
     SidebarRail,
     useSidebar,
 } from "@/components/ui/sidebar"
-import { Logo } from "@/components/logo"
+import { Logo } from "@/components/ui/logo"
 import { usePathname } from "next/navigation"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { ModeToggle } from "@/components/mode-toggle"
+import { ModeToggle } from "@/components/layout/mode-toggle"
 import { signout } from "@/app/actions"
 import { useUser } from "@/providers/user-provider"
 import { formatCurrency, cn } from "@/lib/utils"

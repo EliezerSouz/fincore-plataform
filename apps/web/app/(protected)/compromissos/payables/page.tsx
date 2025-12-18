@@ -1,4 +1,4 @@
-import { PageLayout } from "@/components/page-layout"
+import { PageLayout } from "@/components/layout/page-layout"
 import { CalendarClock, TrendingDown } from "lucide-react"
 import { getPayables, Payable } from "./actions"
 import { PayableList } from "./payable-list"
@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { formatCurrency } from "@/lib/utils"
 // import { DateRangeFilter } from "@/components/date-range-filter" // Substituído
 import { FilterBar, FilterSummary } from "@/components/filter-bar"
-import { PayableStatusFilter } from "@/components/payable-status-filter"
+import { PayableStatusFilter } from "@/features/payables/components/payable-status-filter"
 // import { redirect } from "next/navigation" // Unused
 
 import { getAccounts } from "@/app/(protected)/caixa/accounts/actions"

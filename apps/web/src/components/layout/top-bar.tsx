@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils"
 import { UserDropdown } from "@/components/layout/user-dropdown"
 import { useUser } from "@/providers/user-provider"
 import { SidebarTrigger } from "@/components/ui/sidebar"
-import { Logo } from "@/components/logo"
+import { Logo } from "@/components/ui/logo"
 
 export function TopBar() {
     const { user, isLoading } = useUser()

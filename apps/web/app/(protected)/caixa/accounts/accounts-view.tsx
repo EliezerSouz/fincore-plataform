@@ -5,7 +5,7 @@ import { AccountCard } from "@/features/accounts/components/account-card"
 import { CreateAccountDialog } from "@/features/accounts/components/create-account-dialog"
 import { ConsolidatedBalanceCard } from "@/features/accounts/components/consolidated-balance-card"
 import { Wallet, Landmark, PiggyBank, TrendingUp, Activity, CreditCard, CircleDashed } from "lucide-react"
-import { PageLayout } from "@/components/page-layout"
+import { PageLayout } from "@/components/layout/page-layout"
 
 export function AccountsView() {
     const { accounts, loading } = useAccounts()

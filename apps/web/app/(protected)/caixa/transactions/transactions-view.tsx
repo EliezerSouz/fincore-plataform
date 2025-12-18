@@ -4,7 +4,7 @@ import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { useTransactions } from '@/hooks/use-transactions'
-import { PageLayout } from "@/components/page-layout"
+import { PageLayout } from "@/components/layout/page-layout"
 import { FilterBar } from "@/components/filter-bar"
 import { TransactionBalanceCard } from "@/features/transactions/components/transaction-balance-card"
 import { TransactionsFilters } from "@/features/transactions/components/transactions-filters"
