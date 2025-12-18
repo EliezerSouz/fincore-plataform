@@ -10,10 +10,8 @@ import { TransactionBalanceCard } from "@/features/transactions/components/trans
 import { TransactionsFilters } from "@/features/transactions/components/transactions-filters"
 import { TransactionRow } from "@/features/transactions/components/transactions-row"
 import { CreateTransactionDialog } from "@/features/transactions/components/create-transaction-dialog"
-import { ReceiptText, CircleDashed, ChevronLeft, ChevronRight } from "lucide-react"
+import { ReceiptText, CircleDashed, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react"
 import { useMemo } from 'react'
-
-
 import { useAccounts } from '@/hooks/use-accounts'
 
 export function TransactionsView({ accounts, categories, initialInsights }: { accounts: any[], categories: any[], initialInsights?: any[] }) {
@@ -32,6 +30,10 @@ export function TransactionsView({ accounts, categories, initialInsights }: { ac
     // Pagination & Limit Logic
     const currentLimit = searchParams.get('limit') || "25"
     const currentPage = parseInt(searchParams.get('page') || "1")
+
+    // Sorting Logic
+    const sortBy = searchParams.get('sort_by')
+    const sortOrder = searchParams.get('sort_order') as 'asc' | 'desc' | null
 
     const { defaultFrom, defaultTo } = useMemo(() => {
         const now = new Date();
@@ -52,7 +54,9 @@ export function TransactionsView({ accounts, categories, initialInsights }: { ac
         year: searchParams.get('year') || undefined,
         limit: parseInt(currentLimit),
         offset: (currentPage - 1) * parseInt(currentLimit),
-    }), [searchParams, defaultFrom, defaultTo, currentLimit, currentPage])
+        sortBy: sortBy || undefined,
+        sortOrder: sortOrder || undefined
+    }), [searchParams, defaultFrom, defaultTo, currentLimit, currentPage, sortBy, sortOrder])
 
     const { transactions: tableTransactions, loading: tableLoading, refresh: refetchTable } = useTransactions(filters)
 
@@ -83,6 +87,40 @@ export function TransactionsView({ accounts, categories, initialInsights }: { ac
         router.push(pathname + '?' + params.toString())
     }
 
+    const handleSort = (field: string) => {
+        const params = new URLSearchParams(searchParams.toString())
+        if (sortBy === field) {
+            params.set('sort_order', sortOrder === 'asc' ? 'desc' : 'asc')
+        } else {
+            params.set('sort_by', field)
+            // Default sort direction for new field
+            if (field === 'date' || field === 'amount') {
+                params.set('sort_order', 'desc')
+            } else {
+                params.set('sort_order', 'asc')
+            }
+        }
+        router.push(pathname + '?' + params.toString())
+    }
+
+    const SortIcon = ({ field }: { field: string }) => {
+        if (sortBy !== field) return <ArrowUpDown className="w-4 h-4 opacity-20" />
+        if (sortOrder === 'asc') return <ArrowUp className="w-4 h-4 text-blue-500" />
+        return <ArrowDown className="w-4 h-4 text-blue-500" />
+    }
+
+    const ThSortable = ({ field, children, className = "" }: { field: string, children: React.ReactNode, className?: string }) => (
+        <th
+            className={`p-3 font-semibold text-slate-500 dark:text-slate-400 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors select-none ${className}`}
+            onClick={() => handleSort(field)}
+        >
+            <div className={`flex items-center gap-1 ${className.includes('text-right') ? 'justify-end' : ''}`}>
+                {children}
+                <SortIcon field={field} />
+            </div>
+        </th>
+    )
+
     return (
         <PageLayout
             title="Transações"
@@ -97,7 +135,7 @@ export function TransactionsView({ accounts, categories, initialInsights }: { ac
                         </div>
                     }
                 >
-                    <TransactionsFilters accounts={accounts} categories={categories} />
+                    <TransactionsFilters accounts={activeAccounts} categories={categories} />
                 </FilterBar>
             }
         >
@@ -114,11 +152,13 @@ export function TransactionsView({ accounts, categories, initialInsights }: { ac
                                 <thead className="bg-slate-50/80 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800">
                                     <tr>
                                         <th className="p-3 font-semibold text-slate-500 dark:text-slate-400 w-[50px]"></th>
-                                        <th className="p-3 font-semibold text-slate-500 dark:text-slate-400 w-[120px]">Data</th>
-                                        <th className="p-3 font-semibold text-slate-500 dark:text-slate-400 w-[30%]">Descrição</th>
-                                        <th className="p-3 font-semibold text-slate-500 dark:text-slate-400 hidden md:table-cell w-[15%]">Categoria</th>
-                                        <th className="p-3 font-semibold text-slate-500 dark:text-slate-400 hidden md:table-cell w-[15%]">Conta / Pagamento</th>
-                                        <th className="p-3 font-semibold text-slate-500 dark:text-slate-400 text-right w-[15%]">Valor</th>
+
+                                        <ThSortable field="date" className="w-[120px]">Data</ThSortable>
+                                        <ThSortable field="description" className="w-[30%]">Descrição</ThSortable>
+                                        <ThSortable field="category" className="hidden md:table-cell w-[15%]">Categoria</ThSortable>
+                                        <ThSortable field="account" className="hidden md:table-cell w-[15%]">Conta / Pagamento</ThSortable>
+                                        <ThSortable field="amount" className="text-right w-[15%]">Valor</ThSortable>
+
                                         <th className="p-3 font-semibold text-slate-500 dark:text-slate-400 w-[60px]"></th>
                                     </tr>
                                 </thead>
@@ -185,8 +225,6 @@ export function TransactionsView({ accounts, categories, initialInsights }: { ac
                     </>
                 )}
             </div>
-
-
         </PageLayout>
     )
 }

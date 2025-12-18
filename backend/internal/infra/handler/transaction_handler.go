@@ -42,6 +42,8 @@ func (h *TransactionHandler) List(c *gin.Context) {
 		Type:       c.Query("type"),
 		DateStart:  c.Query("from"),
 		DateEnd:    c.Query("to"),
+		SortBy:     c.Query("sort_by"),
+		SortOrder:  c.Query("sort_order"),
 	}
 
 	transactions, err := h.repo.FindAll(c.Request.Context(), userID, filter, limit, offset)

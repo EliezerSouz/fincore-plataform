@@ -17,6 +17,8 @@ export interface ExtendedTransactionListParams extends TransactionListParams {
     to?: string
     month?: string
     year?: string
+    sortBy?: string
+    sortOrder?: 'asc' | 'desc'
 }
 
 export function useTransactions(params?: ExtendedTransactionListParams) {
@@ -48,6 +50,9 @@ export function useTransactions(params?: ExtendedTransactionListParams) {
                 if (params.accountId && params.accountId !== 'all') searchParams.append('account_id', params.accountId)
                 if (params.categoryId && params.categoryId !== 'all') searchParams.append('category_id', params.categoryId)
                 if (params.type && params.type !== 'all') searchParams.append('type', params.type)
+
+                if (params.sortBy) searchParams.append('sort_by', params.sortBy)
+                if (params.sortOrder) searchParams.append('sort_order', params.sortOrder)
 
                 // Date filters
                 if (params.from) searchParams.append('from', params.from)

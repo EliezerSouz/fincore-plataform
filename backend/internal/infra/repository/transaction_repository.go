@@ -23,6 +23,8 @@ type TransactionFilter struct {
 	Type       string
 	DateStart  string
 	DateEnd    string
+	SortBy     string
+	SortOrder  string
 }
 
 func (r *TransactionRepository) FindAll(ctx context.Context, userID string, filter TransactionFilter, limit, offset int) ([]entity.Transaction, error) {
@@ -71,8 +73,30 @@ func (r *TransactionRepository) FindAll(ctx context.Context, userID string, filt
 		args = append(args, filter.DateEnd)
 	}
 
+	// Order By Logic
+	orderBy := "t.date DESC, t.created_at DESC"
+	if filter.SortBy != "" {
+		direction := "ASC"
+		if filter.SortOrder == "desc" {
+			direction = "DESC"
+		}
+
+		switch filter.SortBy {
+		case "date":
+			orderBy = fmt.Sprintf("t.date %s, t.created_at DESC", direction)
+		case "description":
+			orderBy = fmt.Sprintf("t.description %s", direction)
+		case "amount":
+			orderBy = fmt.Sprintf("t.amount %s", direction)
+		case "category":
+			orderBy = fmt.Sprintf("c.name %s", direction)
+		case "account":
+			orderBy = fmt.Sprintf("a.name %s", direction)
+		}
+	}
+
 	argCount++
-	query += fmt.Sprintf(" ORDER BY t.date DESC, t.created_at DESC LIMIT $%d", argCount)
+	query += fmt.Sprintf(" ORDER BY %s LIMIT $%d", orderBy, argCount)
 	args = append(args, limit)
 
 	argCount++
