@@ -140,6 +140,19 @@ func (r *AccountRepository) FindAll(ctx context.Context, userID string, includeI
 
 	query += " ORDER BY a.is_active DESC, a.name ASC"
 
+	// DIAG_START
+	fmt.Printf("DIAGNOSTIC: Searching accounts for UserID: %s\n", userID)
+	drows, _ := r.db.Query(ctx, "SELECT DISTINCT user_id FROM accounts")
+	fmt.Print("DIAGNOSTIC: Available UserIDs in DB: ")
+	for drows.Next() {
+		var u string
+		drows.Scan(&u)
+		fmt.Printf("[%s] ", u)
+	}
+	fmt.Println()
+	drows.Close()
+	// DIAG_END
+
 	rows, err := r.db.Query(ctx, query, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query accounts: %w", err)
