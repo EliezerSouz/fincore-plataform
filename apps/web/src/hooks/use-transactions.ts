@@ -5,28 +5,77 @@
 
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { transactionService, type Transaction, type CreateTransactionInput, type UpdateTransactionInput, type TransactionListParams } from '@financeiro/core'
+import { apiClient } from '@/lib/api-client'
 
 export function useTransactions(params?: TransactionListParams) {
     const [transactions, setTransactions] = useState<Transaction[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
 
+    const abortControllerRef = useRef<AbortController | null>(null)
+
     // Carregar transações
-    const fetchTransactions = async () => {
+    const fetchTransactions = useCallback(async () => {
+        // Cancel previous request
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort()
+        }
+
+        const controller = new AbortController()
+        abortControllerRef.current = controller
+
         try {
             setLoading(true)
             setError(null)
-            const data = await transactionService.list(params)
-            setTransactions(data)
-        } catch (err) {
+
+            const searchParams = new URLSearchParams()
+
+            if (params) {
+                if (params.limit) searchParams.append('limit', params.limit.toString())
+                if (params.offset) searchParams.append('offset', params.offset.toString())
+                if (params.accountId && params.accountId !== 'all') searchParams.append('account_id', params.accountId)
+                if (params.categoryId && params.categoryId !== 'all') searchParams.append('category_id', params.categoryId)
+                if (params.type && params.type !== 'all') searchParams.append('type', params.type)
+
+                // Date filters
+                if (params.from) searchParams.append('from', params.from)
+                if (params.to) searchParams.append('to', params.to)
+
+                // Legacy month/year support if needed
+                if (!params.from && !params.to && params.month && params.year) {
+                    const date = new Date(parseInt(params.year), parseInt(params.month) + 1, 0)
+                    const startDate = `${params.year}-${(parseInt(params.month) + 1).toString().padStart(2, '0')}-01`
+                    const endDate = `${params.year}-${(parseInt(params.month) + 1).toString().padStart(2, '0')}-${date.getDate()}`
+                    searchParams.append('from', startDate)
+                    searchParams.append('to', endDate)
+                }
+            } else {
+                searchParams.append('limit', '25')
+            }
+
+            console.log('Fetching transactions with:', searchParams.toString())
+
+            // Use local apiClient to ensure no-cache and correct params
+            const data = await apiClient.get<Transaction[]>(`/api/transactions?${searchParams.toString()}`, {
+                signal: controller.signal
+            } as any)
+
+            if (!controller.signal.aborted) {
+                setTransactions(data || [])
+            }
+        } catch (err: any) {
+            if (err.name === 'AbortError') return
+
             setError(err instanceof Error ? err.message : 'Erro ao carregar transações')
             console.error('Error fetching transactions:', err)
         } finally {
-            setLoading(false)
+            if (abortControllerRef.current === controller && !controller.signal.aborted) {
+                setLoading(false)
+            }
         }
-    }
+    }, [params])
 
     // Criar transação
     const createTransaction = async (input: CreateTransactionInput) => {
@@ -71,7 +120,10 @@ export function useTransactions(params?: TransactionListParams) {
     // Carregar transações ao montar o componente
     useEffect(() => {
         fetchTransactions()
-    }, [params?.limit, params?.offset])
+        return () => {
+            abortControllerRef.current?.abort()
+        }
+    }, [fetchTransactions])
 
     return {
         transactions,
