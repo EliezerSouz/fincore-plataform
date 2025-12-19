@@ -1,15 +1,10 @@
 "use client"
 
 import { useState } from "react"
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog"
+import { BaseModal } from "@/components/ui/base-modal"
 import { updateTransaction } from "./actions"
 import { FinancialTransactionForm, FinancialTransactionFormData } from "@/features/transactions/components/financial-transaction-form"
+import { ArrowDownCircle, ArrowUpCircle, ArrowRightLeft } from "lucide-react"
 
 interface EditTransactionDialogProps {
     open: boolean
@@ -74,28 +69,45 @@ export function EditTransactionDialog({ open, onOpenChange, transaction }: EditT
     }
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[500px] bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
-                <DialogHeader>
-                    <DialogTitle className="text-xl font-bold flex items-center gap-2">
+        <BaseModal
+            open={open}
+            onOpenChange={onOpenChange}
+            title={
+                <div className="flex items-center gap-2">
+                    {transaction.type === 'despesa' && <ArrowDownCircle className="w-5 h-5 text-red-600" />}
+                    {transaction.type === 'receita' && <ArrowUpCircle className="w-5 h-5 text-emerald-600" />}
+                    {transaction.type === 'transferencia' && <ArrowRightLeft className="w-5 h-5 text-blue-600" />}
+
+                    <span>
                         {transaction.type === 'despesa' && "Editar Despesa"}
                         {transaction.type === 'receita' && "Editar Receita"}
                         {transaction.type === 'transferencia' && "Editar Transferência"}
-                    </DialogTitle>
-                    <DialogDescription>
-                        Atualize os dados desta movimentação financeira.
-                    </DialogDescription>
-                </DialogHeader>
-
-                <FinancialTransactionForm
-                    mode="edit"
-                    initialData={initialData}
-                    onSubmit={handleSubmit}
-                    onCancel={() => onOpenChange(false)}
-                    isLoading={isLoading}
-                    showTypeSelector={true}
-                />
-            </DialogContent>
-        </Dialog>
+                    </span>
+                </div>
+            }
+            description="Atualize os dados desta movimentação financeira."
+            className="max-w-[500px]"
+            primaryButton={{
+                label: "Salvar Alterações",
+                isLoading: isLoading,
+                form: "edit-transaction-form",
+                type: "submit"
+            }}
+            secondaryButton={{
+                label: "Cancelar",
+                onClick: () => onOpenChange(false)
+            }}
+        >
+            <FinancialTransactionForm
+                mode="edit"
+                initialData={initialData}
+                onSubmit={handleSubmit}
+                onCancel={() => onOpenChange(false)}
+                isLoading={isLoading}
+                showTypeSelector={true}
+                formId="edit-transaction-form"
+                hideFooter={true}
+            />
+        </BaseModal>
     )
 }

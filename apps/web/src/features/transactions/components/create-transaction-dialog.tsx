@@ -1,18 +1,12 @@
 "use client"
 
 import { useState } from "react"
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "@/components/ui/dialog"
+import { BaseModal } from "@/components/ui/base-modal"
 import { createTransaction, createTransfer } from "@/app/(protected)/caixa/transactions/actions"
 import { createTransaction as createCardTransaction } from "@/app/(protected)/compromissos/cards/actions"
 import { CreateButton } from "@/components/ui/create-button"
 import { FinancialTransactionForm, FinancialTransactionFormData } from "./financial-transaction-form"
+import { ArrowRightLeft } from "lucide-react"
 
 interface CreateTransactionDialogProps {
     onSuccess?: () => void
@@ -80,28 +74,40 @@ export function CreateTransactionDialog({ onSuccess }: CreateTransactionDialogPr
     }
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                <CreateButton label="Nova Transação" />
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px] bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
-                <DialogHeader>
-                    <DialogTitle className="text-xl font-bold flex items-center gap-2">
-                        Nova Transação
-                    </DialogTitle>
-                    <DialogDescription>
-                        Registre uma nova movimentação financeira.
-                    </DialogDescription>
-                </DialogHeader>
+        <>
+            <CreateButton label="Nova Transação" onClick={() => setOpen(true)} />
 
+            <BaseModal
+                open={open}
+                onOpenChange={setOpen}
+                title={
+                    <div className="flex items-center gap-2">
+                        <ArrowRightLeft className="w-5 h-5 text-blue-600" />
+                        <span>Nova Transação</span>
+                    </div>
+                }
+                description="Registre uma nova movimentação financeira."
+                className="max-w-[500px]"
+                primaryButton={{
+                    label: "Confirmar Lançamento",
+                    isLoading: isLoading,
+                    form: "create-transaction-form",
+                    type: "submit"
+                }}
+                secondaryButton={{
+                    label: "Cancelar"
+                }}
+            >
                 <FinancialTransactionForm
                     mode="create"
                     onSubmit={handleSubmit}
                     onCancel={() => setOpen(false)}
                     isLoading={isLoading}
                     showTypeSelector={true}
+                    formId="create-transaction-form"
+                    hideFooter={true}
                 />
-            </DialogContent>
-        </Dialog>
+            </BaseModal>
+        </>
     )
 }

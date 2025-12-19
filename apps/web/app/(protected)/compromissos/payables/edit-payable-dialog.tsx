@@ -1,16 +1,11 @@
 "use client"
 
 import { useState } from "react"
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog"
+import { BaseModal } from "@/components/ui/base-modal"
 import { updatePayable, Payable } from "./actions"
 import { FinancialTransactionForm, FinancialTransactionFormData } from "@/features/transactions/components/financial-transaction-form"
 import { useRouter } from "next/navigation"
+import { FileText } from "lucide-react"
 
 interface EditPayableDialogProps {
     payable: Payable
@@ -57,28 +52,40 @@ export function EditPayableDialog({ payable, open, onOpenChange }: EditPayableDi
     }
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[500px] bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
-                <DialogHeader>
-                    <DialogTitle className="text-xl font-bold flex items-center gap-2">
-                        Editar Conta a Pagar
-                    </DialogTitle>
-                    <DialogDescription>
-                        Atualize os dados desta conta prevista.
-                    </DialogDescription>
-                </DialogHeader>
-
-                <FinancialTransactionForm
-                    mode="edit"
-                    initialData={initialData}
-                    onSubmit={handleSubmit}
-                    onCancel={() => onOpenChange(false)}
-                    isLoading={loading}
-                    showTypeSelector={false} // Fixo em despesa
-                    showAccountSelector={false} // Payables não têm conta até serem pagos
-                    dateLabel="Vencimento"
-                />
-            </DialogContent>
-        </Dialog>
+        <BaseModal
+            open={open}
+            onOpenChange={onOpenChange}
+            title={
+                <div className="flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-blue-600" />
+                    <span>Editar Conta a Pagar</span>
+                </div>
+            }
+            description="Atualize os dados desta conta prevista."
+            className="max-w-[500px]"
+            primaryButton={{
+                label: "Salvar Alterações",
+                isLoading: loading,
+                form: "edit-payable-form",
+                type: "submit"
+            }}
+            secondaryButton={{
+                label: "Cancelar",
+                onClick: () => onOpenChange(false)
+            }}
+        >
+            <FinancialTransactionForm
+                mode="edit"
+                initialData={initialData}
+                onSubmit={handleSubmit}
+                onCancel={() => onOpenChange(false)}
+                isLoading={loading}
+                showTypeSelector={false} // Fixo em despesa
+                showAccountSelector={false} // Payables não têm conta até serem pagos
+                dateLabel="Vencimento"
+                formId="edit-payable-form"
+                hideFooter={true}
+            />
+        </BaseModal>
     )
 }

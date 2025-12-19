@@ -1,32 +1,15 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import * as Icons from "lucide-react"
+import { BaseModal } from "@/components/ui/base-modal"
+import { FileText, Lock } from "lucide-react"
 import { createPayable } from "./actions"
 import { useRouter } from "next/navigation"
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
 import { getCategories, getSubcategories } from "@/app/(protected)/caixa/transactions/actions"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CreateButton } from "@/components/ui/create-button"
 import { UpsellModal } from "@/components/ui/upsell-modal"
 import { usePermission } from "@/hooks/use-permission"
-import { Lock } from "lucide-react"
 import { FinancialTransactionForm, FinancialTransactionFormData } from "@/features/transactions/components/financial-transaction-form"
 
 export function CreatePayableDialog({ activeCount = 0 }: { activeCount?: number }) {
@@ -108,16 +91,31 @@ export function CreatePayableDialog({ activeCount = 0 }: { activeCount?: number 
     }
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                <CreateButton label="Nova Conta" />
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px] bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 p-0 overflow-hidden">
-                <DialogHeader className="p-6 pb-0">
-                    <DialogTitle className="text-xl font-bold">Nova Conta a Pagar</DialogTitle>
-                </DialogHeader>
+        <>
+            <CreateButton label="Nova Conta" onClick={() => setOpen(true)} />
 
-                <div className="px-6 pt-4">
+            <BaseModal
+                open={open}
+                onOpenChange={setOpen}
+                title={
+                    <div className="flex items-center gap-2">
+                        <FileText className="w-5 h-5 text-blue-600" />
+                        <span>Nova Conta a Pagar</span>
+                    </div>
+                }
+                description="Cadastre seus compromissos financeiros."
+                className="max-w-[500px]"
+                primaryButton={{
+                    label: "Criar Conta",
+                    isLoading: loading,
+                    form: "create-payable-form",
+                    type: "submit"
+                }}
+                secondaryButton={{
+                    label: "Cancelar"
+                }}
+            >
+                <div className="space-y-6">
                     <Tabs value={mode} onValueChange={handleModeChange} className="w-full">
                         <TabsList className="grid w-full grid-cols-3 bg-slate-100 dark:bg-slate-800 p-1 h-11">
                             <TabsTrigger value="single" className="data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700">Única</TabsTrigger>
@@ -129,9 +127,7 @@ export function CreatePayableDialog({ activeCount = 0 }: { activeCount?: number 
                             </TabsTrigger>
                         </TabsList>
                     </Tabs>
-                </div>
 
-                <div className="p-6 pt-4">
                     <FinancialTransactionForm
                         mode="create"
                         onSubmit={handleFormSubmit}
@@ -145,6 +141,8 @@ export function CreatePayableDialog({ activeCount = 0 }: { activeCount?: number 
                             installments: mode === 'single' ? "1" : "12"
                         }}
                         dateLabel="Vencimento"
+                        formId="create-payable-form"
+                        hideFooter={true}
                     />
                 </div>
 
@@ -154,7 +152,7 @@ export function CreatePayableDialog({ activeCount = 0 }: { activeCount?: number 
                     title="Recorrência Inteligente"
                     description="Contas fixas e parcelamentos automáticos são exclusivos do Premium. Automatize suas finanças e nunca mais esqueça um boleto."
                 />
-            </DialogContent>
-        </Dialog>
+            </BaseModal>
+        </>
     )
 }

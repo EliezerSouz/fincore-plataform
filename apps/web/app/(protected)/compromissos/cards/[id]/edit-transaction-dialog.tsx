@@ -1,15 +1,10 @@
 "use client"
 
 import { useState } from "react"
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog"
+import { BaseModal } from "@/components/ui/base-modal"
 import { updateTransaction, Transaction } from "../actions"
 import { FinancialTransactionForm, FinancialTransactionFormData } from "@/features/transactions/components/financial-transaction-form"
+import { CreditCard } from "lucide-react"
 
 interface EditTransactionDialogProps {
     transaction: Transaction
@@ -61,28 +56,40 @@ export function EditTransactionDialog({ transaction, open, onOpenChange, onSucce
     }
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[500px] bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
-                <DialogHeader>
-                    <DialogTitle className="text-xl font-bold flex items-center gap-2">
-                        Editar Item da Fatura
-                    </DialogTitle>
-                    <DialogDescription>
-                        Atualize os dados deste lançamento no cartão.
-                    </DialogDescription>
-                </DialogHeader>
-
-                <FinancialTransactionForm
-                    mode="edit"
-                    initialData={initialData}
-                    onSubmit={handleSubmit}
-                    onCancel={() => onOpenChange(false)}
-                    isLoading={isLoading}
-                    showTypeSelector={false} // Fixo em despesa
-                    showAccountSelector={false} // Cartão de crédito não usa "Conta" de saída imediata aqui
-                    showPaymentMethodSelector={false} // O método é o próprio cartão
-                />
-            </DialogContent>
-        </Dialog>
+        <BaseModal
+            open={open}
+            onOpenChange={onOpenChange}
+            title={
+                <div className="flex items-center gap-2">
+                    <CreditCard className="w-5 h-5 text-orange-600" />
+                    <span>Editar Item da Fatura</span>
+                </div>
+            }
+            description="Atualize os dados deste lançamento no cartão."
+            className="max-w-[500px]"
+            primaryButton={{
+                label: "Salvar Alterações",
+                isLoading: isLoading,
+                form: "edit-card-transaction-form",
+                type: "submit"
+            }}
+            secondaryButton={{
+                label: "Cancelar",
+                onClick: () => onOpenChange(false)
+            }}
+        >
+            <FinancialTransactionForm
+                mode="edit"
+                initialData={initialData}
+                onSubmit={handleSubmit}
+                onCancel={() => onOpenChange(false)}
+                isLoading={isLoading}
+                showTypeSelector={false} // Fixo em despesa
+                showAccountSelector={false} // Cartão de crédito não usa "Conta" de saída imediata aqui
+                showPaymentMethodSelector={false} // O método é o próprio cartão
+                formId="edit-card-transaction-form"
+                hideFooter={true}
+            />
+        </BaseModal>
     )
 }

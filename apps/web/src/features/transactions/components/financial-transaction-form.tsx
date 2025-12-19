@@ -43,6 +43,8 @@ interface FinancialTransactionFormProps {
     showPaymentMethodSelector?: boolean
     showCategorySelector?: boolean
     dateLabel?: string
+    formId?: string
+    hideFooter?: boolean
 }
 
 export function FinancialTransactionForm({
@@ -55,7 +57,9 @@ export function FinancialTransactionForm({
     showAccountSelector = true,
     showPaymentMethodSelector = true,
     showCategorySelector = true,
-    dateLabel = "Data"
+    dateLabel = "Data",
+    formId,
+    hideFooter = false
 }: FinancialTransactionFormProps) {
     const isSubmittingRef = useRef(false)
     const { can } = usePermission()
@@ -239,7 +243,7 @@ export function FinancialTransactionForm({
     })
 
     return (
-        <form onSubmit={handleSubmit}>
+        <form id={formId} onSubmit={handleSubmit}>
             {/* SELETOR DE TIPO - Bloqueado em edição */}
             {showTypeSelector && (
                 <div className="flex gap-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg mb-4">
@@ -306,7 +310,7 @@ export function FinancialTransactionForm({
                                     alert("Transferências entre contas são exclusivas para planos Premium.")
                                     return
                                 }
-                                setType('transferencia')
+                                type !== 'transferencia' && setType('transferencia')
                             }}
                             className={cn(
                                 "flex-1 py-1.5 text-sm font-medium rounded-md transition-all flex items-center justify-center gap-2",
@@ -589,25 +593,27 @@ export function FinancialTransactionForm({
                 />
             </div>
 
-            {/* FOOTER COM BOTÕES */}
-            <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-slate-100 dark:border-slate-800">
-                <Button type="button" variant="ghost" onClick={onCancel} className="text-slate-500">
-                    Cancelar
-                </Button>
-                <Button
-                    type="submit"
-                    disabled={isLoading}
-                    className={cn(
-                        "font-bold shadow-md min-w-[160px] h-11 transition-all active:scale-95",
-                        type === 'receita' ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/20' :
-                            type === 'despesa' ? 'bg-red-600 hover:bg-red-700 text-white shadow-red-500/20' :
-                                'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-500/20'
-                    )}
-                >
-                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                    {isLoading ? (mode === 'create' ? 'Processando...' : 'Salvando...') : (mode === 'create' ? 'Confirmar Lançamento' : 'Salvar Alterações')}
-                </Button>
-            </div>
+            {/* FOOTER COM BOTÕES - Só exibe se hideFooter for false */}
+            {!hideFooter && (
+                <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-slate-100 dark:border-slate-800">
+                    <Button type="button" variant="ghost" onClick={onCancel} className="text-slate-500">
+                        Cancelar
+                    </Button>
+                    <Button
+                        type="submit"
+                        disabled={isLoading}
+                        className={cn(
+                            "font-bold shadow-md min-w-[160px] h-11 transition-all active:scale-95",
+                            type === 'receita' ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/20' :
+                                type === 'despesa' ? 'bg-red-600 hover:bg-red-700 text-white shadow-red-500/20' :
+                                    'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-500/20'
+                        )}
+                    >
+                        {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                        {isLoading ? (mode === 'create' ? 'Processando...' : 'Salvando...') : (mode === 'create' ? 'Confirmar Lançamento' : 'Salvar Alterações')}
+                    </Button>
+                </div>
+            )}
         </form>
     )
 }

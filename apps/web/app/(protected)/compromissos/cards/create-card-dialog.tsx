@@ -1,18 +1,11 @@
 "use client"
 
 import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "@/components/ui/dialog"
+import { BaseModal } from "@/components/ui/base-modal"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, CreditCard, Lock } from "lucide-react"
+import { CreditCard, Lock, Check } from "lucide-react"
 import { createCreditCard } from "./actions"
 import { CreateButton } from "@/components/ui/create-button"
 import { usePermission } from "@/hooks/use-permission"
@@ -96,7 +89,7 @@ export function CreateCardDialog({ trigger, cardsCount = 0 }: { trigger?: React.
         return (
             <UpsellModal
                 trigger={
-                    <div className="relative inline-block">
+                    <div className="relative inline-block cursor-not-allowed">
                         {trigger || <CreateButton label="Novo Cartão" />}
                         <div className="absolute -top-1 -right-1 bg-amber-500 text-white rounded-full p-0.5 shadow-sm">
                             <Lock className="w-3 h-3" />
@@ -110,24 +103,41 @@ export function CreateCardDialog({ trigger, cardsCount = 0 }: { trigger?: React.
     }
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                {trigger || (
-                    <CreateButton label="Novo Cartão" />
-                )}
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                    <DialogTitle>Adicionar Cartão de Crédito</DialogTitle>
-                </DialogHeader>
-                <form onSubmit={handleSubmit} className="grid gap-4 py-4">
+        <>
+            <div onClick={() => setOpen(true)} className="inline-block">
+                {trigger || <CreateButton label="Novo Cartão" onClick={() => setOpen(true)} />}
+            </div>
+
+            <BaseModal
+                open={open}
+                onOpenChange={setOpen}
+                title={
+                    <div className="flex items-center gap-2">
+                        <CreditCard className="w-5 h-5 text-purple-600" />
+                        <span>Adicionar Cartão de Crédito</span>
+                    </div>
+                }
+                description="Cadastre seus cartões para controlar faturas e limites."
+                className="max-w-[500px]"
+                primaryButton={{
+                    label: "Criar Cartão",
+                    isLoading: loading,
+                    form: "create-card-form",
+                    type: "submit",
+                    className: "bg-purple-600 hover:bg-purple-700 shadow-purple-500/20"
+                }}
+                secondaryButton={{
+                    label: "Cancelar"
+                }}
+            >
+                <form id="create-card-form" onSubmit={handleSubmit} className="grid gap-4 py-2">
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <Label htmlFor="name">Apelido do Cartão</Label>
+                            <Label htmlFor="name" className="text-xs font-semibold uppercase text-slate-500">Apelido do Cartão</Label>
                             <Input id="name" name="name" placeholder="Ex: Nubank Principal" required />
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="brand">Bandeira</Label>
+                            <Label htmlFor="brand" className="text-xs font-semibold uppercase text-slate-500">Bandeira</Label>
                             <Select name="brand" required defaultValue="master">
                                 <SelectTrigger>
                                     <SelectValue placeholder="Selecione" />
@@ -143,52 +153,48 @@ export function CreateCardDialog({ trigger, cardsCount = 0 }: { trigger?: React.
 
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <Label htmlFor="last_4_digits">Últimos 4 Dígitos</Label>
+                            <Label htmlFor="last_4_digits" className="text-xs font-semibold uppercase text-slate-500">Últimos 4 Dígitos</Label>
                             <Input id="last_4_digits" name="last_4_digits" placeholder="1234" maxLength={4} pattern="\d{4}" className="font-mono" />
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="limit_amount">Limite Total (R$)</Label>
+                            <Label htmlFor="limit_amount" className="text-xs font-semibold uppercase text-slate-500">Limite Total (R$)</Label>
                             <Input id="limit_amount" name="limit_amount" placeholder="0,00" required />
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4 text-xs">
+                    <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <Label htmlFor="closing_day">Dia Fechamento</Label>
+                            <Label htmlFor="closing_day" className="text-xs font-semibold uppercase text-slate-500">Dia Fechamento</Label>
                             <Input id="closing_day" name="closing_day" type="number" min={1} max={31} placeholder="Ex: 5" required />
-                            <p className="text-slate-400">Melhor dia compra</p>
+                            <p className="text-[10px] text-slate-400">Melhor dia compra</p>
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="due_day">Dia Vencimento</Label>
+                            <Label htmlFor="due_day" className="text-xs font-semibold uppercase text-slate-500">Dia Vencimento</Label>
                             <Input id="due_day" name="due_day" type="number" min={1} max={31} placeholder="Ex: 12" required />
-                            <p className="text-slate-400">Dia de pagamento</p>
+                            <p className="text-[10px] text-slate-400">Dia de pagamento</p>
                         </div>
                     </div>
 
                     <div className="space-y-2">
-                        <Label>Cor do Cartão</Label>
+                        <Label className="text-xs font-semibold uppercase text-slate-500">Cor do Cartão</Label>
                         <input type="hidden" name="color" value={selectedColor} />
-                        <div className="flex gap-2 flex-wrap">
+                        <div className="flex gap-3 flex-wrap bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg border border-slate-100 dark:border-slate-800">
                             {COLOR_PRESETS.map(color => (
                                 <button
                                     key={color.hex}
                                     type="button"
-                                    className={`w-8 h-8 rounded-full border-2 transition-all ${selectedColor === color.hex ? 'border-blue-600 scale-110' : 'border-transparent hover:scale-110'}`}
+                                    className={`w-8 h-8 rounded-full transition-all flex items-center justify-center shadow-sm hover:scale-110 ${selectedColor === color.hex ? 'ring-2 ring-offset-2 ring-slate-400 dark:ring-slate-600 scale-110' : ''}`}
                                     style={{ backgroundColor: color.hex }}
                                     onClick={() => setSelectedColor(color.hex)}
                                     title={color.name}
-                                />
+                                >
+                                    {selectedColor === color.hex && <Check className="w-4 h-4 text-white drop-shadow-md" />}
+                                </button>
                             ))}
                         </div>
                     </div>
-
-                    <div className="flex justify-end pt-4">
-                        <Button type="submit" disabled={loading} className="w-full" variant="success">
-                            {loading ? 'Criando...' : 'Criar Cartão'}
-                        </Button>
-                    </div>
                 </form>
-            </DialogContent>
-        </Dialog>
+            </BaseModal>
+        </>
     )
 }
