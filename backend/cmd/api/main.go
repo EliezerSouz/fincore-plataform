@@ -46,6 +46,7 @@ func main() {
 	categoryHandler := handler.NewCategoryHandler(categoryRepo)
 	dashboardHandler := handler.NewDashboardHandler(dashboardRepo)
 	cardHandler := handler.NewCardHandler(cardRepo)
+	aiHandler := handler.NewAIHandler()
 
 	// Setup Gin
 	r := gin.Default()
@@ -87,6 +88,9 @@ func main() {
 		api.POST("/transactions", transactionHandler.Create)
 		api.PUT("/transactions/:id", transactionHandler.Update)
 		api.DELETE("/transactions/:id", transactionHandler.Delete)
+
+		// AI Routes
+		api.POST("/ai/insight", aiHandler.GenerateInsight)
 
 		// TODO: Add more routes
 		// Category routes

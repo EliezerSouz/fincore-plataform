@@ -10,12 +10,17 @@ import { TransactionBalanceCard } from "@/features/transactions/components/trans
 import { TransactionsFilters } from "@/features/transactions/components/transactions-filters"
 import { TransactionRow } from "@/features/transactions/components/transactions-row"
 import { CreateTransactionDialog } from "@/features/transactions/components/create-transaction-dialog"
-import { ReceiptText, CircleDashed, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react"
-import { useMemo } from 'react'
+import { ReceiptText, CircleDashed, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown, Zap, BrainCircuit, AlertTriangle, TrendingUp, Info, CheckCircle } from "lucide-react"
+import { useMemo, useState } from 'react'
 import { useAccounts } from '@/hooks/use-accounts'
+import { getGroqTransactionInsight } from '@/features/ai/actions/groq-insight'
+import { BaseModal } from '@/components/ui/base-modal'
 
 export function TransactionsView({ accounts, categories, initialInsights }: { accounts: any[], categories: any[], initialInsights?: any[] }) {
     const router = useRouter()
+    const [insightOpen, setInsightOpen] = useState(false)
+    const [insightLoading, setInsightLoading] = useState(false)
+    const [insightData, setInsightData] = useState<{ title: string, message: string, type: string } | null>(null)
 
     // Fallback fetching for accounts using client-side hook if server-side failed (empty)
     const { accounts: clientAccounts } = useAccounts({
@@ -106,6 +111,27 @@ export function TransactionsView({ accounts, categories, initialInsights }: { ac
         router.push(pathname + '?' + params.toString())
     }
 
+    const handleGenerateInsight = async () => {
+        setInsightLoading(true)
+        setInsightOpen(true)
+        setInsightData(null) // Reset previous data
+
+        try {
+            // Use chartTransactions (all data in filter) instead of tableTransactions (paginated)
+            const data = await getGroqTransactionInsight(chartTransactions)
+            setInsightData(data)
+        } catch (e) {
+            console.error(e)
+            setInsightData({
+                title: "Erro",
+                message: "Falha ao conectar com a inteligência artificial.",
+                type: "warning"
+            })
+        } finally {
+            setInsightLoading(false)
+        }
+    }
+
     const SortIcon = ({ field }: { field: string }) => {
         if (sortBy !== field) return <ArrowUpDown className="w-4 h-4 opacity-20" />
         if (sortOrder === 'asc') return <ArrowUp className="w-4 h-4 text-blue-500" />
@@ -129,7 +155,18 @@ export function TransactionsView({ accounts, categories, initialInsights }: { ac
             title="Transações"
             description="Gerencie suas entradas, saídas e transferências com detalhes."
             icon={ReceiptText}
-            action={<CreateTransactionDialog onSuccess={refetchAll} />}
+            action={
+                <div className="flex gap-2">
+                    <Button
+                        onClick={handleGenerateInsight}
+                        className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white border-0 shadow-md shadow-violet-500/20"
+                    >
+                        <Zap className="w-4 h-4 mr-2 fill-yellow-300 text-yellow-300" />
+                        IA Insight
+                    </Button>
+                    <CreateTransactionDialog onSuccess={refetchAll} />
+                </div>
+            }
             filterBar={
                 <FilterBar
                     summary={
@@ -228,6 +265,115 @@ export function TransactionsView({ accounts, categories, initialInsights }: { ac
                     </>
                 )}
             </div>
+
+            {/* AI Insight Modal */}
+            <BaseModal
+                open={insightOpen}
+                onOpenChange={setInsightOpen}
+                title={
+                    <div className="flex items-center gap-2 text-violet-600">
+                        <BrainCircuit className="w-5 h-5" />
+                        <span>Análise de Inteligência Artificial</span>
+                    </div>
+                }
+                primaryButton={{
+                    label: "Entendi",
+                    onClick: () => setInsightOpen(false)
+                }}
+            >
+                {insightLoading ? (
+                    <div className="flex flex-col items-center justify-center py-8 gap-4">
+                        <div className="relative">
+                            <div className="w-12 h-12 rounded-full border-4 border-violet-100 dark:border-violet-900/30 border-t-violet-600 animate-spin"></div>
+                            <Zap className="w-5 h-5 text-violet-600 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                        </div>
+                        <p className="text-sm text-slate-500 animate-pulse">Otimizando seus dados financeiros...</p>
+                    </div>
+                ) : insightData ? (
+                    (insightData as any).insights ? (
+                        <div className="py-4">
+                            <h3 className="text-base font-semibold text-slate-700 dark:text-slate-200 mb-4 px-1">
+                                Análise Financeira Inteligente
+                            </h3>
+                            <div className="space-y-3">
+                                {((insightData as any).insights || []).map((insight: any, idx: number) => {
+                                    const isAlert = insight.type === 'alerta';
+                                    const isOpp = insight.type === 'oportunidade';
+
+                                    return (
+                                        <div key={idx} className={`p-4 rounded-xl border transition-all ${isAlert ? 'bg-red-50 dark:bg-red-900/10 border-red-100 dark:border-red-900/30' :
+                                            isOpp ? 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-900/30' :
+                                                'bg-slate-50 dark:bg-slate-900/50 border-slate-100 dark:border-slate-800'
+                                            }`}>
+                                            <div className="flex gap-3 mb-2">
+                                                <div className={`mt-0.5 w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${isAlert ? 'bg-red-100 dark:bg-red-900/30 text-red-600' :
+                                                    isOpp ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600' :
+                                                        'bg-blue-100 dark:bg-blue-900/30 text-blue-600'
+                                                    }`}>
+                                                    {isAlert ? <AlertTriangle className="w-5 h-5" /> : isOpp ? <TrendingUp className="w-5 h-5" /> : <Info className="w-5 h-5" />}
+                                                </div>
+                                                <div>
+                                                    <h4 className={`font-bold text-sm ${isAlert ? 'text-red-900 dark:text-red-200' :
+                                                        isOpp ? 'text-emerald-900 dark:text-emerald-200' :
+                                                            'text-slate-900 dark:text-slate-200'
+                                                        }`}>
+                                                        {insight.title}
+                                                    </h4>
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded border ${isAlert ? 'bg-red-100 border-red-200 text-red-700' :
+                                                            isOpp ? 'bg-emerald-100 border-emerald-200 text-emerald-700' :
+                                                                'bg-slate-100 border-slate-200 text-slate-600'
+                                                            }`}>
+                                                            {insight.category}
+                                                        </span>
+                                                        {insight.priority === 'alta' && (
+                                                            <span className="text-[10px] font-bold text-red-600 flex items-center gap-1">
+                                                                <AlertTriangle className="w-3 h-3" /> Alta Prioridade
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed mb-3 pl-11">
+                                                {insight.description}
+                                            </p>
+
+                                            {insight.suggestedAction && (
+                                                <div className="ml-11 bg-white dark:bg-slate-950 rounded-lg p-3 border border-slate-100 dark:border-slate-800 flex items-start gap-2 shadow-sm">
+                                                    <CheckCircle className="w-4 h-4 text-violet-500 mt-0.5 shrink-0" />
+                                                    <div className="flex-1">
+                                                        <span className="text-xs font-bold text-violet-600 block mb-0.5">Sugestão de Ação</span>
+                                                        <p className="text-xs text-slate-600 dark:text-slate-400">
+                                                            {insight.suggestedAction}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                            <div className="mt-6 flex items-center justify-center gap-2 text-xs text-slate-400">
+                                <Zap className="w-3 h-3 text-yellow-500" />
+                                <span>Análise gerada via Llama 3.3 • Exclui transferências</span>
+                            </div>
+                        </div>
+                    ) : (
+                        // Standard Title/Message rendering (Fallback)
+                        <div className="py-2 space-y-4">
+                            <div className={`p-4 rounded-xl border ${insightData.type === 'warning' ? 'bg-amber-50 border-amber-200 text-amber-800' : insightData.type === 'alert' ? 'bg-red-50 border-red-200 text-red-800' : 'bg-emerald-50 border-emerald-200 text-emerald-800'}`}>
+                                <h3 className="font-bold text-lg mb-2 flex items-center gap-2">
+                                    {insightData.title || "Insight"}
+                                </h3>
+                                <p className="leading-relaxed opacity-90">
+                                    {insightData.message || JSON.stringify(insightData)}
+                                </p>
+                            </div>
+                        </div>
+                    )
+                ) : null}
+            </BaseModal>
         </PageLayout>
     )
 }
