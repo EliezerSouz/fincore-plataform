@@ -28,6 +28,7 @@ export interface Payable {
 
     category_id?: string
     subcategory_id?: string
+    payment_method_id?: string
 
     category?: { name: string, color: string, icon: string }
     subcategory?: { name: string }
@@ -101,6 +102,7 @@ export async function createPayable(formData: FormData) {
     const firstDate = formData.get('date') as string
     const categoryId = formData.get('categoryId') as string || null
     const subcategoryId = formData.get('subcategoryId') as string || null
+    const paymentMethodId = formData.get('paymentMethodId') as string || null
     const mode = formData.get('mode') as 'single' | 'installment' | 'fixed'
     const installments = parseInt(formData.get('installments') as string || '1')
 
@@ -121,7 +123,8 @@ export async function createPayable(formData: FormData) {
             status: 'pending',
             recurrence_strategy: 'single',
             category_id: categoryId,
-            subcategory_id: subcategoryId
+            subcategory_id: subcategoryId,
+            payment_method_id: paymentMethodId
         })
     } else if (mode === 'installment') {
         const installmentValue = amount / installments
@@ -136,7 +139,8 @@ export async function createPayable(formData: FormData) {
                 installment_number: i,
                 total_installments: installments,
                 category_id: categoryId,
-                subcategory_id: subcategoryId
+                subcategory_id: subcategoryId,
+                payment_method_id: paymentMethodId
             })
             currentDate.setMonth(currentDate.getMonth() + 1)
         }
@@ -150,7 +154,8 @@ export async function createPayable(formData: FormData) {
                 status: 'pending',
                 recurrence_strategy: 'fixed',
                 category_id: categoryId,
-                subcategory_id: subcategoryId
+                subcategory_id: subcategoryId,
+                payment_method_id: paymentMethodId
             })
             currentDate.setMonth(currentDate.getMonth() + 1)
         }
@@ -164,8 +169,6 @@ export async function createPayable(formData: FormData) {
     revalidatePath('/compromissos/payables')
 }
 
-// ... createPayable ...
-
 export async function updatePayable(id: string, formData: FormData) {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -177,6 +180,7 @@ export async function updatePayable(id: string, formData: FormData) {
     const dueDate = formData.get('date') as string
     const categoryId = formData.get('categoryId') as string || null
     const subcategoryId = formData.get('subcategoryId') as string || null
+    const paymentMethodId = formData.get('paymentMethodId') as string || null
 
     // Recorrência geralmente não se edita facilmente num item solto, mas permitimos editar detalhes
 
@@ -192,6 +196,7 @@ export async function updatePayable(id: string, formData: FormData) {
             due_date: dueDate,
             category_id: categoryId,
             subcategory_id: subcategoryId,
+            payment_method_id: paymentMethodId,
             updated_at: new Date().toISOString()
         })
         .eq('id', id)

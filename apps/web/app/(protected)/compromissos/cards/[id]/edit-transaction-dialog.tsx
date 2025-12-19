@@ -1,17 +1,15 @@
 "use client"
 
 import { useState } from "react"
-import { Button } from "@/components/ui/button"
 import {
     Dialog,
     DialogContent,
+    DialogDescription,
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { updateTransaction } from "../actions"
-import { Transaction } from "../actions"
+import { updateTransaction, Transaction } from "../actions"
+import { FinancialTransactionForm, FinancialTransactionFormData } from "@/features/transactions/components/financial-transaction-form"
 
 interface EditTransactionDialogProps {
     transaction: Transaction
@@ -21,76 +19,63 @@ interface EditTransactionDialogProps {
 }
 
 export function EditTransactionDialog({ transaction, open, onOpenChange, onSuccess }: EditTransactionDialogProps) {
-    const [loading, setLoading] = useState(false)
+    const [isLoading, setIsLoading] = useState(false)
 
-    async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-        event.preventDefault()
-        setLoading(true)
+    // Preparar dados iniciais do form
+    const initialData: Partial<FinancialTransactionFormData> = {
+        type: 'despesa', // Itens de fatura são sempre despesas
+        amount: transaction.amount,
+        description: transaction.description,
+        categoryId: transaction.category_id || "",
+        date: new Date(transaction.transaction_date).toISOString().split('T')[0],
+    }
 
+    async function handleSubmit(data: FinancialTransactionFormData) {
+        setIsLoading(true)
         try {
-            const formData = new FormData(event.currentTarget)
+            const formData = new FormData()
             formData.append('id', transaction.id)
+            formData.append('amount', data.amount.toString())
+            formData.append('description', data.description)
+            formData.append('transaction_date', data.date)
+
+            if (data.categoryId) {
+                formData.append('category_id', data.categoryId)
+            }
 
             await updateTransaction(formData)
 
             onSuccess()
             onOpenChange(false)
-        } catch (e: any) {
-            console.error('Erro ao editar transação:', e)
-            alert(e.message || 'Erro ao editar transação.')
+        } catch (error: any) {
+            throw new Error(error.message || "Erro ao atualizar transação")
         } finally {
-            setLoading(false)
+            setIsLoading(false)
         }
     }
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[500px] bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
                 <DialogHeader>
-                    <DialogTitle>Editar Transação</DialogTitle>
+                    <DialogTitle className="text-xl font-bold flex items-center gap-2">
+                        Editar Item da Fatura
+                    </DialogTitle>
+                    <DialogDescription>
+                        Atualize os dados deste lançamento no cartão.
+                    </DialogDescription>
                 </DialogHeader>
-                <form onSubmit={handleSubmit} className="grid gap-4 py-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="edit-desc">Descrição</Label>
-                        <Input
-                            id="edit-desc"
-                            name="description"
-                            defaultValue={transaction.description}
-                            required
-                        />
-                    </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="edit-amount">Valor (R$)</Label>
-                            <Input
-                                id="edit-amount"
-                                name="amount"
-                                defaultValue={transaction.amount.toString().replace('.', ',')}
-                                required
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="edit-date">Data</Label>
-                            <Input
-                                id="edit-date"
-                                name="transaction_date"
-                                type="date"
-                                defaultValue={new Date(transaction.transaction_date).toISOString().split('T')[0]}
-                                required
-                            />
-                        </div>
-                    </div>
-
-                    <div className="flex justify-end gap-2 pt-4">
-                        <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                            Cancelar
-                        </Button>
-                        <Button type="submit" disabled={loading}>
-                            {loading ? 'Salvando...' : 'Salvar'}
-                        </Button>
-                    </div>
-                </form>
+                <FinancialTransactionForm
+                    mode="edit"
+                    initialData={initialData}
+                    onSubmit={handleSubmit}
+                    onCancel={() => onOpenChange(false)}
+                    isLoading={isLoading}
+                    showTypeSelector={false} // Fixo em despesa
+                    showAccountSelector={false} // Cartão de crédito não usa "Conta" de saída imediata aqui
+                    showPaymentMethodSelector={false} // O método é o próprio cartão
+                />
             </DialogContent>
         </Dialog>
     )
