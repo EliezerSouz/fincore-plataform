@@ -5,6 +5,8 @@ import (
 	"financeiro-api/internal/entity"
 	"fmt"
 
+	"strings"
+
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -106,7 +108,7 @@ func (r *CategoryRepository) Create(ctx context.Context, userID string, input en
 		RETURNING id, user_id, name, type, icon, color, is_active, created_at, updated_at
 	`
 	var cat entity.Category
-	err := r.db.QueryRow(ctx, query, userID, input.Name, input.Type, input.Icon, input.Color).Scan(
+	err := r.db.QueryRow(ctx, query, userID, strings.ToUpper(input.Name), input.Type, input.Icon, input.Color).Scan(
 		&cat.ID, &cat.UserID, &cat.Name, &cat.Type,
 		&cat.Icon, &cat.Color, &cat.IsActive, &cat.CreatedAt, &cat.UpdatedAt,
 	)
@@ -124,7 +126,7 @@ func (r *CategoryRepository) Update(ctx context.Context, id, userID string, inpu
 	if input.Name != nil {
 		argCount++
 		query += fmt.Sprintf(", name = $%d", argCount)
-		args = append(args, *input.Name)
+		args = append(args, strings.ToUpper(*input.Name))
 	}
 	if input.Icon != nil {
 		argCount++
@@ -180,7 +182,7 @@ func (r *CategoryRepository) CreateSubcategory(ctx context.Context, userID, cate
 		RETURNING id, user_id, category_id, name, is_active, created_at, updated_at
 	`
 	var sub entity.Subcategory
-	err = r.db.QueryRow(ctx, query, userID, categoryID, name).Scan(
+	err = r.db.QueryRow(ctx, query, userID, categoryID, strings.ToUpper(name)).Scan(
 		&sub.ID, &sub.UserID, &sub.CategoryID, &sub.Name, &sub.IsActive, &sub.CreatedAt, &sub.UpdatedAt,
 	)
 	if err != nil {
@@ -197,7 +199,7 @@ func (r *CategoryRepository) UpdateSubcategory(ctx context.Context, id, userID s
 	if input.Name != nil {
 		argCount++
 		query += fmt.Sprintf(", name = $%d", argCount)
-		args = append(args, *input.Name)
+		args = append(args, strings.ToUpper(*input.Name))
 	}
 	if input.IsActive != nil {
 		argCount++

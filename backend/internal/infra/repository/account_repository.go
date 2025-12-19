@@ -7,6 +7,8 @@ import (
 	"math"
 	"time"
 
+	"strings"
+
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -230,7 +232,7 @@ func (r *AccountRepository) Create(ctx context.Context, userID string, input ent
 	`
 
 	var acc entity.Account
-	err = tx.QueryRow(ctx, query, userID, input.Name, input.Type, input.Balance, input.Color, input.YieldRate).Scan(
+	err = tx.QueryRow(ctx, query, userID, strings.ToUpper(input.Name), input.Type, input.Balance, input.Color, input.YieldRate).Scan(
 		&acc.ID, &acc.UserID, &acc.Name, &acc.Type,
 		&acc.Balance, &acc.Color, &acc.IsActive, &acc.YieldRate, &acc.LastYieldDate, &acc.CreatedAt, &acc.UpdatedAt,
 	)
@@ -267,7 +269,7 @@ func (r *AccountRepository) Update(ctx context.Context, id, userID string, input
 	if input.Name != nil {
 		argCount++
 		query += fmt.Sprintf(", name = $%d", argCount)
-		args = append(args, *input.Name)
+		args = append(args, strings.ToUpper(*input.Name))
 	}
 	if input.Type != nil {
 		argCount++
