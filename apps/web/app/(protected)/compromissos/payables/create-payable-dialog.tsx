@@ -27,6 +27,7 @@ import { CreateButton } from "@/components/ui/create-button"
 import { UpsellModal } from "@/components/ui/upsell-modal"
 import { usePermission } from "@/hooks/use-permission"
 import { Lock } from "lucide-react"
+import { FinancialTransactionForm, FinancialTransactionFormData } from "@/features/transactions/components/financial-transaction-form"
 
 export function CreatePayableDialog({ activeCount = 0 }: { activeCount?: number }) {
     const router = useRouter()
@@ -67,13 +68,17 @@ export function CreatePayableDialog({ activeCount = 0 }: { activeCount?: number 
         setMode(value)
     }
 
-    async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-        event.preventDefault()
+    async function handleFormSubmit(data: FinancialTransactionFormData) {
         setLoading(true)
-
         try {
-            const formData = new FormData(event.currentTarget)
+            const formData = new FormData()
+            formData.append('description', data.description)
+            formData.append('amount', data.amount.toString())
+            formData.append('date', data.date)
+            formData.append('categoryId', data.categoryId || "")
+            formData.append('subcategoryId', data.subcategoryId || "")
             formData.append('mode', mode)
+            formData.append('installments', data.installments || "1")
 
             await createPayable(formData)
             setOpen(false)
@@ -84,9 +89,6 @@ export function CreatePayableDialog({ activeCount = 0 }: { activeCount?: number 
             setLoading(false)
         }
     }
-
-    // Default to today
-    const today = new Date().toISOString().split('T')[0]
 
     if (!canCreate) {
         return (
@@ -110,113 +112,48 @@ export function CreatePayableDialog({ activeCount = 0 }: { activeCount?: number 
             <DialogTrigger asChild>
                 <CreateButton label="Nova Conta" />
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                    <DialogTitle>Nova Conta a Pagar</DialogTitle>
+            <DialogContent className="sm:max-w-[500px] bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 p-0 overflow-hidden">
+                <DialogHeader className="p-6 pb-0">
+                    <DialogTitle className="text-xl font-bold">Nova Conta a Pagar</DialogTitle>
                 </DialogHeader>
-                <form onSubmit={handleSubmit} className="grid gap-4 py-4">
 
+                <div className="px-6 pt-4">
                     <Tabs value={mode} onValueChange={handleModeChange} className="w-full">
-                        <TabsList className="grid w-full grid-cols-3">
-                            <TabsTrigger value="single">Única</TabsTrigger>
-                            <TabsTrigger value="fixed">
-                                {can('manage_recurrence') ? 'Fixa Mensal' : <span className="flex items-center gap-1 opacity-60">Fixa <Lock className="w-3 h-3" /></span>}
+                        <TabsList className="grid w-full grid-cols-3 bg-slate-100 dark:bg-slate-800 p-1 h-11">
+                            <TabsTrigger value="single" className="data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700">Única</TabsTrigger>
+                            <TabsTrigger value="fixed" className="data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700">
+                                {can('manage_recurrence') ? 'Fixa' : <span className="flex items-center gap-1 opacity-60">Fixa <Lock className="w-3 h-3" /></span>}
                             </TabsTrigger>
-                            <TabsTrigger value="installment">
-                                {can('manage_recurrence') ? 'Parcelada' : <span className="flex items-center gap-1 opacity-60">Parcelada <Lock className="w-3 h-3" /></span>}
+                            <TabsTrigger value="installment" className="data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700">
+                                {can('manage_recurrence') ? 'Parcelada' : <span className="flex items-center gap-1 opacity-60">Parc. <Lock className="w-3 h-3" /></span>}
                             </TabsTrigger>
                         </TabsList>
                     </Tabs>
+                </div>
 
-                    <UpsellModal
-                        open={showUpsellRecurrence}
-                        onOpenChange={setShowUpsellRecurrence}
-                        title="Recorrência Inteligente"
-                        description="Contas fixas e parcelamentos automáticos são exclusivos do Premium. Automatize suas finanças e nunca mais esqueça um boleto."
+                <div className="p-6 pt-4">
+                    <FinancialTransactionForm
+                        mode="create"
+                        onSubmit={handleFormSubmit}
+                        onCancel={() => setOpen(false)}
+                        isLoading={loading}
+                        showTypeSelector={false} // Sempre despesa em Payables
+                        showAccountSelector={false} // Regra 2: Sem conta na criação de payable
+                        showPaymentMethodSelector={false} // Regra 2: Sem forma de pagamento
+                        initialData={{
+                            type: 'despesa',
+                            installments: mode === 'single' ? "1" : "12"
+                        }}
+                        dateLabel="Vencimento"
                     />
+                </div>
 
-                    <div className="space-y-2">
-                        <Label htmlFor="description">Descrição</Label>
-                        <Input id="description" name="description" placeholder="Ex: Aluguel, Internet" required autoFocus />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="amount">Valor {mode === 'fixed' && 'Mensal'} (R$)</Label>
-                            <Input id="amount" name="amount" placeholder="0,00" required />
-                            {mode === 'installment' && <p className="text-[10px] text-muted-foreground">Valor TOTAL da compra</p>}
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="date">Vencimento {mode !== 'single' && ' (1ª)'}</Label>
-                            <Input id="date" name="date" type="date" defaultValue={today} required />
-                        </div>
-                    </div>
-
-                    {mode !== 'single' && (
-                        <div className="space-y-2 animate-in slide-in-from-top-2 fade-in">
-                            <Label htmlFor="installments">
-                                {mode === 'fixed' ? 'Repetir por quantos meses?' : 'Número de Parcelas'}
-                            </Label>
-                            <Input
-                                id="installments"
-                                name="installments"
-                                type="number"
-                                min="2"
-                                max="360"
-                                defaultValue="12"
-                                required
-                            />
-                            {mode === 'fixed' && <p className="text-[10px] text-muted-foreground">Isso criará lançamentos futuros para cada mês.</p>}
-                        </div>
-                    )}
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="categoryId">Categoria</Label>
-                            <Select name="categoryId" onValueChange={setSelectedCategory} required>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Selecione..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {categories.map((cat) => (
-                                        <SelectItem key={cat.id} value={cat.id}>
-                                            <span className="flex items-center gap-2">
-                                                {(() => {
-                                                    // Renderização dinâmica SEGURA
-                                                    const IconComponent = (Icons as any)[cat.icon] || Icons.Circle
-                                                    return <IconComponent className="w-4 h-4" />
-                                                })()}
-                                                <span>{cat.name}</span>
-                                            </span>
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="subcategoryId">Subcategoria</Label>
-                            <Select name="subcategoryId" disabled={!selectedCategory || subcategories.length === 0}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Selecione..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {subcategories.map((sub) => (
-                                        <SelectItem key={sub.id} value={sub.id}>
-                                            {sub.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-
-                    <div className="flex justify-end pt-4">
-                        <Button type="submit" disabled={loading} className="w-full" variant="success">
-                            {loading ? 'Salvando...' : 'Agendar Conta'}
-                        </Button>
-                    </div>
-                </form>
+                <UpsellModal
+                    open={showUpsellRecurrence}
+                    onOpenChange={setShowUpsellRecurrence}
+                    title="Recorrência Inteligente"
+                    description="Contas fixas e parcelamentos automáticos são exclusivos do Premium. Automatize suas finanças e nunca mais esqueça um boleto."
+                />
             </DialogContent>
         </Dialog>
     )

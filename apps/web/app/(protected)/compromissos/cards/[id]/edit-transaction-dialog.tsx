@@ -27,6 +27,8 @@ export function EditTransactionDialog({ transaction, open, onOpenChange, onSucce
         amount: transaction.amount,
         description: transaction.description,
         categoryId: transaction.category_id || "",
+        subcategoryId: transaction.subcategory_id || "",
+        notes: transaction.notes || "",
         date: new Date(transaction.transaction_date).toISOString().split('T')[0],
     }
 
@@ -38,9 +40,13 @@ export function EditTransactionDialog({ transaction, open, onOpenChange, onSucce
             formData.append('amount', data.amount.toString())
             formData.append('description', data.description)
             formData.append('transaction_date', data.date)
+            formData.append('notes', data.notes || "")
 
             if (data.categoryId) {
                 formData.append('category_id', data.categoryId)
+            }
+            if (data.subcategoryId) {
+                formData.append('subcategory_id', data.subcategoryId)
             }
 
             await updateTransaction(formData)

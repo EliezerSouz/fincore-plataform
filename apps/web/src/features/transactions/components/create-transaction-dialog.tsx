@@ -10,6 +10,7 @@ import {
     DialogTrigger,
 } from "@/components/ui/dialog"
 import { createTransaction, createTransfer } from "@/app/(protected)/caixa/transactions/actions"
+import { createTransaction as createCardTransaction } from "@/app/(protected)/compromissos/cards/actions"
 import { CreateButton } from "@/components/ui/create-button"
 import { FinancialTransactionForm, FinancialTransactionFormData } from "./financial-transaction-form"
 
@@ -34,20 +35,34 @@ export function CreateTransactionDialog({ onSuccess }: CreateTransactionDialogPr
                 formData.append('paymentMethodId', data.paymentMethodId)
             }
 
+            if (data.notes) {
+                formData.append('notes', data.notes)
+            }
+
             if (data.type === 'transferencia') {
                 formData.append('sourceAccountId', data.accountId)
                 formData.append('targetAccountId', data.targetAccountId || "")
                 await createTransfer(formData)
+            } else if (data.type === 'compra') {
+                // Fluxo de Cartão de Crédito (tabela credit_card_transactions)
+                formData.append('card_id', data.selectedCardId || "")
+                formData.append('installments', data.installments || "1")
+                formData.append('category_id', data.categoryId || "")
+                formData.append('subcategory_id', data.subcategoryId || "")
+
+                if (data.isRetroactive) {
+                    formData.append('startingInstallment', String(data.startInstallment))
+                    const count = Number(data.endInstallment) - Number(data.startInstallment) + 1
+                    formData.append('installmentValue', String(data.amount / count))
+                }
+
+                await createCardTransaction(formData)
             } else {
-                formData.append('accountId', data.accountId)
+                // Fluxo Normal (Receita/Despesa no Caixa)
+                formData.append('accountId', data.accountId || "")
                 if (data.categoryId) formData.append('categoryId', data.categoryId)
                 if (data.subcategoryId) formData.append('subcategoryId', data.subcategoryId)
-
-                // Lógica de Cartão de Crédito
-                if (data.selectedCardId) {
-                    formData.append('cardId', data.selectedCardId)
-                    formData.append('installments', data.installments || "1")
-                }
+                if (data.paymentMethodId) formData.append('paymentMethodId', data.paymentMethodId)
 
                 await createTransaction(formData)
             }

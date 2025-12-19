@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { Invoice, Transaction, getInvoiceDetails, payInvoice, deleteTransaction, revertInvoicePayment } from "../actions"
+import { Invoice, Transaction, getInvoiceDetails, payInvoice, deleteTransaction, revertInvoicePayment, deleteInstallmentSeries } from "../actions"
 import { formatCurrency } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -199,7 +199,7 @@ export function InvoiceList({ invoices, cardId, accounts = [], cardName = 'Cart�
     const [showPayDialog, setShowPayDialog] = useState(false)
     const [revertInvoiceId, setRevertInvoiceId] = useState<string | null>(null)
     const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
-    const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null)
+    const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null)
 
     // Carregar detalhes ao mudar seleção
     useEffect(() => {
@@ -271,17 +271,21 @@ export function InvoiceList({ invoices, cardId, accounts = [], cardName = 'Cart�
         setEditingTransaction(transaction)
     }
 
-    const handleDeleteClick = (id: string, e: React.MouseEvent) => {
+    const handleDeleteClick = (transaction: Transaction, e: React.MouseEvent) => {
         e.stopPropagation()
         e.preventDefault()
         if (isLocked) return
-        setTransactionToDelete(id)
+        setTransactionToDelete(transaction)
     }
 
-    const handleConfirmDelete = async () => {
+    const handleConfirmDelete = async (deleteAll = false) => {
         if (!transactionToDelete) return
         try {
-            await deleteTransaction(transactionToDelete)
+            if (deleteAll) {
+                await deleteInstallmentSeries(transactionToDelete.id)
+            } else {
+                await deleteTransaction(transactionToDelete.id)
+            }
             const data = await getInvoiceDetails(selectedInvoiceId)
             setTransactions(data.transactions)
             setTransactionToDelete(null)
@@ -599,7 +603,7 @@ export function InvoiceList({ invoices, cardId, accounts = [], cardName = 'Cart�
                                                                     size="icon"
                                                                     type="button"
                                                                     className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
-                                                                    onClick={(e) => handleDeleteClick(t.id, e)}
+                                                                    onClick={(e) => handleDeleteClick(t, e)}
                                                                     disabled={isLocked}
                                                                 >
                                                                     <Trash2 className="w-4 h-4" />
@@ -639,7 +643,7 @@ export function InvoiceList({ invoices, cardId, accounts = [], cardName = 'Cart�
                                                             size="icon"
                                                             type="button"
                                                             className="h-8 w-8 -mr-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20"
-                                                            onClick={(e) => handleDeleteClick(t.id, e)}
+                                                            onClick={(e) => handleDeleteClick(t, e)}
                                                             disabled={isLocked}
                                                         >
                                                             <Trash2 className="w-4 h-4" />
@@ -672,13 +676,26 @@ export function InvoiceList({ invoices, cardId, accounts = [], cardName = 'Cart�
                     <AlertDialogHeader>
                         <AlertDialogTitle>Excluir Transação?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Isso removerá a transação da fatura e recalculará o valor total. Esta ação não pode ser desfeita.
+                            {transactionToDelete?.is_installment
+                                ? "Esta compra é parcelada. Você deseja excluir apenas esta parcela ou toda a série de parcelamentos?"
+                                : "Isso removerá a transação da fatura e recalculará o valor total. Esta ação não pode ser desfeita."}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel onClick={() => setTransactionToDelete(null)}>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 hover:bg-red-700">
-                            Confirmar Exclusão
+                    <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+                        <AlertDialogCancel onClick={() => setTransactionToDelete(null)} className="sm:mr-auto">Cancelar</AlertDialogCancel>
+
+                        {transactionToDelete?.is_installment && (
+                            <Button
+                                variant="outline"
+                                onClick={() => handleConfirmDelete(true)}
+                                className="border-red-200 text-red-600 hover:bg-red-50"
+                            >
+                                Excluir toda a série
+                            </Button>
+                        )}
+
+                        <AlertDialogAction onClick={() => handleConfirmDelete(false)} className="bg-red-600 hover:bg-red-700">
+                            {transactionToDelete?.is_installment ? "Excluir apenas esta" : "Confirmar Exclusão"}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

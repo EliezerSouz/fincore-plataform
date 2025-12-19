@@ -167,12 +167,30 @@ export async function updateTransaction(formData: FormData) {
         amount = parseFloat(amountStr)
     }
 
+    const subcategoryId = formData.get('subcategory_id') as string || null
+    const notes = formData.get('notes') as string || null
+
+    // 🛑 VALIDAÇÃO: Não permitir editar lançamento em fatura PAGA
+    const { data: current } = await supabase
+        .from('credit_card_transactions')
+        .select('invoice_id, credit_card_invoices(status, reference_month, reference_year)')
+        .eq('id', id)
+        .single()
+
+    const inv = current?.credit_card_invoices as any
+    if (inv?.status === 'paid') {
+        throw new Error(`Esta transação pertence à fatura de ${inv.reference_month}/${inv.reference_year} que já está PAGA. Não é possível editá-la.`)
+    }
+
     const { error } = await supabase
         .from('credit_card_transactions')
         .update({
             description,
             amount,
-            transaction_date: dateStr
+            transaction_date: dateStr,
+            category_id: formData.get('category_id') as string || null,
+            subcategory_id: subcategoryId,
+            notes: notes
         })
         .eq('id', id)
         .eq('user_id', user.id)
@@ -209,6 +227,9 @@ export interface Transaction {
     installment_number?: number
     total_installments?: number
     category_id?: string
+    subcategory_id?: string
+    notes?: string
+    group_id?: string
     transaction_type: 'purchase' | 'refund' | 'adjustment' | 'fee'
 }
 
@@ -342,6 +363,8 @@ export async function createTransaction(formData: FormData) {
     const date = formData.get('date') as string
     const installments = parseInt(formData.get('installments') as string || '1')
     const categoryId = formData.get('category_id') as string || null
+    const subcategoryId = formData.get('subcategory_id') as string || null
+    const notes = formData.get('notes') as string || null
 
     // Campos Retroativos
     const startingInstallment = parseInt(formData.get('startingInstallment') as string || '1')
@@ -354,6 +377,9 @@ export async function createTransaction(formData: FormData) {
         // Calcular valores para parcelas retroativas
         const actualInstallments = installments - startingInstallment + 1 // Quantas parcelas criar
         const perInstallmentAmount = installmentValue || (amount / installments) // Valor por parcela
+
+        // Identificador único para este grupo de parcelas
+        const groupId = crypto.randomUUID()
 
         // Criar apenas as parcelas restantes
         for (let i = startingInstallment; i <= installments; i++) {
@@ -372,6 +398,17 @@ export async function createTransaction(formData: FormData) {
 
             if (invoiceError) throw new Error(invoiceError.message)
 
+            // 🛑 VALIDAÇÃO: Não permitir lançamento em fatura PAGA
+            const { data: invoiceStatus } = await supabase
+                .from('credit_card_invoices')
+                .select('status, reference_month, reference_year')
+                .eq('id', invoiceId)
+                .single()
+
+            if (invoiceStatus?.status === 'paid') {
+                throw new Error(`A fatura de ${invoiceStatus.reference_month}/${invoiceStatus.reference_year} já está paga. Não é possível adicionar lançamentos nela.`)
+            }
+
             // Inserir parcela
             const { error } = await supabase.from('credit_card_transactions').insert({
                 user_id: user.id,
@@ -384,6 +421,9 @@ export async function createTransaction(formData: FormData) {
                 installment_number: i,
                 total_installments: installments,
                 category_id: categoryId,
+                subcategory_id: subcategoryId,
+                notes: notes,
+                group_id: groupId,
                 transaction_type: 'purchase'
             })
 
@@ -399,6 +439,17 @@ export async function createTransaction(formData: FormData) {
 
         if (invoiceError) throw new Error(invoiceError.message)
 
+        // 🛑 VALIDAÇÃO: Não permitir lançamento em fatura PAGA
+        const { data: invoiceStatus } = await supabase
+            .from('credit_card_invoices')
+            .select('status, reference_month, reference_year')
+            .eq('id', invoiceId)
+            .single()
+
+        if (invoiceStatus?.status === 'paid') {
+            throw new Error(`A fatura de ${invoiceStatus.reference_month}/${invoiceStatus.reference_year} já está paga. Não é possível adicionar lançamentos nela.`)
+        }
+
         const { error } = await supabase.from('credit_card_transactions').insert({
             user_id: user.id,
             credit_card_id: cardId,
@@ -408,6 +459,8 @@ export async function createTransaction(formData: FormData) {
             transaction_date: date,
             is_installment: false,
             category_id: categoryId,
+            subcategory_id: subcategoryId,
+            notes: notes,
             transaction_type: 'purchase'
         })
 
@@ -417,8 +470,74 @@ export async function createTransaction(formData: FormData) {
     revalidatePath('/compromissos/cards/[id]', 'page')
 }
 
+export async function deleteInstallmentSeries(transactionId: string) {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error("Unauthorized")
+
+    // 1. Buscar a transação para pegar o group_id ou informações heurísticas
+    const { data: transaction } = await supabase
+        .from('credit_card_transactions')
+        .select('group_id, description, total_installments, credit_card_id')
+        .eq('id', transactionId)
+        .single()
+
+    if (!transaction) throw new Error("Transação não encontrada")
+
+    // 2. Tentar deletar por group_id (se disponível)
+    if (transaction.group_id) {
+        // Verificar se alguma fatura já está paga
+        const { data: relatedInvoices } = await supabase
+            .from('credit_card_transactions')
+            .select('credit_card_invoices(status)')
+            .eq('group_id', transaction.group_id)
+
+        const hasPaid = relatedInvoices?.some((i: any) => i.credit_card_invoices?.status === 'paid')
+        if (hasPaid) {
+            throw new Error("Não é possível excluir a série toda pois algumas parcelas pertencem a faturas já pagas.")
+        }
+
+        const { error } = await supabase
+            .from('credit_card_transactions')
+            .delete()
+            .eq('group_id', transaction.group_id)
+            .eq('user_id', user.id)
+
+        if (error) throw new Error(error.message)
+    } else {
+        // 3. Fallback Heurístico (para lançamentos antigos sem group_id)
+        // Pega o nome limpo (sem a parte " (1/10)")
+        const cleanDescription = transaction.description.replace(/\s\(\d+\/\d+\)$/, '')
+
+        const { error } = await supabase
+            .from('credit_card_transactions')
+            .delete()
+            .ilike('description', `${cleanDescription} (%)`)
+            .eq('total_installments', transaction.total_installments || 0)
+            .eq('credit_card_id', transaction.credit_card_id)
+            .eq('user_id', user.id)
+
+        if (error) throw new Error(error.message)
+    }
+
+    revalidatePath('/compromissos/cards/[id]', 'page')
+    return { success: true }
+}
+
 export async function deleteTransaction(id: string) {
     const supabase = await createClient()
+
+    // 🛑 VALIDAÇÃO: Não permitir excluir lançamento em fatura PAGA
+    const { data: current } = await supabase
+        .from('credit_card_transactions')
+        .select('invoice_id, credit_card_invoices(status, reference_month, reference_year)')
+        .eq('id', id)
+        .single()
+
+    const inv = current?.credit_card_invoices as any
+    if (inv?.status === 'paid') {
+        throw new Error(`Esta transação pertence à fatura de ${inv.reference_month}/${inv.reference_year} que já está PAGA. Não é possível excluí-la.`)
+    }
 
     // Tentar via Força Bruta (RPC) primeiro
     try {
@@ -491,7 +610,8 @@ export async function revertInvoicePayment(invoiceId: string) {
             .single()
 
         if (invoice) {
-            const cardName = invoice.credit_card?.name || ''
+            const creditCardArr = invoice.credit_card as any
+            const cardName = Array.isArray(creditCardArr) ? creditCardArr[0]?.name : creditCardArr?.name || ''
             const searchTerm = `Pagamento Fatura - ${cardName}%`
 
             const { data: candidateExpense } = await supabase

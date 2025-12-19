@@ -29,8 +29,9 @@ export function EditTransactionDialog({ open, onOpenChange, transaction }: EditT
         categoryId: transaction.category_id || "",
         subcategoryId: transaction.subcategory_id || "",
         paymentMethodId: transaction.payment_method_id || "",
-        date: transaction.date || new Date().toISOString().split('T')[0],
+        date: transaction.transaction_date ? new Date(transaction.transaction_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         selectedCardId: transaction.credit_card_id || "",
+        notes: transaction.notes || "",
     }
 
     async function handleSubmit(data: FinancialTransactionFormData) {
@@ -46,6 +47,10 @@ export function EditTransactionDialog({ open, onOpenChange, transaction }: EditT
             if (data.type !== 'transferencia') {
                 if (data.categoryId) formData.append('categoryId', data.categoryId)
                 if (data.subcategoryId) formData.append('subcategoryId', data.subcategoryId)
+            }
+
+            if (data.notes) {
+                formData.append('notes', data.notes)
             }
 
             if (data.paymentMethodId) {

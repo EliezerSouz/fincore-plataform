@@ -51,6 +51,7 @@ export interface Transaction {
     is_paid?: boolean
     subcategory?: Subcategory
     payment_method?: { name: string }
+    notes?: string
 }
 
 /**
