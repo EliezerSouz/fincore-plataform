@@ -18,6 +18,7 @@ import { EditAccountDialog } from "./edit-account-dialog"
 import { PayInvoiceDialog } from "@/features/accounts/components/pay-invoice-dialog"
 import { BalanceAdjustmentHistory } from "./balance-adjustment-history"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { toast } from "sonner"
 
 
 const getAccountIcon = (type: string) => {
@@ -84,13 +85,14 @@ export function AccountCard({ account, allAccounts = [], paymentMethods = [] }: 
         try {
             await deleteAccount(account.id)
             router.refresh()
+            toast.success("Conta excluída com sucesso!")
         } catch (error: any) {
             console.error("Erro ao excluir:", error)
             setIsDeleting(false)
             if (error.message?.includes("foreign key") || error.message?.includes("constraint")) {
-                alert("Não é possível excluir esta conta pois existem transações ou registros vinculados a ela. Exclua as transações primeiro.")
+                toast.error("Não é possível excluir esta conta pois existem transações ou registros vinculados a ela. Exclua as transações primeiro.")
             } else {
-                alert("Erro ao excluir conta: " + (error.message || "Erro desconhecido"))
+                toast.error("Erro ao excluir conta: " + (error.message || "Erro desconhecido"))
             }
         }
     }
@@ -120,26 +122,26 @@ export function AccountCard({ account, allAccounts = [], paymentMethods = [] }: 
 
                 {/* Watermark Gigante (Background Estilizado) */}
                 <div className="absolute -bottom-6 -right-6 text-slate-900/5 dark:text-white/5 pointer-events-none transition-transform duration-500 group-hover:scale-110 group-hover:rotate-[-5deg]" style={{ color: color, opacity: 0.1 }}>
-                    <Icon strokeWidth={1} className="w-48 h-48" />
+                    <Icon strokeWidth={1} className="w-32 h-32 sm:w-48 sm:h-48" />
                 </div>
 
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-5 relative z-10">
-                    <CardTitle className="text-sm font-medium flex-1">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-sm flex items-center justify-center transition-colors">
-                                <Icon className="w-5 h-5" style={{ color: color }} />
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4 sm:pt-5 relative z-10">
+                    <CardTitle className="text-sm font-medium flex-1 min-w-0">
+                        <div className="flex items-center gap-2 sm:gap-3">
+                            <div className="p-2 sm:p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-sm flex items-center justify-center transition-colors shrink-0">
+                                <Icon className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: color }} />
                             </div>
-                            <div className="flex flex-col">
-                                <span className="truncate text-base font-semibold text-slate-800 dark:text-slate-100">{account.name}</span>
-                                {!isActive && <span className="text-[10px] uppercase font-bold text-slate-400">Inativa</span>}
+                            <div className="flex flex-col min-w-0">
+                                <span className="truncate text-sm sm:text-base font-semibold text-slate-800 dark:text-slate-100">{account.name}</span>
+                                {!isActive && <span className="text-[9px] sm:text-[10px] uppercase font-bold text-slate-400">Inativa</span>}
                             </div>
                         </div>
                     </CardTitle>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-9 sm:w-9 text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full shrink-0">
                                 <span className="sr-only">Abrir menu</span>
-                                <MoreHorizontal className="h-4 w-4 text-slate-500" />
+                                <MoreHorizontal className="h-4 w-4 sm:h-5 sm:w-5" />
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
@@ -193,19 +195,21 @@ export function AccountCard({ account, allAccounts = [], paymentMethods = [] }: 
                     </DropdownMenu>
                 </CardHeader>
                 <CardContent className="relative z-10">
-                    <div className={`text-2xl font-bold mt-4 tracking-tight ${account.balance < 0 ? 'text-red-600 dark:text-red-400' : 'text-slate-900 dark:text-white'}`}>
+                    <div className={`text-xl sm:text-2xl font-bold mt-3 sm:mt-4 tracking-tight ${account.balance < 0 ? 'text-red-600 dark:text-red-400' : 'text-slate-900 dark:text-white'}`}>
                         {formatCurrency(account.balance)}
                     </div>
 
                     {/* Badge para saldo negativo */}
                     {account.balance < 0 && (
-                        <div className="mt-2 inline-flex items-center gap-1.5 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 px-2 py-1 rounded-md text-xs font-semibold border border-red-200 dark:border-red-800">
-                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                        <div className="mt-2 inline-flex items-center gap-1.5 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 px-2 py-1 rounded-md text-[10px] sm:text-xs font-semibold border border-red-200 dark:border-red-800 max-w-full">
+                            <svg className="w-3 h-3 shrink-0" fill="currentColor" viewBox="0 0 20 20">
                                 <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                             </svg>
-                            {account.type?.toLowerCase() === 'digital' || account.type?.toLowerCase() === 'corrente'
-                                ? 'Limite usado'
-                                : 'Saldo negativo'}
+                            <span className="truncate">
+                                {account.type?.toLowerCase() === 'digital' || account.type?.toLowerCase() === 'corrente'
+                                    ? 'Limite usado'
+                                    : 'Saldo negativo'}
+                            </span>
                         </div>
                     )}
 

@@ -256,6 +256,7 @@ export function ConvertPeriodDialog({
                         variant="outline"
                         onClick={() => onOpenChange(false)}
                         disabled={isSubmitting}
+                        className="h-11 md:h-10"
                     >
                         Cancelar
                     </Button>
@@ -263,6 +264,7 @@ export function ConvertPeriodDialog({
                         type="button"
                         onClick={handleConvert}
                         disabled={!understood || isSubmitting}
+                        className="h-11 md:h-10"
                     >
                         {isSubmitting ? 'Convertendo...' : 'Converter Período'}
                     </Button>

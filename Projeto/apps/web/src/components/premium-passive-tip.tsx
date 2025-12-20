@@ -54,15 +54,14 @@ export function PremiumPassiveTip() {
                 <div className="flex items-center gap-2 shrink-0">
                     <Button
                         variant="outline"
-                        size="sm"
-                        className="h-8 text-xs bg-transparent border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800 hover:border-slate-600 hidden sm:flex"
+                        className="h-11 text-xs bg-transparent border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800 hover:border-slate-600 hidden sm:flex"
                         onClick={() => window.open('/premium', '_blank')}
                     >
                         Saber mais
                     </Button>
                     <button
                         onClick={handleClose}
-                        className="p-1.5 text-slate-500 hover:text-slate-300 transition-colors rounded-md hover:bg-white/5"
+                        className="h-11 w-11 flex items-center justify-center text-slate-500 hover:text-slate-300 transition-colors rounded-md hover:bg-white/5"
                     >
                         <X className="w-4 h-4" />
                         <span className="sr-only">Fechar</span>

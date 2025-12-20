@@ -12,6 +12,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Calendar, DollarSign, FileText, Tag, RotateCcw, AlertCircle } from "lucide-react"
@@ -70,15 +71,15 @@ export function PayableDetailsModal({ payableId, open, onOpenChange }: PayableDe
 
         startTransition(async () => {
             try {
-                await revertPayment(payableId)
-                setIsRevertDialogOpen(false)
-                onOpenChange(false)
-                router.refresh()
-                alert("Pagamento estornado com sucesso!")
-            } catch (error: any) {
-                console.error("Revert error:", error)
-                alert(`Erro ao estornar: ${error.message || error}`)
-            }
+                await revertInvoicePayment(invoiceId)
+                    setIsRevertDialogOpen(false)
+                    onOpenChange(false)
+                    router.refresh()
+                    toast.success("Pagamento estornado com sucesso!")
+                } catch (error: any) {
+                    console.error("Revert error:", error)
+                    toast.error(`Erro ao estornar: ${error.message || error}`)
+                }
         })
     }
 

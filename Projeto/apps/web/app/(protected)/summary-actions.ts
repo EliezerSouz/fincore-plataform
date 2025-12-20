@@ -8,7 +8,10 @@ async function getApiClient() {
     const { data } = await supabase.auth.getSession()
     const token = data.session?.access_token
 
-    if (!token) throw new Error('Unauthorized')
+    if (!token) {
+        // Just return null/throw handled error, don't spam logs
+        throw new Error('No session found')
+    }
 
     // Dynamically import to use server-side
     const { ApiClient } = await import('@/lib/api-client')
@@ -31,8 +34,10 @@ export async function getFinancialSummary(): Promise<FinancialSummary> {
             patrimonio: 0,
             compromissos: 0
         }
-    } catch (error) {
-        console.error("Error fetching financial summary:", error)
+    } catch (error: any) {
+        if (error.message !== 'No session found') {
+            console.error("Error fetching financial summary:", error)
+        }
         // Return zeros on error to avoid breaking UI
         return {
             liquidez: 0,

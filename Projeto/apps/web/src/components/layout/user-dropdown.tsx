@@ -19,11 +19,11 @@ export function UserDropdown({ name, initials, avatarUrl }: UserDropdownProps) {
     }, [])
 
     const triggerButton = (
-        <button className="flex items-center gap-3 pl-2 border-l border-gray-200 dark:border-white/10 outline-none">
+        <button className="flex items-center gap-3 pl-2 h-11 border-l border-gray-200 dark:border-white/10 outline-none">
             <div className="text-right hidden md:block">
                 <p className="text-sm font-medium leading-none text-gray-900 dark:text-gray-100">{name}</p>
             </div>
-            <Avatar className="h-9 w-9 ring-2 ring-transparent group-hover:ring-blue-500/20 transition-all">
+            <Avatar className="h-10 w-10 ring-2 ring-transparent group-hover:ring-blue-500/20 transition-all">
                 <AvatarImage src={avatarUrl || ""} alt={name} className="object-cover" />
                 <AvatarFallback className="bg-blue-600 text-white font-medium">{initials}</AvatarFallback>
             </Avatar>

@@ -1,174 +1,236 @@
 "use client"
+
 import * as React from "react"
 import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
-import { getTransactions } from "@/app/(protected)/caixa/transactions/actions"
-import { Calendar as CalendarIcon, Landmark, Wallet, AlertCircle, CheckCircle2, TrendingUp, ArrowRight, CreditCard, DollarSign, Coins, Activity, ShieldCheck, Lock } from "lucide-react"
-import { ResponsiveContainer, ComposedChart, XAxis, YAxis, CartesianGrid, Tooltip, Area, Bar, Line } from "recharts"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { DatePicker } from "@/components/ui/date-picker"
 import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
-import { cn } from "@/lib/utils"
-import { format } from "date-fns"
-import { ptBR } from "date-fns/locale"
-import { useFinancialSummary } from "@/hooks/use-financial-summary"
-import { PageLayout } from "@/components/layout/page-layout"
+import { Activity, AlertTriangle, ArrowRight, ArrowUpRight, Calendar as CalendarIcon, CheckCircle2, HeartPulse, Lock, TrendingUp, Wallet, AlertCircle, PieChart, Target, TrendingDown } from "lucide-react"
+import { cn, formatCurrency } from "@/lib/utils"
+import { DatePicker } from "@/components/ui/date-picker"
 import { UpsellModal } from "@/components/ui/upsell-modal"
-import { OnboardingModal } from "@/components/onboarding-modal"
 import { PremiumPassiveTip } from "@/components/premium-passive-tip"
-import type { UserData } from "@/lib/get-user-data"
+import { PageLayout } from "@/components/layout/page-layout"
+import { OnboardingModal } from "@/components/onboarding-modal"
+import { useFinancialSummary } from "@/hooks/use-financial-summary"
+import { usePermission } from "@/hooks/use-permission"
+import { Progress } from "@/components/ui/progress"
+import {
+    ComposedChart,
+    Bar,
+    Line,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    ResponsiveContainer,
+    Legend,
+    ReferenceLine
+} from 'recharts'
 
-type Feature = 'advanced_reports' | 'ai_insights' | 'export_data'
+import { Skeleton } from "@/components/ui/skeleton"
+
+// Tooltip Personalizado Rico
+const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+        const txData = payload[0].payload
+        const isNegative = txData.saldo < 0
+
+        return (
+            <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-4 rounded-xl shadow-xl min-w-[200px]">
+                <p className="font-bold text-slate-800 dark:text-slate-100 mb-3 text-sm border-b border-slate-100 dark:border-slate-800 pb-2">{label}</p>
+
+                <div className="space-y-2 text-xs">
+                    {/* Receitas */}
+                    <div className="flex justify-between items-center group">
+                        <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]" />
+                            <span className="text-slate-500 group-hover:text-slate-700 transition-colors">Receitas</span>
+                        </div>
+                        <span className="font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                            {formatCurrency(txData.receita)}
+                        </span>
+                    </div>
+
+                    {/* Despesas */}
+                    <div className="flex justify-between items-center group">
+                        <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_5px_rgba(244,63,94,0.5)]" />
+                            <span className="text-slate-500 group-hover:text-slate-700 transition-colors">Despesas</span>
+                        </div>
+                        <span className="font-semibold text-rose-600 dark:text-rose-400 tabular-nums">
+                            {formatCurrency(txData.despesa)}
+                        </span>
+                    </div>
+
+                    {/* Divisor */}
+                    <div className="my-2 border-t border-slate-100 dark:border-slate-700" />
+
+                    {/* Saldo Líquido */}
+                    <div className="flex justify-between items-center">
+                        <span className="text-slate-600 dark:text-slate-400 font-medium">Resultado</span>
+                        <span className={`font-bold text-sm tabular-nums transition-colors duration-300 ${isNegative ? 'text-red-600 dark:text-red-500' : 'text-blue-600 dark:text-blue-400'}`}>
+                            {formatCurrency(txData.saldo)}
+                        </span>
+                    </div>
+
+                    {/* Alerta Condicional */}
+                    {isNegative && (
+                        <div className="mt-3 p-2 bg-red-50 dark:bg-red-900/20 rounded border border-red-200 dark:border-red-900/30 flex items-center gap-2 text-red-700 dark:text-red-300 animate-in fade-in slide-in-from-top-1">
+                            <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                            <span className="text-[10px] font-bold uppercase tracking-wide">Déficit Mensal Detectado</span>
+                        </div>
+                    )}
+                </div>
+            </div>
+        )
+    }
+    return null
+}
+
+const CustomizedDot = (props: any) => {
+    const { cx, cy, payload } = props;
+    if (payload.saldo < 0) {
+        return (
+            <svg x={cx - 10} y={cy - 10} width={20} height={20} fill="red" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10" fill="#ef4444" stroke="white" strokeWidth="2" />
+                <path d="M12 8v4M12 16h.01" stroke="white" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+        )
+    }
+    return <circle cx={cx} cy={cy} r={4} stroke="white" strokeWidth={2} fill="#3b82f6" />
+};
 
 interface DashboardClientProps {
-    userData: NonNullable<UserData>
+    userData: any
 }
 
 export function DashboardClient({ userData }: DashboardClientProps) {
-    // ... (rest of code)
-
-    const [date, setDate] = React.useState<Date | undefined>(undefined)
     const [isMounted, setIsMounted] = useState(false)
-    const [period, setPeriod] = React.useState("3m")
-    const [, setTransactions] = useState<any[]>([])
-    const [chartData, setChartData] = useState<any[]>([])
+    const [date, setDate] = useState<Date | undefined>(new Date())
     const [showUpsell, setShowUpsell] = useState(false)
+    const [period, setPeriod] = useState('3m')
+    
+    const { can } = usePermission()
+    const { liquidez, compromissos, patrimonio, isLoading } = useFinancialSummary()
 
     useEffect(() => {
         setIsMounted(true)
-        setDate(new Date())
     }, [])
 
-    // Permission Control - implementado localmente baseado em userData
-    const can = (feature: Feature): boolean => {
-        if (userData.isPremium) return true
-        // Plano free não tem acesso a advanced_reports
-        return false
+    // --- FINANCIAL INTELLIGENCE LOGIC ---
+
+    // Mock Income (Receita Mensal Estimada) - Em produção viria do backend
+    const estimatedIncome = 8500 
+    
+    // Mock Investment Data (Should come from backend)
+    const investments = {
+        total: 125000.50,
+        monthlyReturn: 1250.00,
+        returnRate: 1.0, // 1%
+        allocation: [
+            { name: 'Renda Fixa', value: 65, color: '#10b981' }, // emerald-500
+            { name: 'Renda Variável', value: 25, color: '#3b82f6' }, // blue-500
+            { name: 'Cripto', value: 10, color: '#8b5cf6' }, // violet-500
+        ]
+    }
+    const hasInvestments = investments.total > 0
+
+    // 1. Calculate Score (0-1000)
+    // Logic: Ratio of Liquidity coverage + Low Commitment ratio
+    const calculateScore = () => {
+        if (compromissos === 0) return 1000
+        const coverageRatio = liquidez / compromissos // Ideal > 1.5
+        const commitmentRatio = compromissos / estimatedIncome // Ideal < 0.6
+        
+        let s = 500 // Base score
+        
+        // Bonus for liquidity
+        if (coverageRatio >= 1) s += 200
+        if (coverageRatio >= 3) s += 100
+        
+        // Penalty for high commitments
+        if (commitmentRatio > 0.8) s -= 200
+        if (commitmentRatio > 1.0) s -= 300
+        
+        return Math.max(0, Math.min(1000, s))
     }
 
-    // DADOS FINANCEIROS (REAIS)
-    const { liquidez, patrimonio, compromissos, isLoading } = useFinancialSummary()
+    const score = calculateScore()
+    
+    // 2. Determine Health Status & Color
+    let healthStatus = 'Excelente'
+    let healthColor = 'text-emerald-500'
+    let healthBg = 'bg-emerald-500'
+    let healthBorder = 'border-emerald-500'
+    
+    if (score < 500) {
+        healthStatus = 'Crítico'
+        healthColor = 'text-red-500'
+        healthBg = 'bg-red-500'
+        healthBorder = 'border-red-500'
+    } else if (score < 800) {
+        healthStatus = 'Atenção'
+        healthColor = 'text-amber-500'
+        healthBg = 'bg-amber-500'
+        healthBorder = 'border-amber-500'
+    }
 
-    // Fetch transactions and build chart data
-    useEffect(() => {
-        // Buscar dados dos últimos 12 meses para o gráfico
-        const today = new Date()
-        const oneYearAgo = new Date(today.getFullYear() - 1, today.getMonth(), 1)
-        const from = oneYearAgo.toISOString().split('T')[0]
-        const to = today.toISOString().split('T')[0]
+    // 3. Calculate Runway (Sobrevivência)
+    // Quantos meses vivo sem renda?
+    const monthlyBurn = compromissos > 0 ? compromissos : 1
+    const runwayMonths = (liquidez / monthlyBurn).toFixed(1)
 
-        getTransactions({ from, to, limit: 1000 }).then(data => {
-            setTransactions(data)
+    // 4. Generate Insights
+    const getMainInsight = () => {
+        if (score >= 800) return "Seu coração financeiro está batendo forte. Você tem reserva para emergências e sobra de caixa."
+        if (score >= 500) return "Sinais de arritmia detectados. Seus compromissos estão altos em relação à sua liquidez."
+        return "Alerta de parada cardíaca. Seus compromissos superam sua capacidade de pagamento imediata."
+    }
 
-            // Gera os últimos 12 meses
-            const last12Months = []
-            const now = new Date()
-            for (let i = 11; i >= 0; i--) {
-                const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
-                const monthKey = d.toLocaleString('pt-BR', { month: 'short', year: 'numeric' })
-                last12Months.push({
-                    name: monthKey.charAt(0).toUpperCase() + monthKey.slice(1), // Capitaliza
-                    receitas: 0,
-                    despesas: 0,
-                    saldo: 0,
-                    date: d
-                })
-            }
+    // Mock Chart Data for Trend
+    const trendData = [
+         { name: 'Ago', receita: 4600, despesa: 3000, saldo: 1600 },
+         { name: 'Set', receita: 5210, despesa: 3000, saldo: 2210 },
+         { name: 'Out', receita: 2500, despesa: 3000, saldo: -500 }, // Negative moment
+         { name: 'Nov', receita: 5000, despesa: 3000, saldo: 2000 },
+         { name: 'Dez', receita: 5181, despesa: 3000, saldo: 2181 },
+         { name: 'Jan', receita: 5500, despesa: 3000, saldo: 2500 },
+    ]
 
-            // Agrupa transações reais por mês
-            const grouped: Record<string, { receitas: number; despesas: number }> = {}
-            data.forEach((t: any) => {
-                const date = new Date(t.date)
-                const key = date.toLocaleString('pt-BR', { month: 'short', year: 'numeric' })
-                const normalizedKey = key.charAt(0).toUpperCase() + key.slice(1)
-                if (!grouped[normalizedKey]) grouped[normalizedKey] = { receitas: 0, despesas: 0 }
-                if (t.type === 'receita') grouped[normalizedKey].receitas += Number(t.amount)
-                else if (t.type === 'despesa') grouped[normalizedKey].despesas += Number(t.amount)
-            })
+    // Mock Spending Data (Pillar 3: Consciência)
+    const spendingCategories = [
+        { name: 'Moradia', value: 3200, percent: 38, status: 'normal' },
+        { name: 'Alimentação', value: 1800, percent: 21, status: 'warning' }, // Higher than usual
+        { name: 'Lazer', value: 1200, percent: 14, status: 'normal' },
+    ]
 
-            // Mescla dados reais com o template de 12 meses
-            const chart = last12Months.map(month => {
-                const realData = grouped[month.name]
-                if (realData) {
-                    return {
-                        name: month.name,
-                        receitas: realData.receitas,
-                        despesas: realData.despesas,
-                        saldo: realData.receitas - realData.despesas,
-                    }
-                }
-                return month
-            })
+    // Mock Goal Data (Pillar 5: Progresso)
+    const mainGoal = {
+        name: 'Reserva de Emergência',
+        current: liquidez,
+        target: compromissos * 6, // 6 months of runway
+        deadline: 'Dez 2024'
+    }
 
-            setChartData(chart)
-        })
-    }, [])
-
-    function handlePeriodChange(newPeriod: string) {
-        if (newPeriod !== '3m' && !can('advanced_reports')) {
+    const handlePeriodChange = (p: string) => {
+        if (!can('advanced_reports') && p !== '3m') {
             setShowUpsell(true)
             return
         }
-        setPeriod(newPeriod)
+        setPeriod(p)
     }
-
-    // Usando dados reais do hook
-    const caixaLiquido = liquidez;
-    const comprometido = compromissos;
-    const saldoLivre = caixaLiquido - comprometido;
-    const patrimonioTotal = patrimonio;
-
-    // SAÚDE FINANCEIRA (calculada automaticamente)
-    const calculateHealthScore = () => {
-        if (caixaLiquido === 0) return { score: 0, status: "Crítico" }
-        const ratio = comprometido / caixaLiquido
-        if (ratio >= 0.9) return { score: 20, status: "Crítico" }
-        if (ratio >= 0.7) return { score: 50, status: "Atenção" }
-        if (ratio >= 0.5) return { score: 70, status: "Bom" }
-        if (ratio >= 0.3) return { score: 85, status: "Muito Bom" }
-        return { score: 95, status: "Excelente" }
-    }
-    const { score, status: healthStatus } = calculateHealthScore();
-
-    // Filtragem de dados baseada no período
-    const getFilteredData = () => {
-        if (!chartData.length) return []
-
-        switch (period) {
-            case "3m": return chartData.slice(-3); // Últimos 3 meses
-            case "6m": return chartData.slice(-6); // Últimos 6 meses
-            case "1y": return chartData; // Tudo
-            default: return chartData.slice(-6);
-        }
-    };
-    const currentData = getFilteredData();
-
-    // LÓGICA DO GRÁFICO (Dinâmica de Risco) Atualizada para dados filtrados
-    const gradientOffset = () => {
-        if (currentData.length === 0) return 0;
-        const dataMax = Math.max(...currentData.map((i) => i.saldo));
-        const dataMin = Math.min(...currentData.map((i) => i.saldo));
-        if (dataMax <= 0) {
-            return 0;
-        }
-        if (dataMin >= 0) {
-            return 1;
-        }
-        return dataMax / (dataMax - dataMin);
-    };
-    const off = gradientOffset();
 
     return (
         <>
             <OnboardingModal />
             <PageLayout
-                title="Dashboard"
-                description="Boas vindas ao seu Financial OS."
+                title="FinCore Dashboard"
+                description="O coração da sua vida financeira."
                 icon={Activity}
                 action={
                     !isMounted ? (
-                        <div className="h-10 w-[220px] bg-slate-100 dark:bg-slate-800 animate-pulse rounded-lg" />
+                        <Skeleton className="h-10 w-[220px]" />
                     ) : (
                         <>
                             <div className="flex items-center gap-2 bg-white dark:bg-slate-900 p-1 rounded-lg border border-slate-200 dark:border-slate-800 shadow-sm">
@@ -183,8 +245,7 @@ export function DashboardClient({ userData }: DashboardClientProps) {
                                 ) : (
                                     <Button
                                         variant={"ghost"}
-                                        size="sm"
-                                        className={cn("w-[220px] justify-start text-left font-medium text-sm text-slate-400 cursor-not-allowed")}
+                                        className={cn("h-11 w-full md:w-[220px] justify-start text-left font-medium text-sm text-slate-400 cursor-not-allowed")}
                                         onClick={() => setShowUpsell(true)}
                                     >
                                         <CalendarIcon className="mr-2 h-4 w-4 text-slate-400" />
@@ -202,128 +263,191 @@ export function DashboardClient({ userData }: DashboardClientProps) {
                     )
                 }
                 summaryCards={
-                    <div className="flex flex-col gap-6">
+                    <div className="flex flex-col gap-8 animate-in slide-in-from-bottom-4 duration-700">
                         <PremiumPassiveTip />
-                        {/* BARRA GLOBAL DE SAÚDE FINANCEIRA (INTELIGÊNCIA) */}
-                        <div className="w-full bg-slate-900 dark:bg-slate-950 rounded-xl p-4 md:p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-lg shadow-slate-900/10 border border-slate-800 relative overflow-hidden group">
-                            {/* Background Glow */}
-                            <div className="absolute top-0 right-0 w-[400px] h-full bg-gradient-to-l from-emerald-900/20 to-transparent pointer-events-none"></div>
-                            <div className="flex items-center gap-4 relative z-10">
-                                <div className="w-12 h-12 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-500 border border-emerald-500/20">
-                                    <ShieldCheck className="w-6 h-6" />
-                                </div>
-                                <div>
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <h2 className="text-white font-bold text-lg tracking-tight">Saúde Financeira: <span className="text-emerald-400">{healthStatus}</span></h2>
-                                        <Badge className="bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border-emerald-500/30">Score: {score}/100</Badge>
+                        
+                        {/* 1. HEALTH MONITOR (Diagnóstico Principal) */}
+                        <div className="grid gap-6 lg:grid-cols-3">
+                            <div className="lg:col-span-2 relative overflow-hidden rounded-2xl bg-slate-900 text-white shadow-2xl border border-slate-800 p-8 flex flex-col justify-between min-h-[280px]">
+                                {/* Background Pulse Effect */}
+                                <div className="absolute top-0 right-0 w-[400px] h-full bg-gradient-to-l from-emerald-500/10 to-transparent pointer-events-none"></div>
+                                <div className={cn("absolute -bottom-24 -right-24 w-64 h-64 blur-[100px] rounded-full animate-pulse opacity-30", healthBg)}></div>
+                                
+                                <div className="relative z-10">
+                                    <div className="flex items-center gap-3 mb-6">
+                                        <div className={cn("px-3 py-1 rounded-full border text-xs font-bold uppercase tracking-wider flex items-center gap-2", 
+                                            healthStatus === 'Excelente' ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : 
+                                            healthStatus === 'Crítico' ? "bg-red-500/20 text-red-400 border-red-500/30" :
+                                            "bg-amber-500/20 text-amber-400 border-amber-500/30"
+                                        )}>
+                                            <Activity className="w-3 h-3 animate-pulse" />
+                                            {isLoading ? "Analisando..." : `Status: ${healthStatus}`}
+                                        </div>
                                     </div>
-                                    <p className="text-slate-400 text-sm font-medium flex items-center gap-2">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Liquidez confortável
-                                        <span className="text-slate-600 mx-1">•</span>
-                                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span> Compromissos controlados
-                                        <span className="text-slate-600 mx-1">•</span>
-                                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span> Patrimônio crescente
-                                    </p>
+                                    
+                                    <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-4 leading-tight">
+                                        {isLoading ? (
+                                            <Skeleton className="h-12 w-3/4 bg-slate-800" />
+                                        ) : (
+                                            getMainInsight()
+                                        )}
+                                    </h2>
+                                </div>
+
+                                <div className="relative z-10 mt-auto pt-6 border-t border-slate-800/50 flex flex-wrap gap-8">
+                                    <div>
+                                        <p className="text-slate-400 text-xs uppercase font-bold tracking-wider mb-1">Score FinCore</p>
+                                        <div className="flex items-baseline gap-2">
+                                            <span className={cn("text-4xl font-mono font-bold", healthColor)}>
+                                                {isLoading ? "..." : score}
+                                            </span>
+                                            <span className="text-slate-500 text-sm">/ 1000</span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <p className="text-slate-400 text-xs uppercase font-bold tracking-wider mb-1">Sobrevivência (Runway)</p>
+                                        <div className="flex items-baseline gap-2">
+                                            <span className="text-2xl font-mono font-bold text-white">
+                                                {isLoading ? "..." : runwayMonths}
+                                            </span>
+                                            <span className="text-slate-500 text-sm">meses</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-4 w-full md:w-auto mt-2 md:mt-0 relative z-10">
-                                <div className="flex-1 md:w-48">
-                                    <div className="flex justify-between text-[10px] uppercase font-bold text-slate-500 mb-1.5 tracking-wider">
-                                        <span>Saldo Livre</span>
-                                        <span className="text-white">{caixaLiquido > 0 ? Math.round((saldoLivre / caixaLiquido) * 100) : 0}%</span>
-                                    </div>
-                                    <Progress value={caixaLiquido > 0 ? (saldoLivre / caixaLiquido) * 100 : 0} className="h-1.5 bg-slate-800" indicatorClassName="bg-gradient-to-r from-emerald-500 to-teal-400" />
-                                </div>
-                                <Button variant="outline" size="sm" className="border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white h-9">
-                                    Ver Diagnóstico
-                                    <ArrowRight className="w-3.5 h-3.5 ml-2" />
-                                </Button>
-                            </div>
+
+                            {/* 2. ALERTS & ACTION (O que fazer agora) */}
+                            <Card className="flex flex-col h-full border-l-4 border-l-amber-500 shadow-lg bg-amber-50/50 dark:bg-slate-900 dark:border-l-amber-500 dark:border-slate-800">
+                                <CardHeader className="pb-2">
+                                    <CardTitle className="text-lg flex items-center gap-2 text-amber-700 dark:text-amber-500">
+                                        <AlertTriangle className="w-5 h-5" />
+                                        Atenção Necessária
+                                    </CardTitle>
+                                    <CardDescription>Ações recomendadas para hoje.</CardDescription>
+                                </CardHeader>
+                                <CardContent className="flex-1">
+                                    {isLoading ? (
+                                        <div className="space-y-3">
+                                            <Skeleton className="h-12 w-full" />
+                                            <Skeleton className="h-12 w-full" />
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            {compromissos > liquidez && (
+                                                <div className="flex gap-3 p-3 rounded-lg bg-white dark:bg-slate-950 border border-amber-100 dark:border-slate-800 shadow-sm">
+                                                    <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                                                    <div>
+                                                        <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">Liquidez Baixa</p>
+                                                        <p className="text-xs text-slate-500">Seus compromissos superam seu caixa atual.</p>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            <div className="flex gap-3 p-3 rounded-lg bg-white dark:bg-slate-950 border border-slate-100 dark:border-slate-800 shadow-sm group cursor-pointer hover:border-emerald-200 transition-colors">
+                                                <CheckCircle2 className="w-5 h-5 text-slate-300 group-hover:text-emerald-500 shrink-0 mt-0.5" />
+                                                <div>
+                                                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">Revisar Assinaturas</p>
+                                                    <p className="text-xs text-slate-500">Detectamos 3 pagamentos recorrentes esta semana.</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-3 p-3 rounded-lg bg-white dark:bg-slate-950 border border-slate-100 dark:border-slate-800 shadow-sm group cursor-pointer hover:border-emerald-200 transition-colors">
+                                                <CheckCircle2 className="w-5 h-5 text-slate-300 group-hover:text-emerald-500 shrink-0 mt-0.5" />
+                                                <div>
+                                                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">Definir Meta de Reserva</p>
+                                                    <p className="text-xs text-slate-500">Você ainda não tem uma meta de emergência.</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </CardContent>
+                                <CardFooter className="pt-2 border-t border-amber-100/50 dark:border-slate-800">
+                                    <Button variant="ghost" size="sm" className="w-full text-amber-700 dark:text-amber-500 hover:text-amber-800 hover:bg-amber-100/50">
+                                        Ver todos os alertas <ArrowRight className="w-4 h-4 ml-1" />
+                                    </Button>
+                                </CardFooter>
+                            </Card>
                         </div>
 
-                        {/* FLUXO FINANCEIRO (Tríade da Verdade) */}
-                        <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-4">
-                            {/* 1. CAIXA */}
-                            <Card className="group relative overflow-hidden border-l-4 border-l-blue-500 bg-white dark:bg-slate-900 shadow-sm hover:shadow-lg transform hover:-translate-y-1 transition-all duration-300">
+                        {/* 2. FLOW & SPENDING (Fluxo e Consciência) */}
+                        <div className="grid gap-6 md:grid-cols-2">
+                            {/* Card de Fluxo (Input vs Output) */}
+                            <Card className="shadow-sm">
                                 <CardHeader className="pb-2">
-                                    <CardTitle className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <Coins className="w-4 h-4 text-blue-500" />
-                                            Dinheiro em Conta
-                                        </div>
-                                        <Badge variant="secondary" className="bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 font-mono text-[10px]">LIQUIDEZ</Badge>
+                                    <CardTitle className="text-sm font-medium text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                                        <Activity className="w-4 h-4" /> Fluxo Vital
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="text-3xl font-bold text-slate-900 dark:text-white mt-2 group-hover:text-blue-600 transition-colors">
-                                        R$ {isLoading ? '...' : caixaLiquido.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                    <div className="space-y-4">
+                                        <div className="flex justify-between items-end">
+                                            <div>
+                                                <span className="text-3xl font-bold text-slate-900 dark:text-white">
+                                                    {Math.round((compromissos / estimatedIncome) * 100)}%
+                                                </span>
+                                                <span className="text-sm text-slate-500 ml-2">da renda comprometida</span>
+                                            </div>
+                                            <div className="text-right">
+                                                <span className={cn("text-sm font-medium", (estimatedIncome - compromissos) > 0 ? "text-emerald-600 dark:text-emerald-500" : "text-red-500")}>
+                                                    {((estimatedIncome - compromissos) > 0 ? "+ " : "") + "R$ " + (estimatedIncome - compromissos).toLocaleString('pt-BR')}
+                                                </span>
+                                                <p className="text-xs text-slate-400">Sobra Mensal</p>
+                                            </div>
+                                        </div>
+                                        
+                                        {/* Progress Bar Visualization */}
+                                        <div className="relative pt-2">
+                                            <div className="flex justify-between text-xs font-semibold mb-2 text-slate-400">
+                                                <span>0%</span>
+                                                <span>60% (Limite)</span>
+                                                <span>100%</span>
+                                            </div>
+                                            <Progress value={(compromissos / estimatedIncome) * 100} className="h-4 bg-slate-100 dark:bg-slate-800" indicatorClassName={cn(compromissos / estimatedIncome > 0.8 ? "bg-red-500" : compromissos / estimatedIncome > 0.6 ? "bg-amber-500" : "bg-emerald-500")} />
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-4 pt-4 mt-2 border-t border-slate-100 dark:border-slate-800">
+                                            <div>
+                                                <p className="text-xs text-slate-500 mb-1">Entradas (Est.)</p>
+                                                <p className="font-semibold text-slate-700 dark:text-slate-300">R$ {estimatedIncome.toLocaleString('pt-BR')}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs text-slate-500 mb-1">Saídas (Fixas)</p>
+                                                <p className="font-semibold text-slate-700 dark:text-slate-300">R$ {compromissos.toLocaleString('pt-BR')}</p>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <p className="text-xs text-slate-500 mt-2 font-medium">
-                                        Disponível em conta corrente e carteiras.
-                                    </p>
                                 </CardContent>
                             </Card>
-                            {/* 2. COMPROMISSOS */}
-                            <Card className="group relative overflow-hidden border-l-4 border-l-amber-500 bg-white dark:bg-slate-900 shadow-sm hover:shadow-lg transform hover:-translate-y-1 transition-all duration-300">
+
+                            {/* Card de Consciência (Spending) */}
+                            <Card className="shadow-sm">
                                 <CardHeader className="pb-2">
-                                    <CardTitle className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <AlertCircle className="w-4 h-4 text-amber-500" />
-                                            Comprometido
-                                        </div>
-                                        <Badge variant="secondary" className="bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 font-mono text-[10px]">OBRIGAÇÕES</Badge>
+                                    <CardTitle className="text-sm font-medium text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                                        <PieChart className="w-4 h-4" /> Para onde vai o dinheiro?
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="text-3xl font-bold text-slate-900 dark:text-white mt-2 group-hover:text-amber-600 transition-colors">
-                                        - R$ {isLoading ? '...' : comprometido.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                    <div className="space-y-4">
+                                        {spendingCategories.map((cat, i) => (
+                                            <div key={i} className="group">
+                                                <div className="flex justify-between text-sm mb-1">
+                                                    <span className="font-medium text-slate-700 dark:text-slate-300">{cat.name}</span>
+                                                    <span className="text-slate-900 dark:text-white font-bold">R$ {cat.value.toLocaleString('pt-BR')}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <Progress value={cat.percent} className="h-2 bg-slate-100 dark:bg-slate-800" indicatorClassName={cat.status === 'warning' ? 'bg-amber-500' : 'bg-slate-900 dark:bg-slate-400'} />
+                                                    <span className="text-xs text-slate-500 w-8 text-right">{cat.percent}%</span>
+                                                </div>
+                                                {cat.status === 'warning' && (
+                                                    <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                                                        <TrendingUp className="w-3 h-3" /> 12% acima da média
+                                                    </p>
+                                                )}
+                                            </div>
+                                        ))}
                                     </div>
-                                    <p className="text-xs text-slate-500 mt-2 font-medium">
-                                        Faturas de cartão e contas a pagar.
-                                    </p>
-                                </CardContent>
-                            </Card>
-                            {/* 3. DISPONIBILIDADE */}
-                            <Card className="col-span-1 border-none bg-gradient-to-br from-blue-600 to-indigo-700 text-white shadow-xl shadow-blue-500/30 relative overflow-hidden transform hover:-translate-y-1 transition-transform duration-300">
-                                <div className="absolute top-0 right-0 p-6 opacity-20">
-                                    <CheckCircle2 className="w-32 h-32 text-white rotating-icon" />
-                                </div>
-                                <CardHeader className="pb-1">
-                                    <CardTitle className="text-xs font-bold text-blue-100 uppercase tracking-widest flex items-center gap-2 relative z-10">
-                                        <DollarSign className="w-4 h-4" /> Disponibilidade Real
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="relative z-10 pt-2">
-                                    <div className="text-3xl font-bold tracking-tight">
-                                        R$ {isLoading ? '...' : saldoLivre.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                    </div>
-                                    <p className="text-xs text-blue-100 font-medium opacity-90 mt-2 flex items-center gap-2">
-                                        <span className="bg-white/20 p-1 rounded-full"><CheckCircle2 className="w-3 h-3" /></span>
-                                        Livre para usar agora.
-                                    </p>
-                                    <div className="mt-4 h-1 w-full bg-white/20 rounded-full overflow-hidden">
-                                        <div className="h-full bg-white/80 w-[66%]"></div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                            {/* 4. PATRIMÔNIO */}
-                            <Card className="bg-slate-900 text-white shadow-lg overflow-hidden relative border-none hover:shadow-xl hover:scale-[1.02] cursor-pointer transition-all duration-300 group">
-                                <div className="absolute inset-0 bg-gradient-to-tr from-emerald-900/40 to-slate-900"></div>
-                                <CardHeader className="relative z-10 pb-2">
-                                    <CardTitle className="text-xs font-bold text-emerald-300 uppercase tracking-widest flex items-center gap-2">
-                                        <TrendingUp className="w-4 h-4" /> Patrimônio Total
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="relative z-10">
-                                    <div className="flex items-end gap-2 mt-2">
-                                        <span className="text-3xl font-bold tracking-tight">R$ {isLoading ? '...' : patrimonioTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                                    </div>
-                                    <div className="flex items-center gap-2 mt-2">
-                                        <Badge variant="outline" className="border-emerald-500/50 text-emerald-400 bg-emerald-500/10 text-[10px]">+12.5% a.a.</Badge>
-                                        <span className="text-xs text-slate-400 group-hover:text-slate-300 transition-colors">Não incluso na liquidez.</span>
-                                    </div>
-                                    <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
-                                        <div className="h-full bg-emerald-500 w-[80%] rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>
+                                    <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800">
+                                        <Button variant="link" className="p-0 h-auto text-xs text-slate-500 hover:text-primary">
+                                            Ver detalhamento completo <ArrowRight className="w-3 h-3 ml-1" />
+                                        </Button>
                                     </div>
                                 </CardContent>
                             </Card>
@@ -331,201 +455,166 @@ export function DashboardClient({ userData }: DashboardClientProps) {
                     </div>
                 }
             >
-                <div className="grid gap-8 lg:grid-cols-12">
-                    {/* COLUNA ESQUERDA: Compromissos Detalhados */}
-                    <div className="lg:col-span-4 flex flex-col gap-6">
-                        <Card className="shadow-sm border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col h-full">
-                            <CardHeader className="border-b border-slate-100 dark:border-slate-800/50 px-6 py-4 bg-slate-50/40 dark:bg-slate-900">
-                                <div className="flex items-center justify-between">
-                                    <h3 className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                                        <CalendarIcon className="w-4 h-4 text-slate-500" />
-                                        Cronograma
-                                    </h3>
-                                    <Button variant="link" size="sm" className="h-auto p-0 text-xs font-medium text-blue-600">Ver tudo</Button>
+                {/* 3. EVOLUTION & GOALS (Progresso) */}
+                <div className="grid gap-6 lg:grid-cols-3">
+                    {/* Evolution Chart */}
+                    <Card className="lg:col-span-2 shadow-sm border border-slate-200 dark:border-slate-800">
+                        <CardHeader className="border-b border-slate-100 dark:border-slate-800/50">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <CardTitle className="text-base font-semibold flex items-center gap-2">
+                                        <HeartPulse className="w-5 h-5 text-emerald-500" />
+                                        Eletrocardiograma Financeiro
+                                    </CardTitle>
+                                    <CardDescription>
+                                        Evolução do seu Saldo Livre nos últimos 6 meses.
+                                    </CardDescription>
                                 </div>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="pt-6">
+                            <div className="h-[300px] w-full">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <ComposedChart
+                                        data={trendData}
+                                        margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
+                                    >
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" opacity={0.5} />
+                                        <XAxis
+                                            dataKey="name"
+                                            scale="point"
+                                            padding={{ left: 10, right: 10 }}
+                                            tick={{ fontSize: 12, fill: '#64748b' }}
+                                            tickLine={false}
+                                            axisLine={false}
+                                        />
+                                        <YAxis
+                                            tickFormatter={(value) => `R$${value / 1000}k`}
+                                            tick={{ fontSize: 12, fill: '#64748b' }}
+                                            tickLine={false}
+                                            axisLine={false}
+                                        />
+                                        <Tooltip content={<CustomTooltip />} cursor={{ fill: '#f8fafc', opacity: 0.5 }} />
+                                        <Legend wrapperStyle={{ paddingTop: '20px' }} />
+                                        <ReferenceLine y={0} stroke="#94a3b8" />
+                                        <Bar dataKey="receita" name="Receitas" fill="#10b981" radius={[4, 4, 0, 0]} barSize={20} fillOpacity={0.9} />
+                                        <Bar dataKey="despesa" name="Despesas" fill="#f43f5e" radius={[4, 4, 0, 0]} barSize={20} fillOpacity={0.9} />
+                                        <Line
+                                            type="monotone"
+                                            dataKey="saldo"
+                                            name="Saldo Líquido"
+                                            stroke="#3b82f6"
+                                            strokeWidth={3}
+                                            dot={<CustomizedDot />}
+                                            activeDot={{ r: 8, stroke: "#fff", strokeWidth: 2 }}
+                                        />
+                                    </ComposedChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Goals Card or Investments Summary */}
+                    {hasInvestments ? (
+                        <Card className="shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col">
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-sm font-medium text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                                    <Wallet className="w-4 h-4" /> Investimentos
+                                </CardTitle>
                             </CardHeader>
-                            <CardContent className="p-0">
-                                <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                                    {[
-                                        { desc: "Aluguel", date: "10 OUT", amount: 2500, status: "pending", icon: Landmark },
-                                        { desc: "Energia (Enel)", date: "15 OUT", amount: 320.50, status: "pending", icon: AlertCircle },
-                                        { desc: "Internet Fibra", date: "15 OUT", amount: 149.90, status: "future", icon: Wallet },
-                                        { desc: "Nubank (Fatura)", date: "20 OUT", amount: 1250.00, status: "future", icon: CreditCard },
-                                    ].map((bill, i) => (
-                                        <div key={i} className="flex items-center justify-between px-6 py-3.5 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors group cursor-default">
-                                            <div className="flex items-center gap-3">
-                                                <div className={cn(
-                                                    "w-8 h-8 rounded-full flex items-center justify-center border text-[10px] font-bold",
-                                                    bill.status === 'pending'
-                                                        ? "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800"
-                                                        : "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700"
-                                                )}>
-                                                    {bill.date.split(' ')[0]}
-                                                </div>
-                                                <div>
-                                                    <p className="text-sm font-medium text-slate-700 dark:text-slate-200 group-hover:text-blue-600 transition-colors">{bill.desc}</p>
-                                                    <p className="text-[10px] text-slate-500 uppercase tracking-wide font-medium">{bill.status === 'pending' ? 'Vence em breve' : 'Agendado'}</p>
-                                                </div>
+                            <CardContent className="flex-1">
+                                <div className="mb-6">
+                                    <p className="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">
+                                        {formatCurrency(investments.total)}
+                                    </p>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-900 dark:text-emerald-400">
+                                            <ArrowUpRight className="w-3 h-3 mr-1" />
+                                            {investments.returnRate}% este mês
+                                        </Badge>
+                                        <span className="text-xs text-slate-500">+{formatCurrency(investments.monthlyReturn)}</span>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-3">
+                                    {investments.allocation.map((item) => (
+                                        <div key={item.name} className="flex items-center justify-between text-sm">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
+                                                <span className="text-slate-600 dark:text-slate-400">{item.name}</span>
                                             </div>
-                                            <span className="font-semibold text-sm text-slate-900 dark:text-white tabular-nums">
-                                                R$ {bill.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                            </span>
+                                            <span className="font-medium">{item.value}%</span>
                                         </div>
                                     ))}
                                 </div>
-                            </CardContent>
-                            <CardFooter className="bg-slate-50 dark:bg-slate-800/30 border-t border-slate-100 dark:border-slate-800 p-4 mt-auto">
-                                <div className="w-full flex justify-between items-center text-xs font-semibold uppercase text-slate-500 tracking-wider">
-                                    <span>Total Previsto</span>
-                                    <span className="text-base text-slate-900 dark:text-white font-bold">R$ 4.220,40</span>
+
+                                <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-800">
+                                    <Button variant="outline" className="w-full text-xs" size="sm">
+                                        Ver Detalhes <ArrowRight className="w-3 h-3 ml-2" />
+                                    </Button>
                                 </div>
+                            </CardContent>
+                        </Card>
+                    ) : (
+                        <Card className="shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col">
+                             <CardHeader>
+                                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                                    <Target className="w-5 h-5 text-indigo-500" />
+                                    Próxima Conquista
+                                </CardTitle>
+                                <CardDescription>Foco total nesta meta.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="flex-1 flex flex-col justify-center">
+                                <div className="text-center mb-6">
+                                    <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 mb-3 relative">
+                                        <Target className="w-8 h-8" />
+                                        <svg className="absolute w-full h-full transform -rotate-90">
+                                            <circle
+                                                cx="40"
+                                                cy="40"
+                                                r="36"
+                                                stroke="currentColor"
+                                                strokeWidth="4"
+                                                fill="none"
+                                                className="text-slate-100 dark:text-slate-800"
+                                            />
+                                            <circle
+                                                cx="40"
+                                                cy="40"
+                                                r="36"
+                                                stroke="currentColor"
+                                                strokeWidth="4"
+                                                fill="none"
+                                                strokeDasharray={226}
+                                                strokeDashoffset={226 - (226 * Math.min((mainGoal.current / mainGoal.target), 1))}
+                                                className="text-indigo-500 transition-all duration-1000 ease-out"
+                                            />
+                                        </svg>
+                                    </div>
+                                    <h3 className="font-bold text-lg text-slate-900 dark:text-white">{mainGoal.name}</h3>
+                                    <p className="text-sm text-slate-500">Alvo: R$ {mainGoal.target.toLocaleString('pt-BR')}</p>
+                                </div>
+                                
+                                <div className="space-y-2">
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-slate-500">Progresso</span>
+                                        <span className="font-bold text-indigo-600">{Math.round((mainGoal.current / mainGoal.target) * 100)}%</span>
+                                    </div>
+                                    <Progress value={(mainGoal.current / mainGoal.target) * 100} className="h-2 bg-slate-100 dark:bg-slate-800" indicatorClassName="bg-indigo-500" />
+                                    <p className="text-xs text-center text-slate-400 mt-4">
+                                        Faltam R$ {(mainGoal.target - mainGoal.current).toLocaleString('pt-BR')} para atingir.
+                                    </p>
+                                </div>
+                            </CardContent>
+                            <CardFooter className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                                 <Button variant="ghost" size="sm" className="w-full text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/20">
+                                    Gerenciar Metas <ArrowRight className="w-4 h-4 ml-1" />
+                                </Button>
                             </CardFooter>
                         </Card>
-                    </div>
-                    {/* COLUNA DIREITA: Tendência */}
-                    <div className="lg:col-span-8 flex flex-col gap-6">
-                        {/* Gráfico de Tendência COM ALERTA DE RISCO */}
-                        <Card className="shadow-sm border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex-1 min-h-[400px]">
-                            <CardHeader className="border-b border-slate-100 dark:border-slate-800/50 px-6 py-4">
-                                <div className="flex items-center justify-between">
-                                    <div className="space-y-1">
-                                        <CardTitle className="text-base font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                                            Tendência de Liquidez
-                                        </CardTitle>
-                                        <div className="text-xs text-slate-500">
-                                            Simulação baseada em compromissos agendados.
-                                        </div>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        {['3m', '6m', '1y'].map((p) => (
-                                            <Button
-                                                key={p}
-                                                variant={period === p ? 'secondary' : 'ghost'}
-                                                size="sm"
-                                                onClick={() => handlePeriodChange(p)}
-                                                className={cn("h-7 text-xs font-medium px-2.5",
-                                                    period === p
-                                                        ? "bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-white border border-slate-200 dark:border-slate-700"
-                                                        : "text-slate-500 hover:text-slate-900",
-                                                    !can('advanced_reports') && p !== '3m' && "opacity-50"
-                                                )}
-                                            >
-                                                <span className="flex items-center gap-1">
-                                                    {p === '3m' ? 'Trimestre' : p === '6m' ? 'Semestre' : 'Anual'}
-                                                    {!can('advanced_reports') && p !== '3m' && <Lock className="w-2.5 h-2.5" />}
-                                                </span>
-                                            </Button>
-                                        ))}
-                                    </div>
-                                </div>
-                            </CardHeader>
-                            <CardContent className="px-6 pt-6 pb-2">
-                                <div className="h-[300px] w-full">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <ComposedChart data={currentData}>
-                                            <defs>
-                                                <linearGradient id="splitColor" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset={off} stopColor="#2563EB" stopOpacity={0.2} />
-                                                    <stop offset={off} stopColor="#EF4444" stopOpacity={0.2} />
-                                                </linearGradient>
-                                                {/* Gradientes para barras de Receitas e Despesas */}
-                                                <linearGradient id="gradientReceitas" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="0%" stopColor="#22c55e" stopOpacity={0.8} />
-                                                    <stop offset="100%" stopColor="#22c55e" stopOpacity={0.2} />
-                                                </linearGradient>
-                                                <linearGradient id="gradientDespesas" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.8} />
-                                                    <stop offset="100%" stopColor="#f59e0b" stopOpacity={0.2} />
-                                                </linearGradient>
-                                            </defs>
-                                            <CartesianGrid strokeDasharray="3 3" className="stroke-slate-100 dark:stroke-slate-800" vertical={false} />
-                                            <XAxis dataKey="name" className="text-[10px] font-medium fill-slate-400" tickLine={false} axisLine={false} dy={10} />
-                                            <YAxis className="text-[10px] font-medium fill-slate-400" tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}k`} tickLine={false} axisLine={false} />
-                                            <Tooltip
-                                                content={({ active, payload, label }) => {
-                                                    if (active && payload && payload.length) {
-                                                        const saldo = payload.find(p => p.name === 'Saldo Projetado')?.value as number;
-                                                        const receitas = payload.find(p => p.name === 'Receitas')?.value as number;
-                                                        const despesas = payload.find(p => p.name === 'Despesas')?.value as number;
-
-                                                        const isNegative = saldo < 0;
-                                                        const formatVal = (val: number) => val?.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0,00';
-
-                                                        return (
-                                                            <div className="bg-white dark:bg-slate-900 p-3 border border-slate-200 dark:border-slate-800 rounded-lg shadow-xl text-xs">
-                                                                <p className="font-bold text-slate-700 dark:text-slate-300 mb-2">{label}</p>
-                                                                <div className="space-y-1">
-                                                                    <div className="flex items-center justify-between gap-4 text-emerald-600 dark:text-emerald-500">
-                                                                        <span>Receitas:</span>
-                                                                        <span>+{formatVal(receitas)}</span>
-                                                                    </div>
-                                                                    <div className="flex items-center justify-between gap-4 text-amber-600 dark:text-amber-500">
-                                                                        <span>Despesas:</span>
-                                                                        <span>-{formatVal(despesas)}</span>
-                                                                    </div>
-                                                                    <div className="my-2 border-t border-slate-100 dark:border-slate-800"></div>
-                                                                    <div className={cn("flex items-center justify-between gap-4 font-bold text-base", isNegative ? "text-red-500" : "text-blue-600")}>
-                                                                        <span className="flex items-center gap-1">
-                                                                            {isNegative && <AlertCircle className="w-3 h-3" />}
-                                                                            Saldo:
-                                                                        </span>
-                                                                        <span>R$ {formatVal(saldo)}</span>
-                                                                    </div>
-                                                                    {isNegative && (
-                                                                        <div className="text-[10px] text-red-500 font-medium mt-1 bg-red-50 dark:bg-red-950/20 px-1.5 py-0.5 rounded">
-                                                                            Risco de saldo negativo projetado
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                        );
-                                                    }
-                                                    return null;
-                                                }}
-                                            />
-                                            <Area
-                                                name="Saldo Projetado"
-                                                type="monotone"
-                                                dataKey="saldo"
-                                                stroke="#000"
-                                                strokeWidth={3}
-                                                fillOpacity={1}
-                                                fill="url(#splitColor)"
-                                                style={{ stroke: 'url(#splitColorStroke)' }}
-                                            />
-                                            <Line
-                                                type="monotone"
-                                                dataKey="saldo"
-                                                stroke="url(#splitColorStroke)"
-                                                strokeWidth={3}
-                                                dot={(props: any) => {
-                                                    const { cx, cy, payload, key } = props;
-                                                    if (payload.saldo < 0) {
-                                                        return (
-                                                            <circle key={key} cx={cx} cy={cy} r={4} stroke="#EF4444" strokeWidth={2} fill="#fff" />
-                                                        );
-                                                    }
-                                                    return <circle key={key} cx={cx} cy={cy} r={0} />;
-                                                }}
-                                            />
-                                            {/* Defining Gradient for Stroke matches visual requirement */}
-                                            <defs>
-                                                <linearGradient id="splitColorStroke" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset={off} stopColor="#2563EB" stopOpacity={1} />
-                                                    <stop offset={off} stopColor="#EF4444" stopOpacity={1} />
-                                                </linearGradient>
-                                            </defs>
-                                            {/* Barras de fundo COM GRADIENTE E BORDAS ARREDONDADAS */}
-                                            <Bar name="Receitas" dataKey="receitas" fill="url(#gradientReceitas)" radius={[4, 4, 0, 0]} maxBarSize={24} />
-                                            <Bar name="Despesas" dataKey="despesas" fill="url(#gradientDespesas)" radius={[4, 4, 0, 0]} maxBarSize={24} />
-                                        </ComposedChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </div>
+                    )}
                 </div>
             </PageLayout>
         </>
-    );
+    )
 }

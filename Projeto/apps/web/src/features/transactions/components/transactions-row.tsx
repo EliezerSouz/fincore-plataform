@@ -1,5 +1,6 @@
 'use client'
 
+import { StatusBadge } from "@/components/ui/status-badge"
 import {
     ArrowDownCircle, ArrowUpCircle, ArrowRightLeft, CreditCard,
     CircleDashed, Wallet, PiggyBank, TrendingUp, Smartphone,
@@ -148,14 +149,14 @@ export function TransactionRow({ tx }: { tx: any }) {
                             </span>
                         )}
                         {tx.is_paid === false && (
-                            <span className="text-[9px] text-amber-600 bg-amber-100 dark:bg-amber-900/30 px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">
+                            <StatusBadge variant="warning" className="h-5 px-1.5 text-[9px]">
                                 Pendente
-                            </span>
+                            </StatusBadge>
                         )}
                         {(tx.installment_number && tx.total_installments) && (
-                            <span className="text-[9px] text-blue-600 bg-blue-100 dark:bg-blue-900/30 px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">
+                            <StatusBadge variant="info" className="h-5 px-1.5 text-[9px]">
                                 {tx.installment_number}/{tx.total_installments}
-                            </span>
+                            </StatusBadge>
                         )}
                     </div>
                 </div>

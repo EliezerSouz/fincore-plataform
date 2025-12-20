@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils"
 import { UpsellModal } from "@/components/ui/upsell-modal"
 import { CATEGORY_ICONS } from "@/lib/icons"
 import { COLOR_PRESETS } from "@/constants/ui-presets"
+import { toast } from "sonner"
 
 export function CreateCategoryDialog() {
     const [open, setOpen] = useState(false)
@@ -38,10 +39,12 @@ export function CreateCategoryDialog() {
 
             await createCategory(formData)
 
+            toast.success("Categoria criada com sucesso!")
+
             setOpen(false)
             resetForm()
         } catch (error) {
-            alert("Erro ao criar categoria")
+            toast.error("Erro ao criar categoria")
         } finally {
             setIsLoading(false)
         }
@@ -105,7 +108,7 @@ export function CreateCategoryDialog() {
                             type="button"
                             onClick={() => setType('despesa')}
                             className={cn(
-                                "flex-1 py-1.5 text-sm font-medium rounded-md transition-all flex items-center justify-center gap-2",
+                                "flex-1 h-11 text-sm font-medium rounded-md transition-all flex items-center justify-center gap-2",
                                 type === 'despesa' ? "bg-white dark:bg-slate-700 shadow-sm text-red-600" : "text-slate-500 hover:text-slate-700"
                             )}
                         >
@@ -116,7 +119,7 @@ export function CreateCategoryDialog() {
                             type="button"
                             onClick={() => setType('receita')}
                             className={cn(
-                                "flex-1 py-1.5 text-sm font-medium rounded-md transition-all flex items-center justify-center gap-2",
+                                "flex-1 h-11 text-sm font-medium rounded-md transition-all flex items-center justify-center gap-2",
                                 type === 'receita' ? "bg-white dark:bg-slate-700 shadow-sm text-emerald-600" : "text-slate-500 hover:text-slate-700"
                             )}
                         >
@@ -143,7 +146,7 @@ export function CreateCategoryDialog() {
                                     key={c.hex}
                                     type="button"
                                     className={cn(
-                                        "w-8 h-8 rounded-full transition-all shadow-sm flex items-center justify-center relative",
+                                        "w-11 h-11 rounded-full transition-all shadow-sm flex items-center justify-center relative",
                                         color === c.hex ? "ring-2 ring-offset-2 ring-slate-400 dark:ring-slate-600 scale-110" : "hover:scale-110 opacity-70 hover:opacity-100"
                                     )}
                                     style={{ backgroundColor: c.hex }}
@@ -171,7 +174,7 @@ export function CreateCategoryDialog() {
                                         key={key}
                                         type="button"
                                         className={cn(
-                                            "p-2 rounded-xl flex items-center justify-center transition-all aspect-square",
+                                            "h-11 w-11 rounded-xl flex items-center justify-center transition-all",
                                             icon === key
                                                 ? "bg-blue-600 text-white shadow-md scale-105"
                                                 : "text-slate-400 hover:bg-white dark:hover:bg-slate-700 hover:text-blue-600 hover:shadow-sm"

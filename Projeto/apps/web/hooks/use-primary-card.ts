@@ -38,10 +38,11 @@ export function usePrimaryCard() {
             const result = await setPrimaryCard(id, lockAfterSet)
             setPrimaryCardId(result.primaryCardId)
             setIsLocked(result.isLocked)
+            toast.success("Cartão principal atualizado com sucesso!")
             return true
         } catch (error: any) {
             console.error("Error setting primary card:", error)
-            alert(error.message || "Erro ao definir cartão principal")
+            toast.error(error.message || "Erro ao definir cartão principal")
             return false
         }
     }

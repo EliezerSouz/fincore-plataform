@@ -5,6 +5,7 @@ import { useCallback } from "react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { X } from "lucide-react"
+import { DateRangeFilter } from "@/components/ui/date-range-filter"
 
 interface TransactionsFiltersProps {
     accounts: any[]
@@ -51,10 +52,13 @@ export function TransactionsFilters({ accounts, categories }: TransactionsFilter
     const hasFilters = accountId !== 'all' || categoryId !== 'all' || type !== 'all'
 
     return (
-        <div className="flex flex-row items-center gap-2">
+        <div className="flex flex-row items-center gap-2 flex-wrap">
+            {/* Período */}
+            <DateRangeFilter />
+
             {/* Tipo */}
             <Select value={type} onValueChange={(v) => updateFilter('type', v)}>
-                <SelectTrigger className="w-[110px] h-9 bg-card border-slate-200 dark:border-slate-800 shadow-sm" suppressHydrationWarning>
+                <SelectTrigger className="w-[110px] h-11 bg-card border-slate-200 dark:border-slate-800 shadow-sm" suppressHydrationWarning>
                     <SelectValue placeholder="Tipo" />
                 </SelectTrigger>
                 <SelectContent>
@@ -67,7 +71,7 @@ export function TransactionsFilters({ accounts, categories }: TransactionsFilter
 
             {/* Conta */}
             <Select value={accountId} onValueChange={(v) => updateFilter('accountId', v)}>
-                <SelectTrigger className="w-[160px] h-9 bg-card border-slate-200 dark:border-slate-800 shadow-sm" suppressHydrationWarning>
+                <SelectTrigger className="w-[160px] h-11 bg-card border-slate-200 dark:border-slate-800 shadow-sm" suppressHydrationWarning>
                     <SelectValue placeholder="Conta" />
                 </SelectTrigger>
                 <SelectContent>
@@ -81,7 +85,7 @@ export function TransactionsFilters({ accounts, categories }: TransactionsFilter
             {/* Categoria */}
             <div className="hidden md:block">
                 <Select value={categoryId} onValueChange={(v) => updateFilter('categoryId', v)}>
-                    <SelectTrigger className="w-[160px] h-9 bg-card border-slate-200 dark:border-slate-800 shadow-sm" suppressHydrationWarning>
+                    <SelectTrigger className="w-[160px] h-11 bg-card border-slate-200 dark:border-slate-800 shadow-sm" suppressHydrationWarning>
                         <SelectValue placeholder="Categoria" />
                     </SelectTrigger>
                     <SelectContent>
@@ -102,10 +106,9 @@ export function TransactionsFilters({ accounts, categories }: TransactionsFilter
             {hasFilters && (
                 <Button
                     variant="ghost"
-                    size="icon"
                     onClick={clearFilters}
                     title="Limpar Filtros"
-                    className="h-9 w-9 text-muted-foreground hover:text-destructive"
+                    className="h-11 w-11 p-0 text-muted-foreground hover:text-destructive"
                 >
                     <X className="w-4 h-4" />
                 </Button>

@@ -1,29 +1,15 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "@/components/ui/dialog"
+import { BaseModal } from "@/components/ui/base-modal"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Loader2, ArrowUpCircle, ArrowDownCircle, ArrowLeftRight, CreditCard, FileText, GitBranch, Wallet, Info } from "lucide-react"
+import { ArrowUpCircle, ArrowDownCircle, ArrowLeftRight, CreditCard, FileText, GitBranch, Wallet, Info } from "lucide-react"
 import { createPaymentMethod, updatePaymentMethod, PaymentMethod } from "./actions"
-import { cn } from "@/lib/utils"
 import { CreateButton } from "@/components/ui/create-button"
-import {
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger,
-} from "@/components/ui/tooltip"
 import { useRouter } from "next/navigation"
+import { SwitchTile } from "@/components/ui/switch-tile"
+import { toast } from "sonner"
 
 interface PaymentMethodDialogProps {
     method?: PaymentMethod
@@ -98,211 +84,178 @@ export function PaymentMethodDialog({ method, trigger, onSuccess }: PaymentMetho
             onSuccess?.()
             setOpen(false)
             router.refresh()
+            toast.success(method ? "Modalidade atualizada com sucesso!" : "Modalidade criada com sucesso!")
         } catch (error: any) {
-            alert(error.message || "Erro ao salvar modalidade")
+            toast.error(error.message || "Erro ao salvar modalidade")
         } finally {
             setIsLoading(false)
         }
     }
 
-    const ToggleSwitch = ({ checked, onChange, label, description, icon: Icon, color }: any) => (
-        <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-950 rounded-lg border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition-colors">
-            <div className="flex items-center gap-3 flex-1">
-                <div className={cn(
-                    "w-9 h-9 rounded-lg flex items-center justify-center transition-colors",
-                    checked ? `${color}` : "bg-slate-200 dark:bg-slate-800"
-                )}>
-                    <Icon className={cn("w-4 h-4", checked ? "text-white" : "text-slate-400")} />
-                </div>
-                <div className="flex-1">
-                    <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{label}</p>
-                    <p className="text-[10px] text-slate-500 dark:text-slate-400">{description}</p>
-                </div>
-            </div>
-            <button
-                type="button"
-                onClick={() => onChange(!checked)}
-                className={cn(
-                    "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
-                    checked ? "bg-blue-600" : "bg-slate-300 dark:bg-slate-700"
-                )}
-            >
-                <span
-                    className={cn(
-                        "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
-                        checked ? "translate-x-6" : "translate-x-1"
-                    )}
-                />
-            </button>
-        </div>
-    )
-
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                {trigger || <CreateButton label="Nova Modalidade" />}
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
-                <form onSubmit={handleSubmit}>
-                    <DialogHeader>
-                        <DialogTitle className="text-xl font-bold text-slate-900 dark:text-white">
-                            {method ? 'Editar Modalidade' : 'Nova Modalidade de Pagamento'}
-                        </DialogTitle>
-                        <DialogDescription>
-                            Configure onde e como esta forma de pagamento pode ser utilizada no sistema.
-                        </DialogDescription>
-                    </DialogHeader>
+        <>
+            {trigger ? (
+                <div onClick={() => setOpen(true)} className="inline-block cursor-pointer">
+                    {trigger}
+                </div>
+            ) : (
+                <CreateButton label="Nova Modalidade" onClick={() => setOpen(true)} />
+            )}
 
-                    <div className="grid gap-6 py-4">
-                        {/* INFORMAÇÕES BÁSICAS */}
-                        <div className="space-y-4">
-                            <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                                <Info className="w-4 h-4" />
-                                Informações Básicas
-                            </h3>
+            <BaseModal
+                open={open}
+                onOpenChange={setOpen}
+                title={method ? 'Editar Modalidade' : 'Nova Modalidade de Pagamento'}
+                description="Configure onde e como esta forma de pagamento pode ser utilizada no sistema."
+                maxWidth="sm:max-w-[600px]"
+                primaryButton={{
+                    label: isLoading ? 'Salvando...' : method ? 'Salvar Alterações' : 'Criar Modalidade',
+                    isLoading,
+                    form: 'payment-method-form',
+                    type: 'submit'
+                }}
+                secondaryButton={{
+                    label: 'Cancelar',
+                    onClick: () => setOpen(false)
+                }}
+            >
+                <form id="payment-method-form" onSubmit={handleSubmit} className="grid gap-6 py-4">
+                    {/* INFORMAÇÕES BÁSICAS */}
+                    <div className="space-y-4">
+                        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                            <Info className="w-4 h-4" />
+                            Informações Básicas
+                        </h3>
 
-                            <div className="space-y-2">
-                                <Label className="text-xs font-semibold uppercase text-slate-500">Nome da Modalidade</Label>
-                                <Input
-                                    placeholder="Ex: PIX, Dinheiro, Cartão de Débito..."
-                                    value={name}
-                                    onChange={(e) => setName(e.target.value)}
-                                    required
-                                    autoFocus
-                                    className="shadow-sm"
-                                />
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label className="text-xs font-semibold uppercase text-slate-500">Identificador (Slug)</Label>
-                                <Input
-                                    placeholder="Ex: pix, cash, debit_card..."
-                                    value={slug}
-                                    onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/\s+/g, '_'))}
-                                    required
-                                    className="shadow-sm font-mono text-sm"
-                                />
-                                <p className="text-[10px] text-slate-500">Usado internamente. Não altere após criar.</p>
-                            </div>
-                        </div>
-
-                        {/* CONTEXTOS DE USO */}
-                        <div className="space-y-3">
-                            <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                                <GitBranch className="w-4 h-4" />
-                                Contextos de Uso (Onde pode ser usado)
-                            </h3>
-
-                            <ToggleSwitch
-                                checked={allowsIncome}
-                                onChange={setAllowsIncome}
-                                label="Permitir em Receitas"
-                                description="Entrada de dinheiro (salário, vendas, etc)"
-                                icon={ArrowUpCircle}
-                                color="bg-emerald-600"
-                            />
-
-                            <ToggleSwitch
-                                checked={allowsExpense}
-                                onChange={setAllowsExpense}
-                                label="Permitir em Despesas"
-                                description="Saída de dinheiro (compras, contas, etc)"
-                                icon={ArrowDownCircle}
-                                color="bg-red-600"
-                            />
-
-                            <ToggleSwitch
-                                checked={allowsTransfer}
-                                onChange={setAllowsTransfer}
-                                label="Permitir em Transferências"
-                                description="Movimentação entre contas próprias"
-                                icon={ArrowLeftRight}
-                                color="bg-blue-600"
-                            />
-
-                            <ToggleSwitch
-                                checked={affectsCreditCard}
-                                onChange={setAffectsCreditCard}
-                                label="Afeta Cartão de Crédito"
-                                description="Lançamento vai para fatura do cartão"
-                                icon={CreditCard}
-                                color="bg-purple-600"
-                            />
-
-                            <ToggleSwitch
-                                checked={affectsInvoice}
-                                onChange={setAffectsInvoice}
-                                label="Afeta Faturas/Boletos"
-                                description="Pagamento de contas e faturas"
-                                icon={FileText}
-                                color="bg-amber-600"
-                            />
-
-                            <ToggleSwitch
-                                checked={isInternal}
-                                onChange={setIsInternal}
-                                label="Movimento Interno"
-                                description="Não afeta resultado financeiro"
-                                icon={GitBranch}
-                                color="bg-slate-600"
+                        <div className="space-y-2">
+                            <Label className="text-xs font-semibold uppercase text-slate-500">Nome da Modalidade</Label>
+                            <Input
+                                placeholder="Ex: PIX, Dinheiro, Cartão de Débito..."
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                required
+                                autoFocus
+                                className="shadow-sm h-11"
                             />
                         </div>
 
-                        {/* COMPORTAMENTO */}
-                        <div className="space-y-3">
-                            <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                                <Wallet className="w-4 h-4" />
-                                Comportamento Financeiro
-                            </h3>
-
-                            <ToggleSwitch
-                                checked={affectsBalance}
-                                onChange={setAffectsBalance}
-                                label="Afeta Saldo Imediatamente"
-                                description="Altera o saldo da conta na hora"
-                                icon={Wallet}
-                                color="bg-green-600"
+                        <div className="space-y-2">
+                            <Label className="text-xs font-semibold uppercase text-slate-500">Identificador (Slug)</Label>
+                            <Input
+                                placeholder="Ex: pix, cash, debit_card..."
+                                value={slug}
+                                onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/\s+/g, '_'))}
+                                required
+                                className="shadow-sm font-mono text-sm h-11"
                             />
-
-                            <ToggleSwitch
-                                checked={requiresBankAccount}
-                                onChange={setRequiresBankAccount}
-                                label="Requer Conta Bancária"
-                                description="Precisa vincular a uma conta"
-                                icon={Wallet}
-                                color="bg-indigo-600"
-                            />
+                            <p className="text-[10px] text-slate-500">Usado internamente. Não altere após criar.</p>
                         </div>
-
-                        {/* STATUS */}
-                        {method && (
-                            <div className="space-y-3">
-                                <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Status</h3>
-                                <ToggleSwitch
-                                    checked={isActive}
-                                    onChange={setIsActive}
-                                    label="Modalidade Ativa"
-                                    description="Desative para ocultar da lista"
-                                    icon={Info}
-                                    color="bg-blue-600"
-                                />
-                            </div>
-                        )}
                     </div>
 
-                    <DialogFooter className="mt-4">
-                        <Button type="button" variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
-                        <Button
-                            type="submit"
-                            disabled={isLoading}
-                            className="font-bold bg-blue-600 hover:bg-blue-700 text-white min-w-[140px]"
-                        >
-                            {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                            {isLoading ? 'Salvando...' : method ? 'Salvar Alterações' : 'Criar Modalidade'}
-                        </Button>
-                    </DialogFooter>
+                    {/* CONTEXTOS DE USO */}
+                    <div className="space-y-3">
+                        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                            <GitBranch className="w-4 h-4" />
+                            Contextos de Uso (Onde pode ser usado)
+                        </h3>
+
+                        <SwitchTile
+                            checked={allowsIncome}
+                            onCheckedChange={setAllowsIncome}
+                            label="Permitir em Receitas"
+                            description="Entrada de dinheiro (salário, vendas, etc)"
+                            icon={ArrowUpCircle}
+                            iconClassName="bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400"
+                        />
+
+                        <SwitchTile
+                            checked={allowsExpense}
+                            onCheckedChange={setAllowsExpense}
+                            label="Permitir em Despesas"
+                            description="Saída de dinheiro (compras, contas, etc)"
+                            icon={ArrowDownCircle}
+                            iconClassName="bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400"
+                        />
+
+                        <SwitchTile
+                            checked={allowsTransfer}
+                            onCheckedChange={setAllowsTransfer}
+                            label="Permitir em Transferências"
+                            description="Movimentação entre contas próprias"
+                            icon={ArrowLeftRight}
+                            iconClassName="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
+                        />
+
+                        <SwitchTile
+                            checked={affectsCreditCard}
+                            onCheckedChange={setAffectsCreditCard}
+                            label="Afeta Cartão de Crédito"
+                            description="Lançamento vai para fatura do cartão"
+                            icon={CreditCard}
+                            iconClassName="bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400"
+                        />
+
+                        <SwitchTile
+                            checked={affectsInvoice}
+                            onCheckedChange={setAffectsInvoice}
+                            label="Afeta Faturas/Boletos"
+                            description="Pagamento de contas e faturas"
+                            icon={FileText}
+                            iconClassName="bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400"
+                        />
+
+                        <SwitchTile
+                            checked={isInternal}
+                            onCheckedChange={setIsInternal}
+                            label="Movimento Interno"
+                            description="Não afeta resultado financeiro"
+                            icon={GitBranch}
+                            iconClassName="bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400"
+                        />
+                    </div>
+
+                    {/* COMPORTAMENTO */}
+                    <div className="space-y-3">
+                        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                            <Wallet className="w-4 h-4" />
+                            Comportamento Financeiro
+                        </h3>
+
+                        <SwitchTile
+                            checked={affectsBalance}
+                            onCheckedChange={setAffectsBalance}
+                            label="Afeta Saldo Imediatamente"
+                            description="Altera o saldo da conta na hora"
+                            icon={Wallet}
+                            iconClassName="bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400"
+                        />
+
+                        <SwitchTile
+                            checked={requiresBankAccount}
+                            onCheckedChange={setRequiresBankAccount}
+                            label="Requer Conta Bancária"
+                            description="Precisa vincular a uma conta"
+                            icon={Wallet}
+                            iconClassName="bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400"
+                        />
+                    </div>
+
+                    {/* STATUS */}
+                    {method && (
+                        <div className="space-y-3">
+                            <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Status</h3>
+                            <SwitchTile
+                                checked={isActive}
+                                onCheckedChange={setIsActive}
+                                label="Modalidade Ativa"
+                                description="Desative para ocultar da lista"
+                                icon={Info}
+                                iconClassName="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
+                            />
+                        </div>
+                    )}
                 </form>
-            </DialogContent>
-        </Dialog>
+            </BaseModal>
+        </>
     )
 }

@@ -9,6 +9,7 @@ import { CreditCard, Check } from "lucide-react"
 import { CreditCard as CreditCardType, updateCreditCard } from "./actions"
 import { usePermission } from "@/hooks/use-permission"
 import { UpsellModal } from "@/components/ui/upsell-modal"
+import { COLOR_PRESETS } from "@/constants/ui-presets"
 
 const BRAND_OPTIONS = [
     { value: 'master', label: 'Mastercard' },
@@ -17,18 +18,6 @@ const BRAND_OPTIONS = [
     { value: 'amex', label: 'American Express' },
     { value: 'hipercard', label: 'Hipercard' },
     { value: 'other', label: 'Outro' },
-]
-
-const COLOR_PRESETS = [
-    { name: 'Roxo (Nubank)', hex: '#820ad1' },
-    { name: 'Laranja (Inter)', hex: '#ff7a00' },
-    { name: 'Vermelho (Bradesco/Santander)', hex: '#cc092f' },
-    { name: 'Preto (Black/C6/XP)', hex: '#1a1a1a' },
-    { name: 'Azul (Itaú/Caixa)', hex: '#0054a6' },
-    { name: 'Amarelo (Banco do Brasil)', hex: '#ffcc00' },
-    { name: 'Verde (Stone/Outros)', hex: '#118C4F' },
-    { name: 'Rosa', hex: '#ec4899' },
-    { name: 'Gold', hex: '#ca8a04' },
 ]
 
 interface EditCardDialogProps {
@@ -65,7 +54,7 @@ export function EditCardDialog({ card, open, onOpenChange }: EditCardDialogProps
             const due = parseInt(formData.get('due_day') as string)
 
             if (closing < 1 || closing > 31 || due < 1 || due > 31) {
-                alert('Dias devem ser entre 1 e 31')
+                toast.error('Dias devem ser entre 1 e 31')
                 setLoading(false)
                 return
             }
@@ -73,7 +62,7 @@ export function EditCardDialog({ card, open, onOpenChange }: EditCardDialogProps
             // Validar limite
             const limitStr = formData.get('limit_amount') as string
             if (!limitStr || limitStr.trim() === '') {
-                alert('Informe o limite do cartão')
+                toast.error('Informe o limite do cartão')
                 setLoading(false)
                 return
             }
@@ -85,10 +74,11 @@ export function EditCardDialog({ card, open, onOpenChange }: EditCardDialogProps
 
             // Sucesso - fechar dialog
             onOpenChange(false)
+            toast.success("Cartão atualizado com sucesso!")
 
         } catch (e: any) {
             console.error('Erro ao editar cartão:', e)
-            alert(e.message || 'Erro ao editar cartão. Verifique os dados e tente novamente.')
+            toast.error(e.message || 'Erro ao editar cartão. Verifique os dados e tente novamente.')
         } finally {
             setLoading(false)
         }
@@ -145,21 +135,10 @@ export function EditCardDialog({ card, open, onOpenChange }: EditCardDialogProps
                         <Input
                             id="edit-last_4_digits"
                             name="last_4_digits"
-                            placeholder="1234"
-                            maxLength={4}
-                            pattern="\d{4}"
-                            className="font-mono"
                             defaultValue={card.last_4_digits}
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="edit-limit_amount" className="text-xs font-semibold uppercase text-slate-500">Limite Total (R$)</Label>
-                        <Input
-                            id="edit-limit_amount"
-                            name="limit_amount"
-                            placeholder="0,00"
                             required
-                            defaultValue={card.limit_amount.toString()}
+                            maxLength={4}
+                            className="font-mono text-center h-11"
                         />
                     </div>
                 </div>
@@ -176,6 +155,7 @@ export function EditCardDialog({ card, open, onOpenChange }: EditCardDialogProps
                             placeholder="Ex: 5"
                             required
                             defaultValue={card.closing_day}
+                            className="h-11"
                         />
                         <p className="text-[10px] text-slate-400">Melhor dia compra</p>
                     </div>
@@ -190,6 +170,7 @@ export function EditCardDialog({ card, open, onOpenChange }: EditCardDialogProps
                             placeholder="Ex: 12"
                             required
                             defaultValue={card.due_day}
+                            className="h-11"
                         />
                         <p className="text-[10px] text-slate-400">Dia de pagamento</p>
                     </div>
@@ -201,13 +182,13 @@ export function EditCardDialog({ card, open, onOpenChange }: EditCardDialogProps
                     <div className="flex gap-3 flex-wrap bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg border border-slate-100 dark:border-slate-800">
                         {COLOR_PRESETS.map(color => (
                             <button
-                                key={color.hex}
-                                type="button"
-                                className={`w-8 h-8 rounded-full transition-all flex items-center justify-center shadow-sm hover:scale-110 ${selectedColor === color.hex ? 'ring-2 ring-offset-2 ring-slate-400 dark:ring-slate-600 scale-110' : ''}`}
-                                style={{ backgroundColor: color.hex }}
-                                onClick={() => setSelectedColor(color.hex)}
-                                title={color.name}
-                            >
+                                    key={color.hex}
+                                    type="button"
+                                    className={`w-11 h-11 rounded-full transition-all flex items-center justify-center shadow-sm hover:scale-110 ${selectedColor === color.hex ? 'ring-2 ring-offset-2 ring-slate-400 dark:ring-slate-600 scale-110' : ''}`}
+                                    style={{ backgroundColor: color.hex }}
+                                    onClick={() => setSelectedColor(color.hex)}
+                                    title={color.name}
+                                >
                                 {selectedColor === color.hex && <Check className="w-4 h-4 text-white drop-shadow-md" />}
                             </button>
                         ))}

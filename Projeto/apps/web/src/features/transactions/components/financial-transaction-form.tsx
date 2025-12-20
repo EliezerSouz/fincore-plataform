@@ -12,8 +12,11 @@ import { usePermission } from "@/hooks/use-permission"
 import { usePrimaryCard } from "@/hooks/use-primary-card"
 import { cn } from "@/lib/utils"
 import { CurrencyInput } from "@/components/ui/currency-input"
+import { Textarea } from "@/components/ui/textarea"
 import { DatePicker } from "@/components/ui/date-picker"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { format } from "date-fns"
+import { toast } from "sonner"
 
 export interface FinancialTransactionFormData {
     type: 'receita' | 'despesa' | 'transferencia' | 'compra'
@@ -189,25 +192,25 @@ export function FinancialTransactionForm({
 
         // Validação básica
         if (!amount || amount <= 0) {
-            alert("Informe um valor maior que zero.")
+            toast.warning("Informe um valor maior que zero.")
             return
         }
 
         if (type === 'transferencia') {
             if (!accountId || !targetAccountId) return
             if (accountId === targetAccountId) {
-                alert("As contas de origem e destino devem ser diferentes.")
+                toast.warning("As contas de origem e destino devem ser diferentes.")
                 return
             }
         } else {
             // Conta só é obrigatória se o seletor estiver visível (transações reais)
             if (showAccountSelector && !accountId) {
-                alert("Selecione uma conta bancária.")
+                toast.warning("Selecione uma conta bancária.")
                 return
             }
             // Categoria é obrigatória se o seletor estiver visível
             if (showCategorySelector && !categoryId) {
-                alert("Selecione uma categoria.")
+                toast.warning("Selecione uma categoria.")
                 return
             }
         }
@@ -233,7 +236,7 @@ export function FinancialTransactionForm({
                 endInstallment
             })
         } catch (error: any) {
-            alert(error.message || "Erro ao processar transação")
+            toast.error(error.message || "Erro ao processar transação")
         } finally {
             isSubmittingRef.current = false
         }
@@ -262,7 +265,7 @@ export function FinancialTransactionForm({
                             disabled={mode === 'edit'}
                             onClick={() => setType('despesa')}
                             className={cn(
-                                "flex-1 py-1.5 text-sm font-medium rounded-md transition-all flex items-center justify-center gap-2",
+                                "flex-1 h-11 text-sm font-medium rounded-md transition-all flex items-center justify-center gap-2",
                                 type === 'despesa'
                                     ? "bg-white dark:bg-slate-700 text-red-600 shadow-sm border border-red-100 dark:border-red-900/30"
                                     : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300",
@@ -278,7 +281,7 @@ export function FinancialTransactionForm({
                             disabled={mode === 'edit'}
                             onClick={() => setType('receita')}
                             className={cn(
-                                "flex-1 py-1.5 text-sm font-medium rounded-md transition-all flex items-center justify-center gap-2",
+                                "flex-1 h-11 text-sm font-medium rounded-md transition-all flex items-center justify-center gap-2",
                                 type === 'receita'
                                     ? "bg-white dark:bg-slate-700 text-emerald-600 shadow-sm border border-emerald-100 dark:border-emerald-900/30"
                                     : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300",
@@ -294,13 +297,13 @@ export function FinancialTransactionForm({
                             disabled={mode === 'edit'}
                             onClick={() => {
                                 if (!can('transfer_between_accounts')) {
-                                    alert("Transferências entre contas são exclusivas para planos Premium.")
+                                    toast.warning("Transferências entre contas são exclusivas para planos Premium.")
                                     return
                                 }
                                 type !== 'transferencia' && setType('transferencia')
                             }}
                             className={cn(
-                                "flex-1 py-1.5 text-sm font-medium rounded-md transition-all flex items-center justify-center gap-2",
+                                "flex-1 h-11 text-sm font-medium rounded-md transition-all flex items-center justify-center gap-2",
                                 type === 'transferencia'
                                     ? "bg-white dark:bg-slate-700 text-blue-600 shadow-sm border border-blue-100 dark:border-blue-900/30"
                                     : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300",
@@ -323,7 +326,7 @@ export function FinancialTransactionForm({
                                 else setPaymentMethodId('credit_card');
                             }}
                             className={cn(
-                                "flex-1 py-1.5 text-sm font-medium rounded-md transition-all flex items-center justify-center gap-2",
+                                "flex-1 h-11 text-sm font-medium rounded-md transition-all flex items-center justify-center gap-2",
                                 type === 'compra'
                                     ? "bg-white dark:bg-slate-700 text-orange-600 shadow-sm border border-orange-100 dark:border-orange-900/30"
                                     : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300",
@@ -430,6 +433,7 @@ export function FinancialTransactionForm({
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
                         required={type !== 'transferencia'}
+                        className="h-11"
                     />
                 </div>
 
@@ -438,35 +442,38 @@ export function FinancialTransactionForm({
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label className="text-xs font-semibold uppercase text-slate-500">Categoria</Label>
-                            <select
-                                className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-800 dark:bg-slate-950 dark:ring-offset-slate-950 dark:placeholder:text-slate-400 dark:focus-visible:ring-slate-300 shadow-sm"
-                                value={categoryId}
-                                onChange={(e) => setCategoryId(e.target.value)}
-                                required
-                            >
-                                <option value="">Selecione...</option>
-                                {categories
-                                    .filter(c => c.is_active || c.id === categoryId)
-                                    .map(cat => (
-                                    <option key={cat.id} value={cat.id}>{cat.name}</option>
-                                ))}
-                            </select>
+                            <Select value={categoryId} onValueChange={setCategoryId} required>
+                                <SelectTrigger className="h-11 w-full">
+                                    <SelectValue placeholder="Selecione..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {categories
+                                        .filter(c => c.is_active || c.id === categoryId)
+                                        .map(cat => (
+                                        <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
                         <div className="space-y-2">
                             <Label className="text-xs font-semibold uppercase text-slate-500">Subcategoria (Opcional)</Label>
-                            <select
-                                className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-800 dark:bg-slate-950 dark:ring-offset-slate-950 dark:placeholder:text-slate-400 dark:focus-visible:ring-slate-300 shadow-sm"
-                                value={subcategoryId}
-                                onChange={(e) => setSubcategoryId(e.target.value)}
+                            <Select 
+                                value={subcategoryId || "default"} 
+                                onValueChange={(val) => setSubcategoryId(val === "default" ? "" : val)}
                                 disabled={!categoryId}
                             >
-                                <option value="">Geral</option>
-                                {subcategories
-                                    .filter(s => s.is_active || s.id === subcategoryId)
-                                    .map(sub => (
-                                    <option key={sub.id} value={sub.id}>{sub.name}</option>
-                                ))}
-                            </select>
+                                <SelectTrigger className="h-11 w-full">
+                                    <SelectValue placeholder="Geral" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="default">Geral</SelectItem>
+                                    {subcategories
+                                        .filter(s => s.is_active || s.id === subcategoryId)
+                                        .map(sub => (
+                                        <SelectItem key={sub.id} value={sub.id}>{sub.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
                     </div>
                 )}
@@ -479,17 +486,16 @@ export function FinancialTransactionForm({
                                 <Label className="text-xs font-semibold uppercase text-slate-500">
                                     {type === 'receita' ? 'Conta de Entrada' : type === 'despesa' ? 'Conta de Saída' : 'Conta de Origem'}
                                 </Label>
-                                <select
-                                    className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-800 dark:bg-slate-950 dark:ring-offset-slate-950 dark:placeholder:text-slate-400 dark:focus-visible:ring-slate-300 shadow-sm"
-                                    value={accountId}
-                                    onChange={(e) => setAccountId(e.target.value)}
-                                    required={showAccountSelector}
-                                >
-                                    <option value="">Selecione...</option>
-                                    {accounts.map(acc => (
-                                        <option key={acc.id} value={acc.id}>{acc.name}</option>
-                                    ))}
-                                </select>
+                                <Select value={accountId} onValueChange={setAccountId} required={showAccountSelector}>
+                                    <SelectTrigger className="h-11 w-full">
+                                        <SelectValue placeholder="Selecione..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {accounts.map(acc => (
+                                            <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
                         ) : <div />}
 
@@ -497,31 +503,34 @@ export function FinancialTransactionForm({
                             {type === 'transferencia' ? (
                                 <>
                                     <Label className="text-xs font-semibold uppercase text-slate-500">Conta de Destino</Label>
-                                    <select
-                                        className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-800 dark:bg-slate-950 dark:ring-offset-slate-950 dark:placeholder:text-slate-400 dark:focus-visible:ring-slate-300 shadow-sm"
-                                        value={targetAccountId}
-                                        onChange={(e) => setTargetAccountId(e.target.value)}
-                                        required
-                                    >
-                                        <option value="">Selecione...</option>
-                                        {accounts.filter(a => a.id !== accountId).map(acc => (
-                                            <option key={acc.id} value={acc.id}>{acc.name}</option>
-                                        ))}
-                                    </select>
+                                    <Select value={targetAccountId} onValueChange={setTargetAccountId} required>
+                                        <SelectTrigger className="h-11 w-full">
+                                            <SelectValue placeholder="Selecione..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {accounts.filter(a => a.id !== accountId).map(acc => (
+                                                <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
                                 </>
                             ) : showPaymentMethodSelector ? (
                                 <>
                                     <Label className="text-xs font-semibold uppercase text-slate-500">Forma de Pagamento</Label>
-                                    <select
-                                        className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-800 dark:bg-slate-950 dark:ring-offset-slate-950 dark:placeholder:text-slate-400 dark:focus-visible:ring-slate-300 shadow-sm"
-                                        value={paymentMethodId}
-                                        onChange={(e) => setPaymentMethodId(e.target.value)}
+                                    <Select 
+                                        value={paymentMethodId || "default"} 
+                                        onValueChange={(val) => setPaymentMethodId(val === "default" ? "" : val)}
                                     >
-                                        <option value="">Opcional</option>
-                                        {filteredMethods.map(m => (
-                                            <option key={m.id} value={m.id}>{m.name}</option>
-                                        ))}
-                                    </select>
+                                        <SelectTrigger className="h-11 w-full">
+                                            <SelectValue placeholder="Opcional" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="default">Opcional</SelectItem>
+                                            {filteredMethods.map(m => (
+                                                <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
                                 </>
                             ) : null}
                         </div>
@@ -542,29 +551,34 @@ export function FinancialTransactionForm({
                     {type === 'transferencia' ? (
                         <div className="space-y-2">
                             <Label className="text-xs font-semibold uppercase text-slate-500">Método (Opcional)</Label>
-                            <select
-                                className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-800 dark:bg-slate-950 dark:ring-offset-slate-950 dark:placeholder:text-slate-400 dark:focus-visible:ring-slate-300 shadow-sm"
-                                value={paymentMethodId}
-                                onChange={(e) => setPaymentMethodId(e.target.value)}
+                            <Select 
+                                value={paymentMethodId || "default"} 
+                                onValueChange={(val) => setPaymentMethodId(val === "default" ? "" : val)}
                             >
-                                <option value="">Selecione...</option>
-                                {filteredMethods.map(m => (
-                                    <option key={m.id} value={m.id}>{m.name}</option>
-                                ))}
-                            </select>
+                                <SelectTrigger className="h-11 w-full">
+                                    <SelectValue placeholder="Selecione..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="default">Selecione...</SelectItem>
+                                    {filteredMethods.map(m => (
+                                        <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
                     ) : (isCreditCard && !isRetroactive) ? (
                         <div className="space-y-2">
                             <Label className="text-xs font-semibold uppercase text-slate-500">Parcelas</Label>
-                            <select
-                                className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-800 dark:bg-slate-950 dark:ring-offset-slate-950 dark:placeholder:text-slate-400 dark:focus-visible:ring-slate-300 shadow-sm"
-                                value={installments}
-                                onChange={(e) => setInstallments(e.target.value)}
-                            >
-                                {Array.from({ length: 12 }, (_, i) => i + 1).map(i => (
-                                    <option key={i} value={String(i)}>{i}x</option>
-                                ))}
-                            </select>
+                            <Select value={installments} onValueChange={setInstallments}>
+                                <SelectTrigger className="h-11 w-full">
+                                    <SelectValue placeholder="Selecione..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {Array.from({ length: 12 }, (_, i) => i + 1).map(i => (
+                                        <SelectItem key={i} value={String(i)}>{i}x</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
                     ) : null}
                 </div>
@@ -573,22 +587,21 @@ export function FinancialTransactionForm({
                 {isCreditCard && !initialData?.selectedCardId && (
                     <div className="space-y-2 animate-in fade-in slide-in-from-top-1 bg-slate-50 dark:bg-slate-950 p-3 rounded-lg border border-slate-200 dark:border-slate-800">
                         <Label className="text-xs font-semibold uppercase text-slate-500">Selecionar Cartão de Crédito</Label>
-                        <select
-                            className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-800 dark:bg-slate-950 dark:ring-offset-slate-950 dark:placeholder:text-slate-400 dark:focus-visible:ring-slate-300 shadow-sm mt-1"
-                            value={selectedCardId}
-                            onChange={(e) => setSelectedCardId(e.target.value)}
-                            required={isCreditCard}
-                        >
-                            <option value="">Escolha o cartão...</option>
-                            {creditCards.map((card) => {
-                                const isLocked = !can('unlimited_cards') && card.id !== primaryCardId
-                                return (
-                                    <option key={card.id} value={card.id} disabled={isLocked}>
-                                        {card.name} {isLocked ? "(Inativo)" : ""}
-                                    </option>
-                                )
-                            })}
-                        </select>
+                        <Select value={selectedCardId} onValueChange={setSelectedCardId} required={isCreditCard}>
+                            <SelectTrigger className="h-11 w-full mt-1">
+                                <SelectValue placeholder="Escolha o cartão..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {creditCards.map((card) => {
+                                    const isLocked = !can('unlimited_cards') && card.id !== primaryCardId
+                                    return (
+                                        <SelectItem key={card.id} value={card.id} disabled={isLocked}>
+                                            {card.name} {isLocked ? "(Inativo)" : ""}
+                                        </SelectItem>
+                                    )
+                                })}
+                            </SelectContent>
+                        </Select>
                     </div>
                 )}
             </div>
@@ -596,8 +609,7 @@ export function FinancialTransactionForm({
             {/* OBSERVAÇÕES */}
             <div className="space-y-2 mt-2">
                 <Label className="text-xs font-semibold uppercase text-slate-500">Observações (Notes)</Label>
-                <textarea
-                    className="flex min-h-[80px] w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-800 dark:bg-slate-950 dark:ring-offset-slate-950 dark:placeholder:text-slate-400 dark:focus-visible:ring-slate-300 shadow-sm"
+                <Textarea
                     placeholder="Adicione detalhes adicionais sobre esta transação..."
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}

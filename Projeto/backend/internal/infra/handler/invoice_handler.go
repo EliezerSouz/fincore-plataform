@@ -52,9 +52,36 @@ func (h *InvoiceHandler) GetInvoiceDetails(c *gin.Context) {
 		return
 	}
 
+	payments, err := h.Service.InvoiceRepo.FindPaymentsByInvoiceID(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Calculate Rollover Amount (Prior Balance)
+	prevMonth := invoice.ReferenceMonth - 1
+	prevYear := invoice.ReferenceYear
+	if prevMonth < 1 {
+		prevMonth = 12
+		prevYear--
+	}
+
+	var rolloverAmount float64 = 0
+	// We need CreditCardID from invoice, which is available in invoice struct
+	if invoice.CreditCardID != "" {
+		prevInvoice, err := h.Service.InvoiceRepo.FindOneByCardAndMonthYear(c.Request.Context(), invoice.CreditCardID, prevMonth, prevYear)
+		if err == nil && prevInvoice != nil {
+			// Rollover = Total - Paid
+			// If positive: Debt. If negative: Credit (overpaid).
+			rolloverAmount = prevInvoice.TotalAmount - prevInvoice.PaidAmount
+		}
+	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"invoice":      invoice,
-		"transactions": transactions,
+		"invoice":         invoice,
+		"transactions":    transactions,
+		"payments":        payments,
+		"rollover_amount": rolloverAmount,
 	})
 }
 

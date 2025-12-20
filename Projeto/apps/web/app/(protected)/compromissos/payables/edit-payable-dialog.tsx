@@ -4,8 +4,10 @@ import { useState } from "react"
 import { BaseModal } from "@/components/ui/base-modal"
 import { updatePayable, Payable } from "./actions"
 import { FinancialTransactionForm, FinancialTransactionFormData } from "@/features/transactions/components/financial-transaction-form"
+import { toTransactionFormData } from "@/features/transactions/utils/form-data"
 import { useRouter } from "next/navigation"
 import { FileText } from "lucide-react"
+import { toast } from "sonner"
 
 interface EditPayableDialogProps {
     payable: Payable
@@ -31,21 +33,14 @@ export function EditPayableDialog({ payable, open, onOpenChange }: EditPayableDi
     async function handleSubmit(data: FinancialTransactionFormData) {
         setLoading(true)
         try {
-            const formData = new FormData()
-            formData.append('description', data.description)
-            formData.append('amount', data.amount.toString())
-            formData.append('date', data.date)
-
-            if (data.categoryId) formData.append('categoryId', data.categoryId)
-            if (data.subcategoryId) formData.append('subcategoryId', data.subcategoryId)
-            if (data.paymentMethodId) formData.append('paymentMethodId', data.paymentMethodId)
-
+            const formData = toTransactionFormData(data)
             await updatePayable(payable.id, formData)
 
             onOpenChange(false)
             router.refresh()
+            toast.success("Conta atualizada com sucesso")
         } catch (error: any) {
-            throw new Error(error.message || "Erro ao atualizar conta")
+            toast.error(error.message || "Erro ao atualizar conta")
         } finally {
             setLoading(false)
         }

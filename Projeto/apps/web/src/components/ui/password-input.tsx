@@ -24,10 +24,9 @@ const PasswordInput = React.forwardRef<HTMLInputElement, PasswordInputProps>(
                 <Button
                     type="button"
                     variant="ghost"
-                    size="sm"
                     className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
                     onClick={() => setShowPassword((prev) => !prev)}
-                    tabIndex={-1} // Prevent tabbing to this button
+                    disabled={props.value === "" || props.disabled}
                 >
                     {showPassword ? (
                         <EyeOff className="h-4 w-4" aria-hidden="true" />

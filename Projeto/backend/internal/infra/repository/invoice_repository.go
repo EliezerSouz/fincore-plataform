@@ -22,7 +22,7 @@ func NewInvoiceRepository(db *pgxpool.Pool) *InvoiceRepository {
 
 func (r *InvoiceRepository) FindByCardID(ctx context.Context, cardID string) ([]entity.CreditCardInvoice, error) {
 	query := `
-		SELECT id, credit_card_id, reference_month, reference_year, closing_date, due_date, total_amount, status, created_at, updated_at
+		SELECT id, credit_card_id, reference_month, reference_year, closing_date, due_date, total_amount, paid_amount, status, created_at, updated_at
 		FROM credit_card_invoices
 		WHERE credit_card_id = $1
 		ORDER BY reference_year DESC, reference_month DESC
@@ -36,7 +36,7 @@ func (r *InvoiceRepository) FindByCardID(ctx context.Context, cardID string) ([]
 	var invoices []entity.CreditCardInvoice
 	for rows.Next() {
 		var i entity.CreditCardInvoice
-		if err := rows.Scan(&i.ID, &i.CreditCardID, &i.ReferenceMonth, &i.ReferenceYear, &i.ClosingDate, &i.DueDate, &i.TotalAmount, &i.Status, &i.CreatedAt, &i.UpdatedAt); err != nil {
+		if err := rows.Scan(&i.ID, &i.CreditCardID, &i.ReferenceMonth, &i.ReferenceYear, &i.ClosingDate, &i.DueDate, &i.TotalAmount, &i.PaidAmount, &i.Status, &i.CreatedAt, &i.UpdatedAt); err != nil {
 			return nil, err
 		}
 		invoices = append(invoices, i)
@@ -46,13 +46,30 @@ func (r *InvoiceRepository) FindByCardID(ctx context.Context, cardID string) ([]
 
 func (r *InvoiceRepository) FindByID(ctx context.Context, id string) (*entity.CreditCardInvoice, error) {
 	query := `
-		SELECT id, credit_card_id, reference_month, reference_year, closing_date, due_date, total_amount, status, created_at, updated_at
+		SELECT id, credit_card_id, reference_month, reference_year, closing_date, due_date, total_amount, paid_amount, status, created_at, updated_at
 		FROM credit_card_invoices
 		WHERE id = $1
 	`
 	var i entity.CreditCardInvoice
-	err := r.db.QueryRow(ctx, query, id).Scan(&i.ID, &i.CreditCardID, &i.ReferenceMonth, &i.ReferenceYear, &i.ClosingDate, &i.DueDate, &i.TotalAmount, &i.Status, &i.CreatedAt, &i.UpdatedAt)
+	err := r.db.QueryRow(ctx, query, id).Scan(&i.ID, &i.CreditCardID, &i.ReferenceMonth, &i.ReferenceYear, &i.ClosingDate, &i.DueDate, &i.TotalAmount, &i.PaidAmount, &i.Status, &i.CreatedAt, &i.UpdatedAt)
 	if err != nil {
+		return nil, err
+	}
+	return &i, nil
+}
+
+func (r *InvoiceRepository) FindOneByCardAndMonthYear(ctx context.Context, cardID string, month, year int) (*entity.CreditCardInvoice, error) {
+	query := `
+		SELECT id, credit_card_id, reference_month, reference_year, closing_date, due_date, total_amount, paid_amount, status, created_at, updated_at
+		FROM credit_card_invoices
+		WHERE credit_card_id = $1 AND reference_month = $2 AND reference_year = $3
+	`
+	var i entity.CreditCardInvoice
+	err := r.db.QueryRow(ctx, query, cardID, month, year).Scan(&i.ID, &i.CreditCardID, &i.ReferenceMonth, &i.ReferenceYear, &i.ClosingDate, &i.DueDate, &i.TotalAmount, &i.PaidAmount, &i.Status, &i.CreatedAt, &i.UpdatedAt)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, nil
+		}
 		return nil, err
 	}
 	return &i, nil
@@ -80,6 +97,30 @@ func (r *InvoiceRepository) FindTransactionsByInvoiceID(ctx context.Context, inv
 		transactions = append(transactions, t)
 	}
 	return transactions, nil
+}
+
+func (r *InvoiceRepository) FindPaymentsByInvoiceID(ctx context.Context, invoiceID string) ([]entity.Transaction, error) {
+	query := `
+		SELECT id, description, amount, date, account_id
+		FROM transactions
+		WHERE credit_card_invoice_id = $1
+		ORDER BY date DESC
+	`
+	rows, err := r.db.Query(ctx, query, invoiceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var payments []entity.Transaction
+	for rows.Next() {
+		var t entity.Transaction
+		if err := rows.Scan(&t.ID, &t.Description, &t.Amount, &t.Date, &t.AccountID); err != nil {
+			return nil, err
+		}
+		payments = append(payments, t)
+	}
+	return payments, nil
 }
 
 func (r *InvoiceRepository) GetOrCreateInvoice(ctx context.Context, tx pgx.Tx, userID, cardID string, date time.Time) (string, error) {

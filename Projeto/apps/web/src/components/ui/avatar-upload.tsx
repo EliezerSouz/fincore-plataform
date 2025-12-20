@@ -24,7 +24,7 @@ export function AvatarUpload({ avatarUrl, initials, onAvatarUpdate }: AvatarUplo
 
         // Validação: máximo 5MB
         if (file.size > 5 * 1024 * 1024) {
-            alert("A imagem deve ter no máximo 5MB.")
+            toast.error("A imagem deve ter no máximo 5MB.")
             return
         }
 
@@ -58,7 +58,7 @@ export function AvatarUpload({ avatarUrl, initials, onAvatarUpdate }: AvatarUplo
 
         } catch (error) {
             console.error("Erro no upload:", error)
-            alert("Erro ao enviar a imagem. Tente novamente.")
+            toast.error("Erro ao enviar a imagem. Tente novamente.")
         } finally {
             setIsUploading(false)
             // Reset input

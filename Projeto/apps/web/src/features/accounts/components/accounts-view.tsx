@@ -1,11 +1,12 @@
-﻿'use client'
+'use client'
 
 import { useAccounts } from '@/hooks/use-accounts'
 import { AccountCard } from "@/features/accounts/components/account-card"
 import { CreateAccountDialog } from "@/features/accounts/components/create-account-dialog"
-import { ConsolidatedBalanceCard } from "@/features/accounts/components/consolidated-balance-card"
 import { Wallet, Landmark, PiggyBank, TrendingUp, Activity, CreditCard, CircleDashed } from "lucide-react"
 import { PageLayout } from "@/components/layout/page-layout"
+import { formatCurrency } from "@/lib/utils"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 export function AccountsView() {
     const { accounts, loading } = useAccounts()
@@ -22,6 +23,7 @@ export function AccountsView() {
     // Totais
     const totalBalance = caixaAccounts.reduce((acc: any, curr: any) => acc + curr.balance, 0)
     const totalInvested = investmentAccounts.reduce((acc: any, curr: any) => acc + curr.balance, 0)
+    const totalGeneral = totalBalance + totalInvested
 
     // Agrupa por tipo (apenas contas ativas)
     const accountsByType = activeAccounts.reduce((acc: any, curr: any) => {
@@ -71,21 +73,6 @@ export function AccountsView() {
         }
     }
 
-    // Função para obter subtítulo explicativo por tipo
-    const getTypeSubtitle = (type: string) => {
-        switch (type) {
-            case 'corrente': return 'Contas bancárias tradicionais'
-            case 'digital': return 'Carteiras digitais e apps'
-            case 'poupanca':
-            case 'poupança': return 'Reserva de emergência'
-            case 'investimento': return 'Patrimônio em aplicações'
-            case 'carteira': return 'Dinheiro físico'
-            case 'internacional': return 'Moeda estrangeira'
-            case 'vale_alimentacao': return 'Benefícios corporativos'
-            default: return null
-        }
-    }
-
     if (loading) {
         return (
             <PageLayout
@@ -108,59 +95,47 @@ export function AccountsView() {
             description="Gerencie seus saldos e fontes de recursos."
             action={<CreateAccountDialog />}
             icon={Wallet}
-            summaryCards={
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-                    {/* Saldo Consolidado (Caixa) */}
-                    <ConsolidatedBalanceCard
-                        totalBalance={totalBalance}
-                        accountCount={caixaAccounts.length}
-                        title="Saldo em Caixa"
-                        subtitle="Disponível para uso imediato"
-                    />
-
-                    {/* Saldo Investido (Patrimônio) - Só exibe se houver */}
-                    {totalInvested > 0 && (
-                        <ConsolidatedBalanceCard
-                            totalBalance={totalInvested}
-                            accountCount={investmentAccounts.length}
-                            title="Total Investido"
-                            subtitle="Patrimônio em aplicações"
-                            variant="investment"
-                        />
-                    )}
-
-                    {/* Cards dinâmicos por tipo */}
-                    {typeSummaries.map((summary: any) => {
-                        const { Icon, color } = getTypeIcon(summary.type)
-                        const subtitle = getTypeSubtitle(summary.type)
-                        const isNegative = summary.total < 0
-
-                        return (
-                            <div key={summary.type} className={`rounded-xl border p-6 flex flex-col justify-between space-y-2 hover:shadow-md transition-shadow ${isNegative
-                                ? 'bg-red-50/50 dark:bg-red-950/20 border-red-200 dark:border-red-800'
-                                : 'bg-card border-slate-200 dark:border-slate-800'
-                                }`}>
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <span className={`text-sm font-medium ${isNegative ? 'text-red-700 dark:text-red-400' : 'text-muted-foreground'}`}>
-                                            {getTypeLabel(summary.type)}
-                                        </span>
-                                        {subtitle && <p className="text-[10px] text-slate-400 mt-0.5">{subtitle}</p>}
-                                    </div>
-                                    <Icon className={`h-4 w-4 ${isNegative ? 'text-red-600' : color}`} />
-                                </div>
-                                <div className={`text-2xl font-bold ${isNegative ? 'text-red-600 dark:text-red-400' : 'text-slate-900 dark:text-white'}`}>
-                                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(summary.total)}
-                                </div>
-                                <div className="text-xs text-muted-foreground">
-                                    {summary.count} conta{summary.count !== 1 ? 's' : ''}
-                                </div>
-                            </div>
-                        )
-                    })}
-                </div>
-            }
         >
+            <div className="grid gap-4 md:grid-cols-3 mb-6">
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Saldo em Caixa</CardTitle>
+                        <Wallet className="h-4 w-4 text-emerald-500" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold text-slate-900 dark:text-white">{formatCurrency(totalBalance)}</div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                           Disponível para uso imediato
+                        </p>
+                    </CardContent>
+                </Card>
+                
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Investimentos</CardTitle>
+                        <TrendingUp className="h-4 w-4 text-purple-500" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold text-slate-900 dark:text-white">{formatCurrency(totalInvested)}</div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                           Patrimônio acumulado
+                        </p>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Total Geral</CardTitle>
+                        <Landmark className="h-4 w-4 text-blue-500" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{formatCurrency(totalGeneral)}</div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                           Soma de todas as contas
+                        </p>
+                    </CardContent>
+                </Card>
+            </div>
 
             {accounts.length === 0 ? (
                 <div className="flex flex-col items-center justify-center p-12 py-24 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-lg text-center bg-slate-50/50 dark:bg-slate-950/50 relative z-10">
@@ -234,7 +209,7 @@ export function AccountsView() {
                                     </div>
                                 </div>
                             </div>
-                            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                                 {accounts.filter((a: any) => a.is_active === false).map((account: any) => (
                                     <AccountCard key={account.id} account={account} />
                                 ))}

@@ -144,7 +144,7 @@ export async function updateTransaction(formData: FormData) {
     const id = formData.get('id') as string
     const description = formData.get('description') as string
     let amountStr = formData.get('amount') as string
-    const dateStr = formData.get('transaction_date') as string
+    const dateStr = (formData.get('transaction_date') as string) || (formData.get('date') as string)
 
     amountStr = amountStr.replace('R$', '').trim()
     let amount = 0
@@ -214,14 +214,22 @@ export async function getNextInvoice(cardId: string, currentMonth: number, curre
     return undefined
 }
 
+export interface InvoicePayment {
+    id: string
+    description: string
+    amount: number
+    date: string
+    account_id: string
+}
+
 export async function getInvoiceDetails(invoiceId: string) {
     const client = await getApiClient()
-    const data = await client.get<{ invoice: Invoice, transactions: Transaction[] }>(`/api/invoices/${invoiceId}`)
+    const data = await client.get<{ invoice: Invoice, transactions: Transaction[], payments: InvoicePayment[], rollover_amount?: number }>(`/api/invoices/${invoiceId}`)
     return {
         invoice: data.invoice,
         transactions: data.transactions,
-        payments: [],
-        rollover_amount: 0
+        payments: data.payments || [],
+        rollover_amount: data.rollover_amount || 0
     }
 }
 
@@ -232,7 +240,7 @@ export async function createTransaction(formData: FormData) {
     const cardId = formData.get('card_id') as string
     const description = formData.get('description') as string
     const amount = parseFloat((formData.get('amount') as string).replace('R$', '').replace(/\./g, '').replace(',', '.').trim())
-    const date = formData.get('date') as string
+    const date = (formData.get('transaction_date') as string) || (formData.get('date') as string)
     const installments = parseInt(formData.get('installments') as string || '1')
     const categoryId = formData.get('category_id') as string || null
     const subcategoryId = formData.get('subcategory_id') as string || null
@@ -278,10 +286,25 @@ export async function deleteTransaction(id: string) {
 
 export async function payInvoice(invoiceId: string, amount: number, accountId: string, date: string) {
     const client = await getApiClient()
+    // Ensure date is in ISO format with time, as Go's time.Time binding expects a full RFC3339 string
+    // If date is YYYY-MM-DD, append T00:00:00Z
+    let isoDate = date
+    if (date.length === 10) {
+        isoDate = `${date}T00:00:00Z`
+    } else {
+        // Ensure it's a valid date object and convert to ISO string if needed
+        try {
+            isoDate = new Date(date).toISOString()
+        } catch (e) {
+            console.error("Invalid date format", date)
+            // Fallback to original if conversion fails, though it might still error
+        }
+    }
+
     await client.post(`/api/invoices/${invoiceId}/pay`, {
         amount,
         account_id: accountId,
-        date
+        date: isoDate
     })
     revalidatePath('/compromissos/cards/[id]', 'page')
 }

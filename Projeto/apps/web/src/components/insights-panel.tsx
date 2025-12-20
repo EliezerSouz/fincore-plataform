@@ -96,8 +96,7 @@ export function InsightsPanel({ insights }: InsightsPanelProps) {
                                 {insight.action && (
                                     <Button
                                         variant="link"
-                                        size="sm"
-                                        className={`h-auto p-0 mt-2 text-xs font-semibold ${styles.icon}`}
+                                        className={`h-11 p-0 mt-2 text-xs font-semibold ${styles.icon}`}
                                         onClick={insight.action.onClick}
                                     >
                                         {insight.action.label} →

@@ -12,52 +12,16 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Calendar, CreditCard, DollarSign, ShoppingBag, RotateCcw, AlertCircle } from "lucide-react"
 import { formatCurrency, cn } from "@/lib/utils"
+import { adjustBrightness, getTextColor, isLightColor } from "@/lib/utils/colors"
 import { revertInvoicePayment } from "@/app/(protected)/compromissos/cards/actions"
 import { useRouter } from "next/navigation"
 
-// Função para ajustar brilho (copiada de credit-card-item) - Idealmente deveria estar em utils
-function adjustBrightness(col: string, amt: number) {
-    if (!col) return '#3b82f6'; // Fallback
-    var usePound = false;
-    if (col[0] == "#") {
-        col = col.slice(1);
-        usePound = true;
-    }
-    var num = parseInt(col, 16);
-    var r = (num >> 16) + amt;
-    if (r > 255) r = 255;
-    else if (r < 0) r = 0;
-    var b = ((num >> 8) & 0x00FF) + amt;
-    if (b > 255) b = 255;
-    else if (b < 0) b = 0;
-    var g = (num & 0x0000FF) + amt;
-    if (g > 255) g = 255;
-    else if (g < 0) g = 0;
-    return (usePound ? "#" : "") + (g | (b << 8) | (r << 16)).toString(16);
-}
-
-// Retorna se a cor é clara
-function isLightColor(hex: string): boolean {
-    if (!hex) return false;
-    const color = hex.replace('#', '');
-    const r = parseInt(color.substr(0, 2), 16);
-    const g = parseInt(color.substr(2, 2), 16);
-    const b = parseInt(color.substr(4, 2), 16);
-    const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
-    return yiq >= 128;
-}
-
-function getTextColor(bgColor: string): string {
-    if (!bgColor) return '#ffffff';
-    if (bgColor.toLowerCase() === '#ffcc00' || isLightColor(bgColor)) {
-        return '#003087';
-    }
-    return '#ffffff';
-}
+// Helpers de Cor removidos em favor de @/lib/utils/colors
 
 interface InvoiceDetailsModalProps {
     invoiceId: string | null
@@ -99,14 +63,14 @@ export function InvoiceDetailsModal({ invoiceId, open, onOpenChange }: InvoiceDe
         startTransition(async () => {
             try {
                 await revertInvoicePayment(invoiceId)
-                setIsRevertDialogOpen(false)
-                onOpenChange(false)
-                router.refresh()
-                alert("Pagamento estornado com sucesso!")
-            } catch (error: any) {
-                console.error("Revert error:", error)
-                alert(`Erro ao estornar: ${error.message || error}`)
-            }
+                    setIsRevertDialogOpen(false)
+                    onOpenChange(false)
+                    router.refresh()
+                    toast.success("Pagamento estornado com sucesso!")
+                } catch (error: any) {
+                    console.error("Revert error:", error)
+                    toast.error(`Erro ao estornar: ${error.message || error}`)
+                }
         })
     }
 

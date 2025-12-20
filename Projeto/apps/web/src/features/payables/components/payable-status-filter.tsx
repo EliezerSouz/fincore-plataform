@@ -16,7 +16,7 @@ export function PayableStatusFilter({ initialStatus }: { initialStatus: string }
 
     return (
         <Select defaultValue={initialStatus} onValueChange={onValueChange}>
-            <SelectTrigger className="w-[150px] h-9 bg-card">
+            <SelectTrigger className="w-[150px] h-11 bg-card">
                 <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>

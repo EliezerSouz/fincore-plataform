@@ -10,26 +10,15 @@ import { CreateButton } from "@/components/ui/create-button"
 import { BaseModal } from "@/components/ui/base-modal"
 import { Plus, Check, Landmark } from "lucide-react"
 import { useRouter } from "next/navigation"
-
-const COLORS = [
-    { name: 'Azul', value: '#3b82f6' },
-    { name: 'Roxo (Nubank)', value: '#8b5cf6' },
-    { name: 'Laranja (Inter)', value: '#f97316' },
-    { name: 'Vermelho', value: '#ef4444' },
-    { name: 'Verde', value: '#10b981' },
-    { name: 'Preto (Black)', value: '#0f172a' },
-    { name: 'Rosa', value: '#ec4899' },
-    { name: 'Ciano', value: '#06b6d4' },
-    { name: 'Amarelo', value: '#eab308' },
-    { name: 'Cinza', value: '#64748b' },
-]
+import { COLOR_PRESETS } from "@/constants/ui-presets"
+import { toast } from "sonner"
 
 export function CreateAccountDialog() {
     const router = useRouter()
     const [open, setOpen] = useState(false)
     const [loading, setLoading] = useState(false)
     const [selectedType, setSelectedType] = useState("corrente")
-    const [selectedColor, setSelectedColor] = useState(COLORS[0].value)
+    const [selectedColor, setSelectedColor] = useState(COLOR_PRESETS[0].hex)
     const isSubmittingRef = useRef(false)
 
     async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -44,8 +33,10 @@ export function CreateAccountDialog() {
             await createAccount(formData)
             setOpen(false)
             router.refresh()
-        } catch (error) {
+            toast.success("Conta criada com sucesso!")
+        } catch (error: any) {
             console.error(error)
+            toast.error(error.message || "Erro ao criar conta")
         } finally {
             setLoading(false)
             isSubmittingRef.current = false
@@ -120,16 +111,16 @@ export function CreateAccountDialog() {
                         <Label>Cor de Identificação</Label>
                         <input type="hidden" name="color" value={selectedColor} />
                         <div className="flex gap-3 flex-wrap bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg border border-slate-100 dark:border-slate-800">
-                            {COLORS.map((c) => (
+                            {COLOR_PRESETS.map((c) => (
                                 <button
-                                    key={c.value}
+                                    key={c.hex}
                                     type="button"
-                                    className={`w-8 h-8 rounded-full transition-all flex items-center justify-center shadow-sm hover:scale-110 ${selectedColor === c.value ? 'ring-2 ring-offset-2 ring-slate-400 dark:ring-slate-600 scale-110' : ''}`}
-                                    style={{ backgroundColor: c.value }}
-                                    onClick={() => setSelectedColor(c.value)}
+                                    className={`w-11 h-11 rounded-full transition-all flex items-center justify-center shadow-sm hover:scale-110 ${selectedColor === c.hex ? 'ring-2 ring-offset-2 ring-slate-400 dark:ring-slate-600 scale-110' : ''}`}
+                                    style={{ backgroundColor: c.hex }}
+                                    onClick={() => setSelectedColor(c.hex)}
                                     title={c.name}
                                 >
-                                    {selectedColor === c.value && <Check className="w-4 h-4 text-white drop-shadow-md" />}
+                                    {selectedColor === c.hex && <Check className="w-4 h-4 text-white drop-shadow-md" />}
                                 </button>
                             ))}
                         </div>

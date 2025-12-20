@@ -1,11 +1,12 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { MoreHorizontal, Trash2, Eye, Edit2, TrendingDown, AlertCircle, Lock, CheckCircle } from "lucide-react"
+import { MoreHorizontal, Trash2, Eye, Edit2, TrendingDown, AlertCircle, Lock, CheckCircle, CreditCard as CreditCardIcon } from "lucide-react"
 import { CreditCard, deleteCreditCard } from "./actions"
 import { formatCurrency, cn } from "@/lib/utils"
 import Link from "next/link"
 import { usePrimaryCard } from "@/hooks/use-primary-card"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import {
     DropdownMenu,
@@ -16,7 +17,6 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { InlineInsight } from "@/components/inline-insight"
 import { generateRuleBasedCreditCardInsight, type AIInsight } from "@/lib/ai/insights-rules"
-import { generateCreditCardInsight } from "@/lib/ai/ai-insights"
 import { EditCardDialog } from "./edit-card-dialog"
 import {
     AlertDialog,
@@ -28,51 +28,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-
-function adjustBrightness(col: string, amt: number) {
-    var usePound = false;
-    if (col[0] == "#") {
-        col = col.slice(1);
-        usePound = true;
-    }
-    var num = parseInt(col, 16);
-    var r = (num >> 16) + amt;
-    if (r > 255) r = 255;
-    else if (r < 0) r = 0;
-    var b = ((num >> 8) & 0x00FF) + amt;
-    if (b > 255) b = 255;
-    else if (b < 0) b = 0;
-    var g = (num & 0x0000FF) + amt;
-    if (g > 255) g = 255;
-    else if (g < 0) g = 0;
-    return (usePound ? "#" : "") + (g | (b << 8) | (r << 16)).toString(16);
-}
-
-// Função para detectar se a cor é clara e precisa de texto escuro
-function isLightColor(hex: string): boolean {
-    // Remove o # se existir
-    const color = hex.replace('#', '');
-
-    // Converte para RGB
-    const r = parseInt(color.substr(0, 2), 16);
-    const g = parseInt(color.substr(2, 2), 16);
-    const b = parseInt(color.substr(4, 2), 16);
-
-    // Calcula a luminosidade (fórmula YIQ)
-    const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
-
-    // Se luminosidade > 128, é uma cor clara
-    return yiq >= 128;
-}
-
-// Retorna a cor do texto baseada na cor de fundo
-function getTextColor(bgColor: string): string {
-    // Amarelo do BB e cores claras usam azul escuro
-    if (bgColor.toLowerCase() === '#ffcc00' || isLightColor(bgColor)) {
-        return '#003087'; // Azul escuro do BB
-    }
-    return '#ffffff'; // Branco para cores escuras
-}
+import { getTextColor, isLightColor, adjustBrightness } from "@/lib/utils/colors"
 
 export function CreditCardItem({ card, isLocked = false }: { card: CreditCard, isLocked?: boolean }) {
     const { setPrimary } = usePrimaryCard()
@@ -97,216 +53,183 @@ export function CreditCardItem({ card, isLocked = false }: { card: CreditCard, i
         }
 
         const loadInsight = async () => {
-            try {
-                // Tenta usar IA (Groq)
-                const aiInsight = await generateCreditCardInsight(
-                    card.name,
-                    card.limit_amount,
-                    card.available_limit || card.limit_amount,
-                    usedPercentage
-                )
-
-                if (aiInsight) {
-                    setInsight(aiInsight)
-                    return
-                }
-            } catch (error) {
-                console.log('IA não disponível, usando regras')
-            }
-
-            // Fallback: usa regras
-            const ruleInsight = generateRuleBasedCreditCardInsight(
-                card.limit_amount,
-                card.available_limit || card.limit_amount,
-                usedPercentage
-            )
+            const ruleInsight = generateRuleBasedCreditCardInsight(card)
             setInsight(ruleInsight)
         }
 
         loadInsight()
-    }, [card.available_limit, card.limit_amount, usedPercentage, card.name])
+    }, [card, usedPercentage])
 
-    const [showDeleteDialog, setShowDeleteDialog] = useState(false)
-
-    function handleDeleteClick(e: React.MouseEvent) {
-        e.preventDefault()
-        e.stopPropagation()
-        setShowDeleteDialog(true)
-    }
-
-    async function handleConfirmDelete() {
-        setIsDeleting(true)
+    const handleDelete = async () => {
         try {
-            console.log('Iniciando exclusão do cartão:', card.id)
             await deleteCreditCard(card.id)
-            console.log('Exclusão finalizada com sucesso (frontend)')
-        } catch (e: any) {
-            console.error('Erro no frontend ao excluir:', e)
-            alert(`Erro ao excluir: ${e.message}`)
+            toast.success("Cartão excluído com sucesso")
+        } catch (error) {
+            toast.error("Erro ao excluir cartão")
         } finally {
             setIsDeleting(false)
-            setShowDeleteDialog(false)
         }
     }
 
+    const textColor = getTextColor(card.color)
+    const isLight = isLightColor(card.color)
+
     return (
-        <div className="relative group">
-            {/* Menu de Ações - Posicionado no canto superior direito */}
-            <div className="absolute top-2 right-2 z-20 opacity-0 group-hover:opacity-100 transition-opacity">
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-sm text-white border border-white/20"
-                        >
-                            <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        {!isLocked && (
-                            <DropdownMenuItem onClick={() => setShowEdit(true)} className="cursor-pointer">
-                                <Edit2 className="mr-2 h-4 w-4" />
-                                Editar
-                            </DropdownMenuItem>
+        <>
+            <div className="group relative">
+                {isLocked && (
+                    <div className="absolute inset-0 z-20 bg-background/50 backdrop-blur-[1px] rounded-xl flex items-center justify-center border-2 border-dashed border-slate-200 dark:border-slate-800">
+                        <div className="bg-background/90 p-4 rounded-lg shadow-lg border text-center max-w-[80%]">
+                            <Lock className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
+                            <p className="text-sm font-medium">Cartão Bloqueado</p>
+                            <p className="text-xs text-muted-foreground mt-1">Upgrade para acessar múltiplos cartões</p>
+                        </div>
+                    </div>
+                )}
+
+                <Link href={isLocked ? '#' : `/compromissos/cards/${card.id}`}>
+                    <div
+                        className={cn(
+                            "relative overflow-hidden rounded-xl transition-all duration-300 hover:shadow-xl hover:scale-[1.02] cursor-pointer h-[220px] flex flex-col justify-between",
+                            isLocked && "opacity-40 pointer-events-none"
                         )}
-                        <DropdownMenuItem asChild className="cursor-pointer">
-                            <Link href={`/compromissos/cards/${card.id}`}>
-                                <Eye className="mr-2 h-4 w-4" />
-                                Ver Faturas
-                            </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                            className="text-red-600 focus:text-red-600 cursor-pointer"
-                            onClick={handleDeleteClick}
-                            disabled={isDeleting}
+                        style={{
+                            backgroundColor: card.color,
+                            background: `linear-gradient(135deg, ${card.color} 0%, ${adjustBrightness(card.color, -30)} 100%)`,
+                            color: textColor,
+                            boxShadow: `0 10px 30px -10px ${card.color}50`
+                        }}
+                    >
+                        {/* Texture Overlay */}
+                        <div className="absolute inset-0 opacity-10 pointer-events-none"
+                            style={{
+                                backgroundImage: 'radial-gradient(circle at 100% 100%, rgba(255,255,255,0.2) 0%, transparent 50%), radial-gradient(circle at 0% 0%, rgba(255,255,255,0.2) 0%, transparent 50%)',
+                                backgroundSize: '100% 100%'
+                            }}></div>
+                        
+                        <div
+                            className="absolute -right-8 -bottom-12 transform rotate-[15deg] pointer-events-none transition-transform group-hover:scale-110 duration-700"
+                            style={{
+                                color: isLight ? 'black' : 'white',
+                                opacity: 0.05
+                            }}
                         >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Excluir
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            </div>
-
-            {/* Cartão de Crédito */}
-            <Link href={`/compromissos/cards/${card.id}`}>
-                {/* ... conteúdo do cartão ... */}
-                <div
-                    className={cn(
-                        "relative w-full aspect-[1.586/1] rounded-xl shadow-lg transform transition-all hover:scale-[1.02] hover:shadow-2xl overflow-hidden cursor-pointer",
-                        isLocked && "grayscale opacity-90 hover:scale-100 hover:shadow-lg cursor-default"
-                    )}
-                    style={{
-                        backgroundColor: card.color,
-                        background: `linear-gradient(135deg, ${card.color} 0%, ${adjustBrightness(card.color, -30)} 100%)`,
-                        color: getTextColor(card.color)
-                    }}
-                >
-                    {/* Texture Overlay */}
-                    <div className="absolute inset-0 opacity-20"
-                        style={{ backgroundImage: 'radial-gradient(circle at 50% 50%, rgba(255,255,255,0.1) 1px, transparent 1px)', backgroundSize: '10px 10px' }}></div>
-
-                    <div className="absolute inset-0 p-5 flex flex-col justify-between">
-                        <div className="flex justify-between items-start">
-                            <div className="flex items-center gap-2">
-                                {/* Chip Simulado */}
-                                <div className="w-10 h-8 bg-yellow-200/80 rounded-md border border-yellow-400/50 flex items-center justify-center overflow-hidden relative">
-                                    <div className="absolute inset-x-0 top-1/2 h-px bg-yellow-600/30"></div>
-                                    <div className="absolute inset-y-0 left-1/3 w-px bg-yellow-600/30"></div>
-                                    <div className="absolute inset-y-0 right-1/3 w-px bg-yellow-600/30"></div>
-                                </div>
-                                {/* Contactless Icon */}
-                                <span className="opacity-50 text-xl">)))</span>
-                            </div>
-                            <span className="font-mono text-sm uppercase tracking-widest opacity-80">{card.brand}</span>
+                            <CreditCardIcon className="w-48 h-48" />
                         </div>
 
-                        <div className="space-y-1">
-                            <p className="text-xs opacity-70 uppercase tracking-widest">Limite Disponível</p>
-                            <p className="text-xl font-bold tracking-tight">
-                                {card.available_limit !== undefined
-                                    ? formatCurrency(card.available_limit)
-                                    : formatCurrency(card.limit_amount)}
-                            </p>
-                            <p className="text-[10px] opacity-60">de {formatCurrency(card.limit_amount)}</p>
-                        </div>
-
-                        <div className="flex justify-between items-end">
+                        {/* Header */}
+                        <div className="relative z-10 p-6 flex justify-between items-start">
                             <div>
-                                <p className="font-medium tracking-wide shadow-black drop-shadow-md">{card.name}</p>
-                                <p className="font-mono text-sm opacity-80">•••• {card.last_4_digits}</p>
+                                <h3 className="font-bold text-lg tracking-tight truncate max-w-[150px]">{card.name}</h3>
+                                <p className={cn("text-xs opacity-80 uppercase tracking-widest font-medium mt-0.5", isLight ? "text-slate-900" : "text-white")}>
+                                    {card.brand || 'Cartão'}
+                                </p>
                             </div>
-                            <div className="text-[10px] text-right opacity-80 leading-tight">
-                                <p>FECHA DIA {card.closing_day}</p>
-                                <p>VENCE DIA {card.due_day}</p>
+                            <div className="opacity-80">
+                                {card.brand === 'master' && <div className="flex -space-x-2"><div className="w-6 h-6 rounded-full bg-red-500/90 mix-blend-multiply"></div><div className="w-6 h-6 rounded-full bg-yellow-500/90 mix-blend-multiply"></div></div>}
+                                {card.brand === 'visa' && <span className="font-bold italic text-xl tracking-tighter">VISA</span>}
+                                {!['master', 'visa'].includes(card.brand || '') && <CreditCardIcon className="w-6 h-6" />}
+                            </div>
+                        </div>
+
+                        {/* Content */}
+                        <div className="relative z-10 px-6 pb-6 mt-auto">
+                            <div className="space-y-4">
+                                <div>
+                                    <div className="flex justify-between items-end mb-1">
+                                        <span className={cn("text-xs font-medium uppercase tracking-wider opacity-80", isLight ? "text-slate-800" : "text-slate-200")}>Limite Disponível</span>
+                                        <span className="font-mono font-bold text-lg leading-none">
+                                            {formatCurrency(card.available_limit || 0)}
+                                        </span>
+                                    </div>
+                                    
+                                    {/* Progress Bar Customizada */}
+                                    <div className="h-1.5 w-full bg-black/10 rounded-full overflow-hidden backdrop-blur-sm">
+                                        <div 
+                                            className={cn("h-full rounded-full transition-all duration-500", 
+                                                isCriticalUsage ? "bg-red-500" : 
+                                                isHighUsage ? "bg-yellow-500" : 
+                                                "bg-white"
+                                            )}
+                                            style={{ width: `${Math.min(usedPercentage, 100)}%` }}
+                                        />
+                                    </div>
+                                    
+                                    <div className="flex justify-between mt-1.5 text-[10px] font-medium opacity-70">
+                                        <span>Usado: {Math.round(usedPercentage)}%</span>
+                                        <span>Total: {formatCurrency(card.limit_amount)}</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
+                </Link>
 
-                    {/* Badge de Alerta (sobreposto no cartão) */}
-                    {isCriticalUsage && (
-                        <div className="absolute bottom-3 left-3 right-3 bg-red-500/90 backdrop-blur-sm text-white px-2 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 shadow-lg">
-                            <AlertCircle className="w-3 h-3" />
-                            Limite quase esgotado ({usedPercentage.toFixed(0)}%)
-                        </div>
-                    )}
-
-                    {isHighUsage && !isCriticalUsage && (
-                        <div className="absolute bottom-3 left-3 right-3 bg-amber-500/90 backdrop-blur-sm text-white px-2 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 shadow-lg">
-                            <TrendingDown className="w-3 h-3" />
-                            Atenção ao limite ({usedPercentage.toFixed(0)}%)
-                        </div>
-                    )}
-
-                    {isLocked && (
-                        <div className="absolute inset-0 z-20 bg-slate-900/60 backdrop-blur-[2px] flex flex-col items-center justify-center text-white rounded-xl transition-all">
-                            <div className="bg-slate-950/90 p-3 rounded-full mb-2 shadow-xl border border-slate-800">
-                                <Lock className="w-5 h-5 text-slate-400" />
-                            </div>
-                            <span className="font-bold text-xs tracking-widest uppercase text-slate-200">Cartão Inativo</span>
-                            <span className="text-[10px] text-slate-400 mt-1 font-medium bg-slate-950/50 px-2 py-0.5 rounded-full">Excedente do Plano Gratuito</span>
-                        </div>
-                    )}
+                {/* Actions Menu */}
+                <div className="absolute top-4 right-4 z-30 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="secondary" size="icon" className="h-8 w-8 rounded-full bg-white/20 backdrop-blur-md border border-white/10 text-white hover:bg-white/30 shadow-sm">
+                                <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => setPrimary(card.id)}>
+                                <CheckCircle className="mr-2 h-4 w-4" />
+                                Definir como Principal
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setShowEdit(true)}>
+                                <Edit2 className="mr-2 h-4 w-4" />
+                                Editar Cartão
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem 
+                                className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                                onClick={() => setIsDeleting(true)}
+                            >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Excluir Cartão
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
-            </Link>
+            </div>
 
-            {/* Insight IA/Regras (abaixo do cartão) */}
+            {/* AI Insight Inline */}
             {insight && (
-                <div className="mt-3">
-                    <InlineInsight insight={insight} size="sm" />
+                <div className="mt-2 -mx-1">
+                    <InlineInsight 
+                        title={insight.title}
+                        description={insight.description}
+                        variant={insight.type}
+                        className="text-xs py-2"
+                    />
                 </div>
             )}
 
-            {/* Dialog de Edição */}
-            <EditCardDialog card={card} open={showEdit} onOpenChange={setShowEdit} />
-
-            {/* Dialog de Confirmação de Exclusão */}
-            <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+            <AlertDialog open={isDeleting} onOpenChange={setIsDeleting}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Excluir cartão "{card.name}"?</AlertDialogTitle>
+                        <AlertDialogTitle>Excluir Cartão</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Tem certeza absoluta? Esta ação excluirá permanentemente o cartão,
-                            todas as suas faturas e todas as transações associadas.
-                            Esta ação não pode ser desfeita.
+                            Tem certeza que deseja excluir o cartão <strong>{card.name}</strong>?
+                            Esta ação não pode ser desfeita e excluirá todo o histórico de faturas e transações associadas.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction
-                            onClick={(e) => {
-                                e.preventDefault()
-                                handleConfirmDelete()
-                            }}
-                            disabled={isDeleting}
-                            className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
-                        >
-                            {isDeleting ? "Excluindo..." : "Confirmar Exclusão"}
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">
+                            Excluir Cartão
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-        </div>
+
+            <EditCardDialog 
+                card={card}
+                open={showEdit}
+                onOpenChange={setShowEdit}
+            />
+        </>
     )
 }

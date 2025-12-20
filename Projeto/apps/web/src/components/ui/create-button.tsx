@@ -13,9 +13,9 @@ export const CreateButton = forwardRef<HTMLButtonElement, CreateButtonProps>(
         return (
             <Button
                 ref={ref}
-                size="sm"
                 className={cn(
                     "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm gap-2 font-medium transition-all hover:scale-[1.02] active:scale-95",
+                    "h-11", // Standardized to 44px (Web & Mobile)
                     className
                 )}
                 {...props}

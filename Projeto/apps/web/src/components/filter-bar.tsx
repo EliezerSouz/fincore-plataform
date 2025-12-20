@@ -130,7 +130,7 @@ function AdvancedFiltersTrigger({ children, count }: { children: React.ReactNode
     return (
         <Sheet>
             <SheetTrigger asChild>
-                <Button variant="outline" size="sm" className="h-9 border-dashed gap-2 text-muted-foreground hover:text-foreground">
+                <Button variant="outline" className="h-11 border-dashed gap-2 text-muted-foreground hover:text-foreground">
                     <Filter className="h-4 w-4" />
                     Mais filtros
                     {count > 0 && (

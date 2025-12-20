@@ -178,7 +178,7 @@ export function BalanceAdjustmentDialog({
                                                 {...field}
                                                 type="text"
                                                 placeholder="0,00"
-                                                className="pl-10"
+                                                className="pl-10 h-11"
                                                 onChange={(e) => {
                                                     // Format as currency
                                                     let value = e.target.value.replace(/[^\d,.-]/g, '')
@@ -203,7 +203,7 @@ export function BalanceAdjustmentDialog({
                                     <FormLabel>Tipo de Ajuste</FormLabel>
                                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                                         <FormControl>
-                                            <SelectTrigger>
+                                            <SelectTrigger className="h-11">
                                                 <SelectValue placeholder="Selecione o tipo" />
                                             </SelectTrigger>
                                         </FormControl>
@@ -263,10 +263,11 @@ export function BalanceAdjustmentDialog({
                                 variant="outline"
                                 onClick={() => onOpenChange(false)}
                                 disabled={isSubmitting}
+                                className="h-11"
                             >
                                 Cancelar
                             </Button>
-                            <Button type="submit" disabled={isSubmitting}>
+                            <Button type="submit" disabled={isSubmitting} className="h-11">
                                 {isSubmitting ? 'Salvando...' : adjustment ? 'Atualizar' : 'Confirmar Ajuste'}
                             </Button>
                         </DialogFooter>

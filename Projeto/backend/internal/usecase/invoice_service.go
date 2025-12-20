@@ -37,7 +37,7 @@ func (s *InvoiceService) PayInvoice(ctx context.Context, invoiceID string, amoun
 	if err != nil {
 		return err
 	}
-	
+
 	if invoice.Status == entity.InvoiceStatusPaid {
 		return fmt.Errorf("invoice already paid")
 	}
@@ -46,37 +46,33 @@ func (s *InvoiceService) PayInvoice(ctx context.Context, invoiceID string, amoun
 	// Use TransactionRepo.Create
 	// Need to map input
 	// Assuming Invoice payment is an expense.
-	
+
 	desc := fmt.Sprintf("Pagamento Fatura %d/%d", invoice.ReferenceMonth, invoice.ReferenceYear)
-	
+
 	txInput := entity.CreateTransactionInput{
-		AccountID:       accountID,
-		Description:     desc,
-		Amount:          amount,
-		Type:            "despesa",
-		Date:            date,
-		InvoiceID:       &invoiceID,
+		AccountID:   accountID,
+		Description: desc,
+		Amount:      amount,
+		Type:        "despesa",
+		Date:        date,
+		InvoiceID:   &invoiceID,
 	}
-	
+
 	if _, err := s.TransactionRepo.Create(ctx, userID, txInput); err != nil {
 		return fmt.Errorf("failed to create payment transaction: %w", err)
 	}
 
 	// 3. Update Invoice Status
 	// Determine status: Partial or Paid?
-	// If amount >= total_amount -> Paid
-	// If amount < total_amount -> Partial?
-	// Usually users pay full amount or partial.
-	
+	// Calculate total paid including this payment
+	newPaidAmount := invoice.PaidAmount + amount
+
 	newStatus := entity.InvoiceStatusPaid
-	if amount < invoice.TotalAmount {
+	if newPaidAmount < invoice.TotalAmount {
 		newStatus = entity.InvoiceStatusPartial
 	}
-	
-	// Logic for "Partial" handling might need rollover calculation, 
-	// but for now let's just mark what was paid.
-	
-	return s.InvoiceRepo.UpdateInvoiceStatus(ctx, invoiceID, newStatus, amount)
+
+	return s.InvoiceRepo.UpdateInvoiceStatus(ctx, invoiceID, newStatus, newPaidAmount)
 }
 
 func (s *InvoiceService) RevertPayment(ctx context.Context, invoiceID, userID string) error {
@@ -85,15 +81,15 @@ func (s *InvoiceService) RevertPayment(ctx context.Context, invoiceID, userID st
 	// Or assume we pass transaction ID?
 	// Frontend `revertInvoicePayment` just passes `invoiceId`.
 	// It likely deletes ALL payments for that invoice.
-	
+
 	// We need to find transactions where invoice_id = invoiceID and type = 'despesa'?
 	// Since we don't have that method in TransactionRepo yet, we might need to add it or do it manually.
-	
+
 	// For now, let's assume we implement `DeleteByInvoiceID` in TransactionRepo?
 	// Or fetch and delete.
-	
+
 	// Let's rely on repo.
-	
+
 	// 2. Update Invoice Status to Open
 	return s.InvoiceRepo.UpdateInvoiceStatus(ctx, invoiceID, entity.InvoiceStatusOpen, 0)
 }

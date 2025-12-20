@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog"
 import { Crown, Lock, ArrowRight } from "lucide-react"
 import { useState } from "react"
+import { toast } from "sonner"
 
 interface UpsellModalProps {
     trigger?: React.ReactNode
@@ -52,7 +53,7 @@ export function UpsellModal({
                     className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white border-0 shadow-lg shadow-orange-500/20 transition-all hover:scale-[1.02]"
                     onClick={() => {
                         // TODO: Redirecionar para página de planos ou checkout
-                        alert('Em breve: Checkout Premium')
+                        toast.info('Em breve: Checkout Premium')
                         onOpenChange && onOpenChange(false)
                     }}
                 >
@@ -65,8 +66,7 @@ export function UpsellModal({
 
                 <Button
                     variant="ghost"
-                    size="sm"
-                    className="mt-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-300 dark:hover:bg-slate-800 h-auto py-1.5 px-3 font-normal transition-colors"
+                    className="mt-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-300 dark:hover:bg-slate-800 h-11 font-normal transition-colors"
                     onClick={() => onOpenChange && onOpenChange(false)}
                 >
                     Continuar no Grátis

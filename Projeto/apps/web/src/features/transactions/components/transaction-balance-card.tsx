@@ -54,18 +54,18 @@ export function TransactionBalanceCard({ transactions }: TransactionBalanceCardP
     if (transactions.length === 0) return null
 
     return (
-        <div className="flex items-center justify-between p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm shadow-sm gap-4">
+        <div className="flex items-center justify-between p-3 sm:p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm shadow-sm gap-2 sm:gap-4">
             {/* Info Saldo */}
-            <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+            <div className="flex flex-col gap-1 min-w-0">
+                <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider truncate">
                     Resultado do Período
                 </span>
                 <div className="flex flex-col">
-                    <span className={`text-2xl font-bold tracking-tight leading-none ${isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                    <span className={`text-xl sm:text-2xl font-bold tracking-tight leading-none truncate ${isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                         {formatCurrency(totalBalance)}
                     </span>
                     <div className="flex items-center gap-1.5 mt-1.5">
-                        <div className={`flex items-center text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-sm ${isPositive ? 'text-emerald-700 bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400' : 'text-rose-700 bg-rose-100 dark:bg-rose-500/10 dark:text-rose-400'}`}>
+                        <div className={`flex items-center text-[9px] sm:text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-sm ${isPositive ? 'text-emerald-700 bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400' : 'text-rose-700 bg-rose-100 dark:bg-rose-500/10 dark:text-rose-400'}`}>
                             {isPositive ? "Positivo" : "Negativo"}
                         </div>
                     </div>
@@ -73,7 +73,7 @@ export function TransactionBalanceCard({ transactions }: TransactionBalanceCardP
             </div>
 
             {/* Sparkline Discreto */}
-            <div className="h-[40px] w-[120px] opacity-60">
+            <div className="h-[30px] w-[80px] sm:h-[40px] sm:w-[120px] opacity-60 shrink-0">
                 <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={data}>
                         <Area

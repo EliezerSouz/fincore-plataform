@@ -22,7 +22,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
-import { Badge } from "@/components/ui/badge"
+import { StatusBadge } from "@/components/ui/status-badge"
 import { EditPayableDialog } from "./edit-payable-dialog"
 import { PaymentDialog } from "./payment-dialog"
 import { Card, CardContent } from "@/components/ui/card"
@@ -36,6 +36,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { toast } from "sonner"
 
 export function PayableCardMobile({ payable, accounts, paymentMethods }: { payable: Payable, accounts: any[], paymentMethods: any[] }) {
     const router = useRouter()
@@ -66,9 +67,10 @@ export function PayableCardMobile({ payable, accounts, paymentMethods }: { payab
         try {
             await deletePayable(payable.id)
             router.refresh()
+            toast.success("Conta excluída com sucesso!")
         } catch (e) {
             console.error(e)
-            alert("Erro ao excluir conta.")
+            toast.error("Erro ao excluir conta.")
         } finally {
             setLoading(false)
             setDeleteDialogOpen(false)
@@ -80,8 +82,9 @@ export function PayableCardMobile({ payable, accounts, paymentMethods }: { payab
         try {
             await revertPayment(payable.id)
             router.refresh()
+            toast.success("Pagamento estornado com sucesso!")
         } catch (e: any) {
-            alert(e.message || "Erro ao estornar")
+            toast.error(e.message || "Erro ao estornar")
         } finally {
             setLoading(false)
             setRevertDialogOpen(false)
@@ -104,27 +107,27 @@ export function PayableCardMobile({ payable, accounts, paymentMethods }: { payab
                                 {isPaid ? <CheckCircle2 className="w-5 h-5" /> : <IconComponent className="w-5 h-5" />}
                             </div>
                             <div>
-                                <h3 className={cn("font-semibold text-sm line-clamp-1", isPaid && "line-through opacity-70")}>
+                                <h3 className={cn("font-semibold text-sm sm:text-base line-clamp-1 min-w-0", isPaid && "line-through opacity-70")}>
                                     {payable.description}
                                 </h3>
                                 <div className="flex items-center gap-2 mt-0.5">
-                                    <span className="text-xs text-slate-500">{payable.category?.name || "Geral"}</span>
-                                    {isOverdue && <Badge variant="destructive" className="h-4 px-1 text-[9px]">Atrasado</Badge>}
+                                    <span className="text-[10px] sm:text-xs text-slate-500 truncate max-w-[100px]">{payable.category?.name || "Geral"}</span>
+                                    {isOverdue && <StatusBadge variant="destructive" className="h-3.5 sm:h-4 px-1 text-[8px] sm:text-[9px]">Atrasado</StatusBadge>}
                                 </div>
                             </div>
                         </div>
                         <span className={cn(
-                            "font-bold text-sm whitespace-nowrap",
+                            "font-bold text-sm sm:text-base whitespace-nowrap shrink-0",
                             isPaid ? "text-emerald-600/70" : isOverdue ? "text-red-600" : "text-slate-900 dark:text-slate-100"
                         )}>
                             {formatCurrency(payable.amount)}
                         </span>
                     </div>
 
-                    <div className="mt-4 flex items-center justify-between text-xs text-slate-500 border-t border-slate-100 dark:border-slate-800 pt-3">
+                    <div className="mt-4 flex items-center justify-between text-[10px] sm:text-xs text-slate-500 border-t border-slate-100 dark:border-slate-800 pt-3">
                         <div className="flex flex-col gap-1">
                             <div className="flex items-center gap-1.5 font-medium">
-                                <CalendarIcon className="w-3.5 h-3.5" />
+                                <CalendarIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                                 {dueDate.toLocaleDateString("pt-BR", { timeZone: 'UTC' })}
                             </div>
                             {!isPaid && (
@@ -137,8 +140,7 @@ export function PayableCardMobile({ payable, accounts, paymentMethods }: { payab
                         <div className="flex items-center gap-2">
                             {!isPaid && (
                                 <Button
-                                    size="sm"
-                                    className="bg-green-600 hover:bg-green-700 text-white shadow-sm h-8 px-3 text-xs"
+                                    className="bg-green-600 hover:bg-green-700 text-white shadow-sm h-9 sm:h-11 px-3 sm:px-4 text-[10px] sm:text-xs font-semibold"
                                     onClick={() => setPaymentOpen(true)}
                                 >
                                     Pagar
@@ -147,8 +149,8 @@ export function PayableCardMobile({ payable, accounts, paymentMethods }: { payab
 
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                    <Button size="icon" variant="ghost" className="h-8 w-8 -mr-2">
-                                        <MoreHorizontal className="w-4 h-4" />
+                                    <Button variant="ghost" className="h-9 w-9 sm:h-11 sm:w-11 -mr-2 text-slate-500">
+                                        <MoreHorizontal className="w-4 h-4 sm:w-5 sm:h-5" />
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">

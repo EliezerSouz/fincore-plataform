@@ -25,14 +25,15 @@ export function PayableLinkIcon({ payableId, description, categoryIcon, category
         <>
             <button
                 onClick={() => setModalOpen(true)}
-                className="inline-flex items-center justify-center w-5 h-5 rounded-full hover:opacity-80 transition-opacity mr-2"
+                className="inline-flex items-center justify-center w-8 h-8 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors mr-1"
                 style={{
-                    backgroundColor: bgColor,
                     color: iconColor
                 }}
                 title="Ver conta a pagar vinculada"
             >
-                <IconComponent className="w-3 h-3" />
+                <div className="flex items-center justify-center w-5 h-5 rounded-full" style={{ backgroundColor: bgColor }}>
+                    <IconComponent className="w-3 h-3" />
+                </div>
             </button>
 
             <PayableDetailsModal

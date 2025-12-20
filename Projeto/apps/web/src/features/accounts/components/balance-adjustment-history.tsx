@@ -143,7 +143,7 @@ export function BalanceAdjustmentHistory({
                             Histórico de ajustes de saldo e períodos controlados
                         </CardDescription>
                     </div>
-                    <Button onClick={() => setIsCreating(true)} size="sm" variant="outline" className="h-8 gap-2">
+                    <Button onClick={() => setIsCreating(true)} variant="outline" className="h-11 gap-2">
                         <Plus className="h-4 w-4" />
                         Novo Ajuste
                     </Button>
@@ -233,7 +233,6 @@ export function BalanceAdjustmentHistory({
                                             </p>
                                             <Button
                                                 variant="outline"
-                                                size="sm"
                                                 onClick={() => setConvertingPeriod(period)}
                                             >
                                                 Converter para Controlado

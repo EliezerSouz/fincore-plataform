@@ -10,6 +10,8 @@ import { createCreditCard } from "./actions"
 import { CreateButton } from "@/components/ui/create-button"
 import { usePermission } from "@/hooks/use-permission"
 import { UpsellModal } from "@/components/ui/upsell-modal"
+import { COLOR_PRESETS } from "@/constants/ui-presets"
+import { toast } from "sonner"
 
 const BRAND_OPTIONS = [
     { value: 'amex', label: 'American Express' },
@@ -20,22 +22,10 @@ const BRAND_OPTIONS = [
     { value: 'other', label: 'Outro' },
 ]
 
-const COLOR_PRESETS = [
-    { name: 'Roxo (Nubank)', hex: '#820ad1' },
-    { name: 'Laranja (Inter)', hex: '#ff7a00' },
-    { name: 'Vermelho (Bradesco/Santander)', hex: '#cc092f' },
-    { name: 'Preto (Black/C6/XP)', hex: '#1a1a1a' },
-    { name: 'Azul (Itaú/Caixa)', hex: '#0054a6' },
-    { name: 'Amarelo (Banco do Brasil)', hex: '#ffcc00' },
-    { name: 'Verde (Stone/Outros)', hex: '#118C4F' },
-    { name: 'Rosa', hex: '#ec4899' },
-    { name: 'Gold', hex: '#ca8a04' },
-]
-
 export function CreateCardDialog({ trigger, cardsCount = 0 }: { trigger?: React.ReactNode, cardsCount?: number }) {
     const [open, setOpen] = useState(false)
     const [loading, setLoading] = useState(false)
-    const [selectedColor, setSelectedColor] = useState(COLOR_PRESETS[3].hex)
+    const [selectedColor, setSelectedColor] = useState(COLOR_PRESETS[0].hex)
     const { can } = usePermission()
 
     // Regra: Pode criar se tiver permissão ilimitada OU se ainda não tiver nenhum cartão
@@ -53,7 +43,7 @@ export function CreateCardDialog({ trigger, cardsCount = 0 }: { trigger?: React.
             const due = parseInt(formData.get('due_day') as string)
 
             if (closing < 1 || closing > 31 || due < 1 || due > 31) {
-                alert('Dias devem ser entre 1 e 31')
+                toast.error('Dias devem ser entre 1 e 31')
                 setLoading(false)
                 return
             }
@@ -61,7 +51,7 @@ export function CreateCardDialog({ trigger, cardsCount = 0 }: { trigger?: React.
             // Validar limite
             const limitStr = formData.get('limit_amount') as string
             if (!limitStr || limitStr.trim() === '') {
-                alert('Informe o limite do cartão')
+                toast.error('Informe o limite do cartão')
                 setLoading(false)
                 return
             }
@@ -70,6 +60,7 @@ export function CreateCardDialog({ trigger, cardsCount = 0 }: { trigger?: React.
 
             // Sucesso - fechar dialog e resetar form
             setOpen(false)
+            toast.success('Cartão criado com sucesso!')
 
             // Reset do form acontece automaticamente quando o dialog fecha
             // mas vamos resetar a cor selecionada manualmente
@@ -79,7 +70,7 @@ export function CreateCardDialog({ trigger, cardsCount = 0 }: { trigger?: React.
 
         } catch (e: any) {
             console.error('Erro ao criar cartão:', e)
-            alert(e.message || 'Erro ao criar cartão. Verifique os dados e tente novamente.')
+            toast.error(e.message || 'Erro ao criar cartão. Verifique os dados e tente novamente.')
         } finally {
             setLoading(false)
         }
@@ -183,7 +174,7 @@ export function CreateCardDialog({ trigger, cardsCount = 0 }: { trigger?: React.
                                 <button
                                     key={color.hex}
                                     type="button"
-                                    className={`w-8 h-8 rounded-full transition-all flex items-center justify-center shadow-sm hover:scale-110 ${selectedColor === color.hex ? 'ring-2 ring-offset-2 ring-slate-400 dark:ring-slate-600 scale-110' : ''}`}
+                                    className={`w-11 h-11 rounded-full transition-all flex items-center justify-center shadow-sm hover:scale-110 ${selectedColor === color.hex ? 'ring-2 ring-offset-2 ring-slate-400 dark:ring-slate-600 scale-110' : ''}`}
                                     style={{ backgroundColor: color.hex }}
                                     onClick={() => setSelectedColor(color.hex)}
                                     title={color.name}

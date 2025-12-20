@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { deleteTransaction } from "@/app/(protected)/caixa/transactions/actions"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 
 export function DeleteTransactionButton({ id }: { id: string }) {
     const router = useRouter()
@@ -18,7 +19,7 @@ export function DeleteTransactionButton({ id }: { id: string }) {
             await deleteTransaction(id)
             router.refresh()
         } catch (error) {
-            alert("Erro ao excluir")
+            toast.error("Erro ao excluir")
         } finally {
             setIsDeleting(false)
         }
@@ -28,7 +29,7 @@ export function DeleteTransactionButton({ id }: { id: string }) {
         <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+            className="text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
             onClick={handleDelete}
             disabled={isDeleting}
         >

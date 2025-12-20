@@ -24,10 +24,11 @@ import { MoreHorizontal, Pencil, Trash2, Copy, Eye, RotateCcw, ArrowRightLeft } 
 import { deleteTransaction, duplicateTransaction } from "@/app/(protected)/caixa/transactions/actions"
 import { revertInvoicePayment } from "@/app/(protected)/compromissos/cards/actions"
 import { useTransition, useState } from "react"
-import { EditTransactionDialog } from "@/app/(protected)/caixa/transactions/edit-transaction-dialog"
+import { EditTransactionDialog } from "./edit-transaction-dialog"
 import { useRouter } from "next/navigation"
 import { InvoiceDetailsModal } from "@/features/cards/components/invoice-details-modal"
 import { PayableDetailsModal } from "@/features/payables/components/payable-details-modal"
+import { toast } from "sonner"
 
 interface TransactionActionsProps {
     transaction: any
@@ -72,7 +73,7 @@ export function TransactionActions({ transaction }: TransactionActionsProps) {
                 router.refresh()
             } catch (error: any) {
                 console.error("Delete error:", error)
-                alert(`Erro ao excluir: ${error.message || error}`)
+                toast.error(`Erro ao excluir: ${error.message || error}`)
             }
         })
     }
@@ -82,9 +83,10 @@ export function TransactionActions({ transaction }: TransactionActionsProps) {
             try {
                 await duplicateTransaction(transaction.id)
                 router.refresh()
+                toast.success("Transação duplicada")
             } catch (error) {
                 console.error(error)
-                alert("Erro ao duplicar")
+                toast.error("Erro ao duplicar")
             }
         })
     }
@@ -103,19 +105,19 @@ export function TransactionActions({ transaction }: TransactionActionsProps) {
                 if (invoiceId) {
                     await revertInvoicePayment(invoiceId)
                     setIsRevertOpen(false)
-                    alert("Pagamento estornado com sucesso!")
+                    toast.success("Pagamento estornado com sucesso!")
                     router.refresh()
                 } else if (transaction.payable_id) {
                     // Importar revertPayment de payables
                     const { revertPayment } = await import("@/app/(protected)/compromissos/payables/actions")
                     await revertPayment(transaction.payable_id)
                     setIsRevertOpen(false)
-                    alert("Pagamento estornado com sucesso!")
+                    toast.success("Pagamento estornado com sucesso!")
                     router.refresh()
                 }
             } catch (error: any) {
                 console.error("Revert error:", error)
-                alert(`Erro ao estornar: ${error.message || error}`)
+                toast.error(`Erro ao estornar: ${error.message || error}`)
             }
         })
     }
@@ -124,9 +126,9 @@ export function TransactionActions({ transaction }: TransactionActionsProps) {
         <>
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="h-8 w-8 p-0 text-slate-400 hover:text-slate-600">
+                    <Button variant="ghost" size="icon" className="text-slate-400 hover:text-slate-600">
                         <span className="sr-only">Abrir menu</span>
-                        <MoreHorizontal className="h-4 w-4" />
+                        <MoreHorizontal className="h-5 w-5 md:h-4 md:w-4" />
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-[200px]">

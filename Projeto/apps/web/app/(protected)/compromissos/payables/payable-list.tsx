@@ -27,6 +27,8 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
+import { DataTableWrapper } from "@/components/ui/data-table-wrapper"
+import { StatusBadge } from "@/components/ui/status-badge"
 import { EditPayableDialog } from "./edit-payable-dialog"
 import { PayableCardMobile } from "./payable-card-mobile"
 
@@ -37,24 +39,15 @@ interface PayableListProps {
 }
 
 export function PayableList({ payables, accounts = [], paymentMethods = [] }: PayableListProps) {
-    if (payables.length === 0) {
-        return (
-            <div className="flex flex-col items-center justify-center py-16 text-center border rounded-2xl bg-white dark:bg-slate-950/50 border-slate-100 dark:border-slate-800 shadow-sm mt-6">
-                <div className="w-16 h-16 bg-slate-50 dark:bg-slate-900 rounded-full flex items-center justify-center mb-4">
-                    <SearchX className="w-8 h-8 text-slate-400" />
-                </div>
-                <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Tudo em dia!</h3>
-                <p className="text-slate-500 max-w-md mt-2">
-                    Não há contas pendentes para este período. Aproveite para planejar seus investimentos.
-                </p>
-            </div>
-        )
-    }
-
     return (
-        <div className="mt-6">
+        <DataTableWrapper
+            isEmpty={payables.length === 0}
+            isLoading={false}
+            emptyMessage="Tudo em dia! Não há contas pendentes para este período."
+            className="mt-6"
+        >
             {/* MOBILE VIEW cards */}
-            <div className="md:hidden space-y-4">
+            <div className="md:hidden space-y-4 p-4">
                 {payables.map((payable) => (
                     <PayableCardMobile
                         key={payable.id}
@@ -66,33 +59,31 @@ export function PayableList({ payables, accounts = [], paymentMethods = [] }: Pa
             </div>
 
             {/* DESKTOP VIEW table */}
-            <div className="hidden md:block rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 shadow-sm overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left">
-                        <thead className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800 text-xs uppercase tracking-wider text-slate-500 font-medium">
-                            <tr>
-                                <th className="px-6 py-4 w-[35%]">Descrição</th>
-                                <th className="px-6 py-4 w-[20%]">Categoria</th>
-                                <th className="px-6 py-4 w-[20%]">Vencimento</th>
-                                <th className="px-6 py-4 w-[10%]">Recorrência</th>
-                                <th className="px-6 py-4 text-right w-[15%]">Valor</th>
-                                <th className="px-6 py-4 w-[10%] text-right">Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                            {payables.map((payable) => (
-                                <PayableRow
-                                    key={payable.id}
-                                    payable={payable}
-                                    accounts={accounts}
-                                    paymentMethods={paymentMethods}
-                                />
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+            <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                    <thead className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800 text-xs uppercase tracking-wider text-slate-500 font-medium">
+                        <tr>
+                            <th className="px-6 py-4 w-[35%]">Descrição</th>
+                            <th className="px-6 py-4 w-[20%]">Categoria</th>
+                            <th className="px-6 py-4 w-[20%]">Vencimento</th>
+                            <th className="px-6 py-4 w-[10%]">Recorrência</th>
+                            <th className="px-6 py-4 text-right w-[15%]">Valor</th>
+                            <th className="px-6 py-4 w-[10%] text-right">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                        {payables.map((payable) => (
+                            <PayableRow
+                                key={payable.id}
+                                payable={payable}
+                                accounts={accounts}
+                                paymentMethods={paymentMethods}
+                            />
+                        ))}
+                    </tbody>
+                </table>
             </div>
-        </div>
+        </DataTableWrapper>
     )
 }
 
@@ -107,6 +98,7 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { PaymentDialog } from "./payment-dialog"
+import { TableCell, TableRow } from "@/components/ui/table"
 
 function PayableRow({ payable, accounts, paymentMethods }: { payable: Payable, accounts: any[], paymentMethods: any[] }) {
     const router = useRouter()
@@ -146,10 +138,10 @@ function PayableRow({ payable, accounts, paymentMethods }: { payable: Payable, a
         try {
             await revertPayment(payable.id)
             router.refresh()
-            // alert("Pagamento estornado!") // Feedback visual já ocorre com a mudança de estado
+            toast.success("Pagamento estornado com sucesso!")
         } catch (e: any) {
             console.error(e)
-            alert(e.message || "Erro ao estornar")
+            toast.error(e.message || "Erro ao estornar")
         } finally {
             setLoading(false)
             setRevertDialogOpen(false)
@@ -162,9 +154,10 @@ function PayableRow({ payable, accounts, paymentMethods }: { payable: Payable, a
         try {
             await deletePayable(payable.id)
             router.refresh()
+            toast.success("Conta excluída com sucesso!")
         } catch (e) {
             console.error(e)
-            alert("Erro ao excluir conta.")
+            toast.error("Erro ao excluir conta.")
         } finally {
             setLoading(false)
             setDeleteDialogOpen(false)
@@ -179,9 +172,9 @@ function PayableRow({ payable, accounts, paymentMethods }: { payable: Payable, a
 
     return (
         <>
-            <tr className={`group transition-colors ${rowClass}`}>
+            <TableRow className={`group transition-colors ${rowClass}`}>
                 {/* DESCRIÇÃO */}
-                <td className="px-6 py-4">
+                <TableCell className="px-6 py-4">
                     <div className="flex items-center gap-4">
                         <div
                             className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 shadow-sm md:hidden"
@@ -197,8 +190,8 @@ function PayableRow({ payable, accounts, paymentMethods }: { payable: Payable, a
                                 <span className={cn("font-semibold", isPaid ? "text-emerald-700 dark:text-emerald-400 line-through decoration-emerald-500/30" : "text-slate-900 dark:text-slate-100")}>
                                     {payable.description}
                                 </span>
-                                {isOverdue && <Badge variant="destructive" className="h-5 px-1.5 text-[10px]">Atrasado</Badge>}
-                                {isPaid && <Badge className="h-5 px-1.5 text-[10px] bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-none shadow-none">Pago</Badge>}
+                                {isOverdue && <StatusBadge variant="destructive">Atrasado</StatusBadge>}
+                                {isPaid && <StatusBadge variant="success">Pago</StatusBadge>}
                             </div>
                             {/* Categoria Mobile */}
                             <div className="md:hidden flex items-center gap-2 text-xs text-slate-500 mt-0.5">
@@ -206,10 +199,10 @@ function PayableRow({ payable, accounts, paymentMethods }: { payable: Payable, a
                             </div>
                         </div>
                     </div>
-                </td>
+                </TableCell>
 
                 {/* CATEGORIA (Desktop) */}
-                <td className="px-6 py-4 hidden md:table-cell">
+                <TableCell className="px-6 py-4 hidden md:table-cell">
                     <div className="flex items-center gap-3">
                         <div
                             className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 shadow-sm"
@@ -228,9 +221,9 @@ function PayableRow({ payable, accounts, paymentMethods }: { payable: Payable, a
                             )}
                         </div>
                     </div>
-                </td>
+                </TableCell>
 
-                <td className="px-6 py-4">
+                <TableCell className="px-6 py-4">
                     {/* Vencimento */}
                     <div className="flex flex-col">
                         <span className={cn(
@@ -251,10 +244,10 @@ function PayableRow({ payable, accounts, paymentMethods }: { payable: Payable, a
                             </span>
                         )}
                     </div>
-                </td>
+                </TableCell>
 
                 {/* Recorrencia ... same ... */}
-                <td className="px-6 py-4 hidden sm:table-cell">
+                <TableCell className="px-6 py-4 hidden sm:table-cell">
                     {payable.recurrence_strategy !== 'single' ? (
                         <Badge variant="secondary" className="font-normal text-xs bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400">
                             {payable.recurrence_strategy === 'fixed' ? 'Fixo Mensal' : `${payable.installment_number}/${payable.total_installments}`}
@@ -262,25 +255,24 @@ function PayableRow({ payable, accounts, paymentMethods }: { payable: Payable, a
                     ) : (
                         <span className="text-slate-400 text-xs">—</span>
                     )}
-                </td>
+                </TableCell>
 
                 {/* Valor */}
-                <td className="px-6 py-4 text-right">
+                <TableCell className="px-6 py-4 text-right">
                     <span className={cn(
                         "font-bold text-base",
                         isPaid ? "text-emerald-600/70" : isOverdue ? "text-red-600" : "text-slate-900 dark:text-slate-100"
                     )}>
                         {formatCurrency(payable.amount)}
                     </span>
-                </td>
+                </TableCell>
 
                 {/* AÇÕES */}
-                <td className="px-6 py-4 text-right">
+                <TableCell className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-2">
                         {!isPaid && (
                             <Button
-                                size="sm"
-                                className="bg-green-600 hover:bg-green-700 text-white shadow-sm h-8 px-4"
+                                className="bg-green-600 hover:bg-green-700 text-white shadow-sm h-11 px-4"
                                 onClick={() => setPaymentOpen(true)}
                                 disabled={loading}
                             >
@@ -291,8 +283,8 @@ function PayableRow({ payable, accounts, paymentMethods }: { payable: Payable, a
 
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400 hover:text-slate-600" disabled={loading}>
-                                    <MoreHorizontal className="w-4 h-4" />
+                                <Button variant="ghost" className="text-slate-400 hover:text-slate-600 h-11 w-11 p-0 flex items-center justify-center" disabled={loading}>
+                                    <MoreHorizontal className="w-5 h-5" />
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-48">
@@ -328,8 +320,8 @@ function PayableRow({ payable, accounts, paymentMethods }: { payable: Payable, a
                             </DropdownMenuContent>
                         </DropdownMenu>
                     </div>
-                </td>
-            </tr>
+                </TableCell>
+            </TableRow>
             <EditPayableDialog payable={payable} open={editOpen} onOpenChange={setEditOpen} />
             <PaymentDialog
                 payable={payable}

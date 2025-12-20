@@ -62,13 +62,13 @@ export function DateFilter() {
 
     return (
         <div className="flex items-center gap-2 bg-white dark:bg-slate-950 p-1 rounded-lg border border-slate-200 dark:border-slate-800">
-            <Button variant="ghost" size="icon" onClick={() => navigateMonth('prev')} className="h-8 w-8">
-                <ChevronLeft className="h-4 w-4" />
+            <Button variant="ghost" size="icon" onClick={() => navigateMonth('prev')} className="text-slate-500 hover:text-slate-700">
+                <ChevronLeft className="h-5 w-5" />
             </Button>
 
             <div className="flex items-center gap-1">
                 <Select value={currentMonth.toString()} onValueChange={handleMonthChange}>
-                    <SelectTrigger className="h-8 w-[140px] border-none shadow-none focus:ring-0 bg-transparent font-medium">
+                    <SelectTrigger className="h-11 w-[140px] border-none shadow-none focus:ring-0 bg-transparent font-medium">
                         <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -81,7 +81,7 @@ export function DateFilter() {
                 </Select>
 
                 <Select value={currentYear.toString()} onValueChange={handleYearChange}>
-                    <SelectTrigger className="h-8 w-[90px] border-none shadow-none focus:ring-0 bg-transparent font-medium">
+                    <SelectTrigger className="h-11 w-[90px] border-none shadow-none focus:ring-0 bg-transparent font-medium">
                         <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -94,8 +94,8 @@ export function DateFilter() {
                 </Select>
             </div>
 
-            <Button variant="ghost" size="icon" onClick={() => navigateMonth('next')} className="h-8 w-8">
-                <ChevronRight className="h-4 w-4" />
+            <Button variant="ghost" size="icon" onClick={() => navigateMonth('next')} className="text-slate-500 hover:text-slate-700">
+                <ChevronRight className="h-5 w-5" />
             </Button>
         </div>
     )

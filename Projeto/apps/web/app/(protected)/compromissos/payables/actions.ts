@@ -71,10 +71,10 @@ export async function createPayable(formData: FormData) {
     const description = formData.get('description') as string
     const amountStr = formData.get('amount') as string
     const amount = parseFloat(amountStr.replace('R$', '').replace(/\./g, '').replace(',', '.'))
-    const firstDate = formData.get('date') as string
-    const categoryId = formData.get('categoryId') as string || null
-    const subcategoryId = formData.get('subcategoryId') as string || null
-    const paymentMethodId = formData.get('paymentMethodId') as string || null
+    const firstDate = (formData.get('transaction_date') as string) || (formData.get('date') as string)
+    const categoryId = formData.get('categoryId') as string || formData.get('category_id') as string || null
+    const subcategoryId = formData.get('subcategoryId') as string || formData.get('subcategory_id') as string || null
+    const paymentMethodId = formData.get('paymentMethodId') as string || formData.get('payment_method_id') as string || null
     const mode = formData.get('mode') as 'single' | 'installment' | 'fixed'
     const installments = parseInt(formData.get('installments') as string || '1')
 
@@ -107,10 +107,10 @@ export async function updatePayable(id: string, formData: FormData) {
     const description = formData.get('description') as string
     const amountStr = formData.get('amount') as string
     const amount = parseFloat(amountStr.replace('R$', '').replace(/\./g, '').replace(',', '.'))
-    const dueDateStr = formData.get('date') as string
-    const categoryId = formData.get('categoryId') as string || null
-    const subcategoryId = formData.get('subcategoryId') as string || null
-    const paymentMethodId = formData.get('paymentMethodId') as string || null
+    const dueDateStr = (formData.get('transaction_date') as string) || (formData.get('date') as string)
+    const categoryId = formData.get('categoryId') as string || formData.get('category_id') as string || null
+    const subcategoryId = formData.get('subcategoryId') as string || formData.get('subcategory_id') as string || null
+    const paymentMethodId = formData.get('paymentMethodId') as string || formData.get('payment_method_id') as string || null
 
     if (!description || !amount || !dueDateStr) {
         throw new Error("Dados obrigatórios faltando.")

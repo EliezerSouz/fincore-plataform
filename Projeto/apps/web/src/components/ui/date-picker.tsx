@@ -164,7 +164,7 @@ export function DatePicker({
               variant="ghost"
               type="button"
               className={cn(
-                "absolute left-0 top-0 h-full px-3 py-2 hover:bg-transparent",
+                "absolute left-0 top-0 h-full w-11 px-0 hover:bg-transparent flex items-center justify-center",
                 disabled && "opacity-50 cursor-not-allowed"
               )}
               disabled={disabled}

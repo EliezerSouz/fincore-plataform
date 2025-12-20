@@ -7,12 +7,13 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, Check, Zap, Lock, Sparkles, XCircle, ArrowRight, CalendarDays, RefreshCw, CreditCard, Rocket } from "lucide-react"
+import { Loader2, Check, Zap, Lock, Sparkles, XCircle, ArrowRight, CalendarDays, RefreshCw, CreditCard, Rocket, User } from "lucide-react"
 import { updateProfile } from "./actions"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { cn } from "@/lib/utils"
 import { AvatarUpload } from "@/components/ui/avatar-upload"
+import { PageLayout } from "@/components/layout/page-layout"
 
 // Feature constants definitions
 const PLAN_FEATURES = {
@@ -91,14 +92,14 @@ export default function AccountPage() {
             const result = await updateProfile(formData)
 
             if (result.error) {
-                alert(`Erro ao salvar: ${result.error}`)
+                toast.error(`Erro ao salvar: ${result.error}`)
             } else {
                 await refreshUser() // Atualiza contexto global
-                alert("Perfil atualizado com sucesso!")
+                toast.success("Perfil atualizado com sucesso!")
             }
         } catch (error) {
             console.error("Erro ao salvar:", error)
-            alert("Erro inesperado. Tente novamente.")
+            toast.error("Erro inesperado. Tente novamente.")
         } finally {
             setIsSaving(false)
         }
@@ -113,13 +114,11 @@ export default function AccountPage() {
     }
 
     return (
-        <div className="flex-1 space-y-6 p-8 pt-6">
-            <div className="flex items-center justify-between space-y-2">
-                <h2 className="text-3xl font-bold tracking-tight">Minha Conta</h2>
-            </div>
-
-            <Separator />
-
+        <PageLayout
+            title="Minha Conta"
+            description="Gerencie suas informações pessoais e assinatura."
+            icon={User}
+        >
             <div className="grid gap-6 md:grid-cols-2">
                 {/* Dados do Perfil */}
                 <Card>
@@ -147,7 +146,7 @@ export default function AccountPage() {
                                     id="email"
                                     value={user?.email || ""}
                                     disabled
-                                    className="bg-muted text-muted-foreground"
+                                    className="bg-muted text-muted-foreground h-11"
                                 />
                                 <p className="text-[0.8rem] text-muted-foreground">
                                     O email não pode ser alterado.
@@ -161,6 +160,7 @@ export default function AccountPage() {
                                     value={formData.full_name}
                                     onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
                                     required
+                                    className="h-11"
                                 />
                             </div>
 
@@ -170,6 +170,7 @@ export default function AccountPage() {
                                     id="phone"
                                     value={formData.phone}
                                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                                    className="h-11"
                                 />
                             </div>
 
@@ -183,7 +184,7 @@ export default function AccountPage() {
                                         {user?.createdAt ? format(new Date(user.createdAt), "dd 'de' MMMM 'de' yyyy", { locale: ptBR }) : '...'}
                                     </p>
                                 </div>
-                                <Button type="submit" disabled={isSaving}>
+                                <Button type="submit" disabled={isSaving} className="h-11">
                                     {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                     Salvar Alterações
                                 </Button>
@@ -273,7 +274,7 @@ export default function AccountPage() {
                                 <div className="pt-2">
                                     <Button
                                         className={cn(
-                                            "w-full gap-2 shadow-sm font-semibold",
+                                            "w-full gap-2 shadow-sm font-semibold h-11",
                                             user?.isInTrial
                                                 ? "bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white border-0"
                                                 : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700"
@@ -326,7 +327,7 @@ export default function AccountPage() {
                                         </li>
                                     ))}
                                 </ul>
-                                <Button className="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white shadow-sm" size="sm">
+                                <Button className="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white shadow-sm h-11 md:h-9" size="sm">
                                     Conhecer o Premium <ArrowRight className="ml-2 h-4 w-4" />
                                 </Button>
                             </div>
@@ -346,7 +347,7 @@ export default function AccountPage() {
                                         </li>
                                     ))}
                                 </ul>
-                                <Button className="mt-4 w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700 shadow-md border-0" size="sm">
+                                <Button className="mt-4 w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700 shadow-md border-0 h-11 md:h-9" size="sm">
                                     Conhecer o Premium IA <Sparkles className="ml-2 h-4 w-4" />
                                 </Button>
                             </div>
@@ -364,6 +365,6 @@ export default function AccountPage() {
                     </CardContent>
                 </Card>
             </div>
-        </div>
+        </PageLayout>
     )
 }

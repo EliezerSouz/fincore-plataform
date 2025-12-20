@@ -12,9 +12,17 @@ import type { AIInsight } from "./insights-rules"
 const apiKey = process.env.GROQ_API_KEY
 console.log('🔑 GROQ_API_KEY configurada?', apiKey ? `Sim (${apiKey.substring(0, 10)}...)` : 'Não')
 
-const groq = new Groq({
-    apiKey: apiKey
-})
+// Inicializa o cliente de forma segura (pode ser null se sem chave)
+let groq: Groq | null = null
+if (apiKey) {
+    try {
+        groq = new Groq({
+            apiKey: apiKey
+        })
+    } catch (e) {
+        console.error("Erro ao inicializar cliente Groq:", e)
+    }
+}
 
 /**
  * Gera insight personalizado para uma conta específica
@@ -24,9 +32,9 @@ export async function generateAccountInsight(
     balance: number,
     accountType: string
 ): Promise<AIInsight | null> {
-    // Se não tiver token, retorna null (fallback para regras)
-    if (!process.env.GROQ_API_KEY) {
-        console.log('❌ GROQ_API_KEY não configurada')
+    // Se não tiver cliente inicializado, retorna null
+    if (!groq) {
+        console.log('❌ GROQ_API_KEY não configurada ou inválida')
         return null
     }
 
@@ -74,7 +82,7 @@ export async function generateConsolidatedInsight(
     totalBalance: number,
     accountCount: number
 ): Promise<AIInsight | null> {
-    if (!process.env.GROQ_API_KEY) {
+    if (!groq) {
         console.log('❌ GROQ_API_KEY não configurada (consolidado)')
         return null
     }
@@ -123,7 +131,7 @@ export async function generateCreditCardInsight(
     availableLimit: number,
     usedPercentage: number
 ): Promise<AIInsight | null> {
-    if (!process.env.GROQ_API_KEY) {
+    if (!groq) {
         console.log('❌ GROQ_API_KEY não configurada (cartão)')
         return null
     }

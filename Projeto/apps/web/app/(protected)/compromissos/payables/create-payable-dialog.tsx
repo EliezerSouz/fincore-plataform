@@ -9,7 +9,9 @@ import { getCategories, getSubcategories } from "@/app/(protected)/caixa/transac
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CreateButton } from "@/components/ui/create-button"
 import { UpsellModal } from "@/components/ui/upsell-modal"
+import { toast } from "sonner"
 import { usePermission } from "@/hooks/use-permission"
+import { toTransactionFormData } from "@/features/transactions/utils/form-data"
 import { FinancialTransactionForm, FinancialTransactionFormData } from "@/features/transactions/components/financial-transaction-form"
 
 export function CreatePayableDialog({ activeCount = 0 }: { activeCount?: number }) {
@@ -54,20 +56,17 @@ export function CreatePayableDialog({ activeCount = 0 }: { activeCount?: number 
     async function handleFormSubmit(data: FinancialTransactionFormData) {
         setLoading(true)
         try {
-            const formData = new FormData()
-            formData.append('description', data.description)
-            formData.append('amount', data.amount.toString())
-            formData.append('date', data.date)
-            formData.append('categoryId', data.categoryId || "")
-            formData.append('subcategoryId', data.subcategoryId || "")
+            const formData = toTransactionFormData(data)
+            // Campos específicos de Payables que o helper pode não cobrir ou que precisam de override
             formData.append('mode', mode)
             formData.append('installments', data.installments || "1")
 
             await createPayable(formData)
             setOpen(false)
             router.refresh()
+            toast.success("Conta a pagar criada com sucesso!")
         } catch (e: any) {
-            alert(e.message || 'Erro ao criar conta a pagar')
+            toast.error(e.message || 'Erro ao criar conta a pagar')
         } finally {
             setLoading(false)
         }

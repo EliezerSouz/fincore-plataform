@@ -22,7 +22,7 @@ export function TopBar() {
         <header className="flex items-center justify-between h-16 px-4 md:px-8 bg-white/80 dark:bg-[#0F172A]/80 backdrop-blur-md border-b border-gray-200/50 dark:border-white/5 sticky top-0 z-30 transition-all">
             {/* Mobile Menu Button */}
             <div className="md:hidden">
-                <SidebarTrigger className="h-9 w-9" />
+                <SidebarTrigger className="h-11 w-11" />
             </div>
 
             {/* Logo/Title */}
@@ -50,7 +50,7 @@ export function TopBar() {
                 </div>
 
                 {/* Notifications */}
-                <button className="relative group p-2 hover:bg-gray-100 dark:hover:bg-white/5 rounded-full transition-colors">
+                <button className="relative group h-11 w-11 flex items-center justify-center hover:bg-gray-100 dark:hover:bg-white/5 rounded-full transition-colors">
                     <Bell className="h-5 w-5 text-gray-500 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-200" />
                 </button>
 

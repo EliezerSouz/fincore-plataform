@@ -97,6 +97,9 @@ export function DateRangeFilter({
             case 'last-7':
                 newRange = { from: subDays(now, 7), to: now }
                 break
+            case 'last-15':
+                newRange = { from: subDays(now, 15), to: now }
+                break
             case 'last-30':
                 newRange = { from: subDays(now, 30), to: now }
                 break
@@ -141,7 +144,7 @@ export function DateRangeFilter({
         <div className={cn("grid gap-2", className)}>
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="w-[260px] justify-between font-normal bg-card h-9 px-3 border-border hover:bg-accent hover:text-accent-foreground text-left" suppressHydrationWarning>
+                    <Button variant="outline" className="w-[260px] justify-between font-normal bg-card h-11 px-3 border-border hover:bg-accent hover:text-accent-foreground text-left" suppressHydrationWarning>
                         <span className="flex items-center gap-2 truncate">
                             <CalendarIcon className="h-4 w-4 text-muted-foreground flex-none" />
                             <span className="truncate">{label}</span>
@@ -153,6 +156,7 @@ export function DateRangeFilter({
                     <DropdownMenuItem onClick={() => handlePreset('this-month')}>Este mês</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => handlePreset('last-month')}>Mês anterior</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => handlePreset('last-7')}>Últimos 7 dias</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handlePreset('last-15')}>Últimos 15 dias</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => handlePreset('last-30')}>Últimos 30 dias</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => handlePreset('this-year')}>Ano atual</DropdownMenuItem>
                     <DropdownMenuSeparator />
@@ -181,8 +185,8 @@ export function DateRangeFilter({
                         />
                     </div>
                     <DialogFooter className="px-4 py-3 border-t bg-muted/50">
-                        <Button variant="ghost" size="sm" onClick={() => setIsCustomDialogOpen(false)}>Cancelar</Button>
-                        <Button size="sm" onClick={() => {
+                        <Button variant="ghost" onClick={() => setIsCustomDialogOpen(false)}>Cancelar</Button>
+                        <Button onClick={() => {
                             applyRange(tempDate)
                             setIsCustomDialogOpen(false)
                         }}>Aplicar</Button>

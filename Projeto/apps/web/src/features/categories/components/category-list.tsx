@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Category, updateCategory } from "@/app/(protected)/caixa/categories/actions"
 import { Tag, MoreHorizontal, LayoutGrid, List as ListIcon, Search, Archive } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -12,12 +12,21 @@ import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { UpsellModal } from "@/components/ui/upsell-modal"
 import { useRouter } from "next/navigation"
+import { useMediaQuery } from "@/hooks/use-media-query"
 
 export function CategoryList({ categories, type }: { categories: Category[], type: 'receita' | 'despesa' }) {
+    const isDesktop = useMediaQuery("(min-width: 768px)")
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
     const [search, setSearch] = useState("")
     const [editingCategory, setEditingCategory] = useState<Category | null>(null)
     const [isSheetOpen, setIsSheetOpen] = useState(false)
+
+    // Force list view on mobile
+    useEffect(() => {
+        if (!isDesktop) {
+            setViewMode('list')
+        }
+    }, [isDesktop])
 
     const filtered = categories.filter(c => c.type === type && c.name.toLowerCase().includes(search.toLowerCase()))
     const active = filtered.filter(c => c.is_active !== false)
@@ -52,7 +61,7 @@ export function CategoryList({ categories, type }: { categories: Category[], typ
                         onChange={(e) => setSearch(e.target.value)}
                     />
                 </div>
-                <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg self-end sm:self-auto">
+                <div className="hidden md:flex items-center gap-2 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg self-end sm:self-auto">
                     <button
                         onClick={() => setViewMode('grid')}
                         className={cn(
@@ -181,7 +190,7 @@ function CategoryItem({
             <>
                 <div 
                     onClick={onEdit}
-                    className="group flex items-center gap-4 p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all cursor-pointer"
+                    className="group flex items-center gap-4 p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all cursor-pointer active:scale-[0.98]"
                 >
                     <div 
                         className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 transition-transform group-hover:scale-105"
@@ -205,9 +214,9 @@ function CategoryItem({
                         </p>
                     </div>
 
-                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-slate-600">
-                            <MoreHorizontal className="w-4 h-4" />
+                    <div className="flex items-center gap-2">
+                        <Button variant="ghost" size="icon" className="h-11 w-11 text-slate-400 hover:text-slate-600">
+                            <MoreHorizontal className="w-5 h-5" />
                         </Button>
                     </div>
                 </div>

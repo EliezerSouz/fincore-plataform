@@ -2,66 +2,56 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog"
-import { Transaction } from "@/app/(protected)/caixa/transactions/actions"
+import { BaseModal } from "@/components/ui/base-modal"
 import { updateTransaction } from "@/app/(protected)/caixa/transactions/actions"
-import { FinancialTransactionForm, FinancialTransactionFormData } from "./financial-transaction-form"
+import { updateTransaction as updateCardTransaction } from "@/app/(protected)/compromissos/cards/actions"
+import { FinancialTransactionForm, FinancialTransactionFormData } from "@/features/transactions/components/financial-transaction-form"
+import { toTransactionFormData } from "../utils/form-data"
+import { ArrowDownCircle, ArrowUpCircle, ArrowRightLeft, CreditCard } from "lucide-react"
 
 interface EditTransactionDialogProps {
-    transaction: Transaction
     open: boolean
     onOpenChange: (open: boolean) => void
+    transaction: any
+    isCardTransaction?: boolean
+    onSuccess?: () => void
 }
 
-export function EditTransactionDialog({ transaction, open, onOpenChange }: EditTransactionDialogProps) {
+export function EditTransactionDialog({ open, onOpenChange, transaction, isCardTransaction, onSuccess }: EditTransactionDialogProps) {
     const router = useRouter()
     const [isLoading, setIsLoading] = useState(false)
 
     // Preparar dados iniciais do form
     const initialData: Partial<FinancialTransactionFormData> = {
-        type: transaction.type as 'receita' | 'despesa' | 'transferencia',
+        type: isCardTransaction ? 'compra' : (transaction.type as 'receita' | 'despesa' | 'transferencia'),
         amount: transaction.amount,
         description: transaction.description,
         accountId: transaction.account_id,
         categoryId: transaction.category_id || "",
         subcategoryId: transaction.subcategory_id || "",
         paymentMethodId: transaction.payment_method_id || "",
-        date: new Date(transaction.date).toISOString().split('T')[0],
+        date: transaction.transaction_date ? new Date(transaction.transaction_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         selectedCardId: transaction.credit_card_id || "",
+        notes: transaction.notes || "",
     }
 
     async function handleSubmit(data: FinancialTransactionFormData) {
         setIsLoading(true)
         try {
-            const formData = new FormData()
-            formData.append('description', data.description)
-            formData.append('amount', data.amount.toString())
-            formData.append('type', data.type)
-            formData.append('date', data.date)
-            formData.append('accountId', data.accountId)
+            // Using existingId ensures 'id' is appended to FormData, which is expected by some actions
+            const formData = toTransactionFormData(data, transaction.id)
 
-            if (data.type !== 'transferencia') {
-                if (data.categoryId) formData.append('categoryId', data.categoryId)
-                if (data.subcategoryId) formData.append('subcategoryId', data.subcategoryId)
+            if (isCardTransaction) {
+                // Card transaction specific fields if needed
+                await updateCardTransaction(formData)
+            } else {
+                await updateTransaction(transaction.id, formData)
             }
 
-            if (data.paymentMethodId) {
-                formData.append('paymentMethodId', data.paymentMethodId)
-                if (data.selectedCardId) {
-                    formData.append('cardId', data.selectedCardId)
-                }
-            }
-
-            await updateTransaction(transaction.id, formData)
+            onSuccess?.()
             onOpenChange(false)
             router.refresh()
-        } catch (error) {
+        } catch (error: any) {
             throw new Error(error.message || "Erro ao atualizar transação")
         } finally {
             setIsLoading(false)
@@ -69,28 +59,57 @@ export function EditTransactionDialog({ transaction, open, onOpenChange }: EditT
     }
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[500px] bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
-                <DialogHeader>
-                    <DialogTitle className="text-xl font-bold flex items-center gap-2">
-                        {transaction.type === 'despesa' && "Editar Despesa"}
-                        {transaction.type === 'receita' && "Editar Receita"}
-                        {transaction.type === 'transferencia' && "Editar Transferência"}
-                    </DialogTitle>
-                    <DialogDescription>
-                        Atualize os dados desta movimentação financeira.
-                    </DialogDescription>
-                </DialogHeader>
+        <BaseModal
+            open={open}
+            onOpenChange={onOpenChange}
+            title={
+                <div className="flex items-center gap-2">
+                    {isCardTransaction ? (
+                        <CreditCard className="w-5 h-5 text-orange-600" />
+                    ) : (
+                        <>
+                            {transaction.type === 'despesa' && <ArrowDownCircle className="w-5 h-5 text-red-600" />}
+                            {transaction.type === 'receita' && <ArrowUpCircle className="w-5 h-5 text-emerald-600" />}
+                            {transaction.type === 'transferencia' && <ArrowRightLeft className="w-5 h-5 text-blue-600" />}
+                        </>
+                    )}
 
-                <FinancialTransactionForm
-                    mode="edit"
-                    initialData={initialData}
-                    onSubmit={handleSubmit}
-                    onCancel={() => onOpenChange(false)}
-                    isLoading={isLoading}
-                    showTypeSelector={true}
-                />
-            </DialogContent>
-        </Dialog>
+                    <span>
+                        {isCardTransaction ? "Editar Item da Fatura" : (
+                            <>
+                                {transaction.type === 'despesa' && "Editar Despesa"}
+                                {transaction.type === 'receita' && "Editar Receita"}
+                                {transaction.type === 'transferencia' && "Editar Transferência"}
+                            </>
+                        )}
+                    </span>
+                </div>
+            }
+            description={isCardTransaction ? "Atualize os dados deste lançamento no cartão." : "Atualize os dados desta movimentação financeira."}
+            className="max-w-[500px]"
+            primaryButton={{
+                label: "Salvar Alterações",
+                isLoading: isLoading,
+                form: "edit-transaction-form",
+                type: "submit"
+            }}
+            secondaryButton={{
+                label: "Cancelar",
+                onClick: () => onOpenChange(false)
+            }}
+        >
+            <FinancialTransactionForm
+                mode="edit"
+                initialData={initialData}
+                onSubmit={handleSubmit}
+                onCancel={() => onOpenChange(false)}
+                isLoading={isLoading}
+                showTypeSelector={!isCardTransaction}
+                showAccountSelector={!isCardTransaction}
+                showPaymentMethodSelector={!isCardTransaction}
+                formId="edit-transaction-form"
+                hideFooter={true}
+            />
+        </BaseModal>
     )
 }

@@ -9,6 +9,7 @@ import { formatCurrency } from "@/lib/utils"
 import { CreditCard } from "lucide-react"
 import { DatePicker } from "@/components/ui/date-picker"
 import { format } from "date-fns"
+import { toast } from "sonner"
 
 export interface PaymentData {
     amount: number
@@ -59,7 +60,7 @@ export function UnifiedPaymentDialog({
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         if (!sourceAccountId || !amount || parseFloat(amount) <= 0 || !paymentMethodId) {
-            alert("Preencha todos os campos corretamente (Conta, Forma de Pagamento e Valor).")
+            toast.error("Preencha todos os campos corretamente (Conta, Forma de Pagamento e Valor).")
             return
         }
 
@@ -72,9 +73,10 @@ export function UnifiedPaymentDialog({
                 paymentMethodId
             })
             onOpenChange(false)
+            toast.success("Pagamento realizado com sucesso!")
         } catch (error: any) {
             console.error(error)
-            alert("Erro ao realizar pagamento: " + (error.message || "Erro desconhecido"))
+            toast.error("Erro ao realizar pagamento: " + (error.message || "Erro desconhecido"))
         } finally {
             setIsLoading(false)
         }
@@ -111,7 +113,7 @@ export function UnifiedPaymentDialog({
                         <Input
                             type="number"
                             step="0.01"
-                            className="pl-10 text-lg font-bold"
+                            className="pl-10 text-lg font-bold h-11"
                             value={amount}
                             onChange={e => setAmount(e.target.value)}
                             placeholder="0,00"
@@ -136,7 +138,7 @@ export function UnifiedPaymentDialog({
                 <div className="space-y-2">
                     <Label>Debitada da Conta (Origem)</Label>
                     <Select value={sourceAccountId} onValueChange={setSourceAccountId} required>
-                        <SelectTrigger>
+                        <SelectTrigger className="h-11">
                             <SelectValue placeholder="Selecione a conta de origem..." />
                         </SelectTrigger>
                         <SelectContent>
@@ -156,7 +158,7 @@ export function UnifiedPaymentDialog({
                 <div className="space-y-2">
                     <Label>Forma de Pagamento</Label>
                     <Select value={paymentMethodId} onValueChange={setPaymentMethodId} required>
-                        <SelectTrigger>
+                        <SelectTrigger className="h-11">
                             <SelectValue placeholder="Selecione o método..." />
                         </SelectTrigger>
                         <SelectContent>

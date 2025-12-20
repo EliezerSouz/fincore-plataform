@@ -3,18 +3,23 @@
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
+import { DataTableWrapper } from "@/components/ui/data-table-wrapper"
+import { PaginationControls } from "@/components/ui/pagination-controls"
 import { useTransactions } from '@/hooks/use-transactions'
 import { PageLayout } from "@/components/layout/page-layout"
 import { FilterBar } from "@/components/filter-bar"
-import { TransactionBalanceCard } from "@/features/transactions/components/transaction-balance-card"
 import { TransactionsFilters } from "@/features/transactions/components/transactions-filters"
 import { TransactionRow } from "@/features/transactions/components/transactions-row"
+import { TransactionItem } from "@/features/transactions/components/transaction-item"
 import { CreateTransactionDialog } from "@/features/transactions/components/create-transaction-dialog"
-import { ReceiptText, CircleDashed, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown, Zap, BrainCircuit, AlertTriangle, TrendingUp, Info, CheckCircle } from "lucide-react"
+import { ReceiptText, CircleDashed, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown, Zap, BrainCircuit, AlertTriangle, TrendingUp, Info, CheckCircle, TrendingDown, Wallet, Filter } from "lucide-react"
 import { useMemo, useState, useEffect } from 'react'
 import { useAccounts } from '@/hooks/use-accounts'
 import { getGroqTransactionInsight } from '@/features/ai/actions/groq-insight'
 import { BaseModal } from '@/components/ui/base-modal'
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { formatCurrency } from "@/lib/utils"
+import { Separator } from "@/components/ui/separator"
 
 export function TransactionsView({ accounts, categories, initialInsights, lastUpdated }: { accounts: any[], categories: any[], initialInsights?: any[], lastUpdated?: number }) {
     const router = useRouter()
@@ -157,6 +162,10 @@ export function TransactionsView({ accounts, categories, initialInsights, lastUp
         </th>
     )
 
+    const income = useMemo(() => chartTransactions.filter(t => t.type === 'receita').reduce((acc, t) => acc + Number(t.amount), 0), [chartTransactions])
+    const expense = useMemo(() => chartTransactions.filter(t => t.type === 'despesa').reduce((acc, t) => acc + Number(t.amount), 0), [chartTransactions])
+    const balance = income - expense
+
     return (
         <PageLayout
             title="Transações"
@@ -174,27 +183,66 @@ export function TransactionsView({ accounts, categories, initialInsights, lastUp
                     <CreateTransactionDialog onSuccess={refetchAll} />
                 </div>
             }
-            filterBar={
-                <FilterBar
-                    summary={
-                        <div className="w-full min-w-[300px] scale-90 origin-right">
-                            <TransactionBalanceCard transactions={chartLoading ? [] : chartTransactions} />
-                        </div>
-                    }
-                >
-                    <TransactionsFilters accounts={activeAccounts} categories={categories} />
-                </FilterBar>
-            }
         >
-            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/50 shadow-sm overflow-hidden relative z-10">
-                {tableLoading && tableTransactions.length === 0 ? (
-                    <div className="p-12 flex flex-col items-center justify-center gap-3 text-slate-500">
-                        <CircleDashed className="w-8 h-8 animate-spin text-blue-500" />
-                        <p>Carregando transações...</p>
+            <div className="grid gap-4 md:grid-cols-3 mb-6">
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Entradas</CardTitle>
+                        <TrendingUp className="h-4 w-4 text-emerald-500" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold text-emerald-600">{formatCurrency(income)}</div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                           Receitas do período selecionado
+                        </p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Saídas</CardTitle>
+                        <TrendingDown className="h-4 w-4 text-rose-500" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold text-rose-600">{formatCurrency(expense)}</div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                           Despesas do período selecionado
+                        </p>
+                    </CardContent>
+                </Card>
+                 <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Resultado</CardTitle>
+                        <Wallet className="h-4 w-4 text-slate-500" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className={`text-2xl font-bold ${balance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatCurrency(balance)}</div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                           Balanço final (Receitas - Despesas)
+                        </p>
+                    </CardContent>
+                </Card>
+            </div>
+
+            <Card>
+                <CardHeader>
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div>
+                            <CardTitle>Histórico de Movimentações</CardTitle>
+                            <p className="text-sm text-muted-foreground">Visualize e filtre todas as suas transações.</p>
+                        </div>
                     </div>
-                ) : (
-                    <>
-                        <div className="overflow-x-auto">
+                    <div className="mt-4">
+                         <TransactionsFilters accounts={activeAccounts} categories={categories} />
+                    </div>
+                </CardHeader>
+                <CardContent className="p-0 md:p-6 pt-0">
+                    <DataTableWrapper
+                        isLoading={tableLoading}
+                        isEmpty={tableTransactions.length === 0}
+                        emptyMessage="Nenhuma transação encontrada neste período."
+                    >
+                        {/* Desktop Table View */}
+                        <div className="hidden md:block overflow-x-auto rounded-md border">
                             <table className="w-full text-sm text-left">
                                 <thead className="bg-slate-50/80 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800">
                                     <tr>
@@ -210,68 +258,34 @@ export function TransactionsView({ accounts, categories, initialInsights, lastUp
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                    {tableTransactions.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={7} className="p-12 text-center">
-                                                <div className="flex flex-col items-center gap-3 text-slate-500">
-                                                    <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-900 flex items-center justify-center">
-                                                        <CircleDashed className="w-6 h-6 opacity-50" />
-                                                    </div>
-                                                    <p>Nenhuma transação encontrada neste período.</p>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ) : (
-                                        tableTransactions.map((tx) => (
-                                            <TransactionRow key={tx.id} tx={tx} />
-                                        ))
-                                    )}
+                                    {tableTransactions.map((tx) => (
+                                        <TransactionRow key={tx.id} tx={tx} />
+                                    ))}
                                 </tbody>
                             </table>
                         </div>
 
-                        <div className="p-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-sm text-slate-500 bg-slate-50/30 dark:bg-slate-900/10 transition-all">
-                            <div className="flex items-center gap-2">
-                                <span>Linhas por página:</span>
-                                <Select value={currentLimit} onValueChange={updateLimit}>
-                                    <SelectTrigger className="w-[70px] h-8 bg-white dark:bg-slate-900 text-xs shadow-sm">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="25">25</SelectItem>
-                                        <SelectItem value="50">50</SelectItem>
-                                        <SelectItem value="100">100</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-8 w-8 p-0"
-                                    onClick={() => updatePage(currentPage - 1)}
-                                    disabled={currentPage <= 1}
-                                >
-                                    <ChevronLeft className="h-4 w-4" />
-                                </Button>
-                                <span className="text-xs min-w-[60px] text-center font-medium">
-                                    Página {currentPage}
-                                </span>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-8 w-8 p-0"
-                                    onClick={() => updatePage(currentPage + 1)}
-                                    disabled={tableTransactions.length < parseInt(currentLimit)}
-                                >
-                                    <ChevronRight className="h-4 w-4" />
-                                </Button>
-                            </div>
+                        {/* Mobile List View */}
+                        <div className="md:hidden flex flex-col">
+                            {tableTransactions.map((tx) => (
+                                <TransactionItem key={tx.id} tx={tx} />
+                            ))}
                         </div>
-                    </>
-                )}
-            </div>
+
+                        <div className="p-4 border-t">
+                            <PaginationControls
+                                currentPage={currentPage}
+                                onPageChange={updatePage}
+                                hasMore={tableTransactions.length >= parseInt(currentLimit)}
+                                limit={parseInt(currentLimit)}
+                                onLimitChange={(val) => updateLimit(val.toString())}
+                                limitOptions={[25, 50, 100]}
+                                isLoading={tableLoading}
+                            />
+                        </div>
+                    </DataTableWrapper>
+                </CardContent>
+            </Card>
 
             {/* AI Insight Modal */}
             <BaseModal

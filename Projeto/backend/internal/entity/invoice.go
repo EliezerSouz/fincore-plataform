@@ -15,17 +15,18 @@ const (
 )
 
 type CreditCardInvoice struct {
-	ID              string        `json:"id" db:"id"`
-	CreditCardID    string        `json:"credit_card_id" db:"credit_card_id"`
-	ReferenceMonth  int           `json:"reference_month" db:"reference_month"`
-	ReferenceYear   int           `json:"reference_year" db:"reference_year"`
-	ClosingDate     time.Time     `json:"closing_date" db:"closing_date"`
-	DueDate         time.Time     `json:"due_date" db:"due_date"`
-	TotalAmount     float64       `json:"total_amount" db:"total_amount"`
-	Status          InvoiceStatus `json:"status" db:"status"`
-	CreatedAt       time.Time     `json:"created_at" db:"created_at"`
-	UpdatedAt       time.Time     `json:"updated_at" db:"updated_at"`
-	CreditCard      *CreditCard   `json:"credit_card,omitempty" db:"-"`
+	ID             string        `json:"id" db:"id"`
+	CreditCardID   string        `json:"credit_card_id" db:"credit_card_id"`
+	ReferenceMonth int           `json:"reference_month" db:"reference_month"`
+	ReferenceYear  int           `json:"reference_year" db:"reference_year"`
+	ClosingDate    time.Time     `json:"closing_date" db:"closing_date"`
+	DueDate        time.Time     `json:"due_date" db:"due_date"`
+	TotalAmount    float64       `json:"total_amount" db:"total_amount"`
+	PaidAmount     float64       `json:"paid_amount" db:"paid_amount"`
+	Status         InvoiceStatus `json:"status" db:"status"`
+	CreatedAt      time.Time     `json:"created_at" db:"created_at"`
+	UpdatedAt      time.Time     `json:"updated_at" db:"updated_at"`
+	CreditCard     *CreditCard   `json:"credit_card,omitempty" db:"-"`
 }
 
 type CreditCardTransaction struct {
