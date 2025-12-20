@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -11,12 +11,12 @@ import { TransactionsFilters } from "@/features/transactions/components/transact
 import { TransactionRow } from "@/features/transactions/components/transactions-row"
 import { CreateTransactionDialog } from "@/features/transactions/components/create-transaction-dialog"
 import { ReceiptText, CircleDashed, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown, Zap, BrainCircuit, AlertTriangle, TrendingUp, Info, CheckCircle } from "lucide-react"
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useAccounts } from '@/hooks/use-accounts'
 import { getGroqTransactionInsight } from '@/features/ai/actions/groq-insight'
 import { BaseModal } from '@/components/ui/base-modal'
 
-export function TransactionsView({ accounts, categories, initialInsights }: { accounts: any[], categories: any[], initialInsights?: any[] }) {
+export function TransactionsView({ accounts, categories, initialInsights, lastUpdated }: { accounts: any[], categories: any[], initialInsights?: any[], lastUpdated?: number }) {
     const router = useRouter()
     const [insightOpen, setInsightOpen] = useState(false)
     const [insightLoading, setInsightLoading] = useState(false)
@@ -81,6 +81,13 @@ export function TransactionsView({ accounts, categories, initialInsights }: { ac
         refetchTable()
         refetchChart()
     }
+
+    // Effect to refetch when lastUpdated changes (triggered by router.refresh())
+    useEffect(() => {
+        if (lastUpdated) {
+            refetchAll()
+        }
+    }, [lastUpdated, refetchTable, refetchChart])
 
     const updateLimit = (val: string) => {
         const params = new URLSearchParams(searchParams.toString())

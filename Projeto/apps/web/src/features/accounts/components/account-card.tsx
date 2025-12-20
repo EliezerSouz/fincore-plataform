@@ -83,7 +83,7 @@ export function AccountCard({ account, allAccounts = [], paymentMethods = [] }: 
         setIsDeleting(true)
         try {
             await deleteAccount(account.id)
-            window.location.reload()
+            router.refresh()
         } catch (error: any) {
             console.error("Erro ao excluir:", error)
             setIsDeleting(false)

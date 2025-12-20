@@ -4,8 +4,10 @@ import { Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { deleteTransaction } from "@/app/(protected)/caixa/transactions/actions"
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 
 export function DeleteTransactionButton({ id }: { id: string }) {
+    const router = useRouter()
     const [isDeleting, setIsDeleting] = useState(false)
 
     async function handleDelete() {
@@ -14,6 +16,7 @@ export function DeleteTransactionButton({ id }: { id: string }) {
         setIsDeleting(true)
         try {
             await deleteTransaction(id)
+            router.refresh()
         } catch (error) {
             alert("Erro ao excluir")
         } finally {

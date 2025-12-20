@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import {
     Dialog,
     DialogContent,
@@ -19,6 +20,7 @@ interface EditTransactionDialogProps {
 }
 
 export function EditTransactionDialog({ transaction, open, onOpenChange }: EditTransactionDialogProps) {
+    const router = useRouter()
     const [isLoading, setIsLoading] = useState(false)
 
     // Preparar dados iniciais do form
@@ -57,12 +59,9 @@ export function EditTransactionDialog({ transaction, open, onOpenChange }: EditT
             }
 
             await updateTransaction(transaction.id, formData)
-
             onOpenChange(false)
-            setTimeout(() => {
-                window.location.reload()
-            }, 300)
-        } catch (error: any) {
+            router.refresh()
+        } catch (error) {
             throw new Error(error.message || "Erro ao atualizar transação")
         } finally {
             setIsLoading(false)

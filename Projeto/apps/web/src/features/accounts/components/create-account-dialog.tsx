@@ -9,6 +9,7 @@ import { createAccount } from "@/app/(protected)/caixa/accounts/actions"
 import { CreateButton } from "@/components/ui/create-button"
 import { BaseModal } from "@/components/ui/base-modal"
 import { Plus, Check, Landmark } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 const COLORS = [
     { name: 'Azul', value: '#3b82f6' },
@@ -24,6 +25,7 @@ const COLORS = [
 ]
 
 export function CreateAccountDialog() {
+    const router = useRouter()
     const [open, setOpen] = useState(false)
     const [loading, setLoading] = useState(false)
     const [selectedType, setSelectedType] = useState("corrente")
@@ -41,9 +43,7 @@ export function CreateAccountDialog() {
         try {
             await createAccount(formData)
             setOpen(false)
-            setTimeout(() => {
-                window.location.reload()
-            }, 300)
+            router.refresh()
         } catch (error) {
             console.error(error)
         } finally {

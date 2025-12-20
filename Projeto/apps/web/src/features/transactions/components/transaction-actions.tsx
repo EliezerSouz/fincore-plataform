@@ -69,6 +69,7 @@ export function TransactionActions({ transaction }: TransactionActionsProps) {
                 console.log("Deleting transaction:", transaction.id)
                 await deleteTransaction(transaction.id)
                 setIsDeleteOpen(false)
+                router.refresh()
             } catch (error: any) {
                 console.error("Delete error:", error)
                 alert(`Erro ao excluir: ${error.message || error}`)
@@ -80,6 +81,7 @@ export function TransactionActions({ transaction }: TransactionActionsProps) {
         startTransition(async () => {
             try {
                 await duplicateTransaction(transaction.id)
+                router.refresh()
             } catch (error) {
                 console.error(error)
                 alert("Erro ao duplicar")
@@ -102,12 +104,14 @@ export function TransactionActions({ transaction }: TransactionActionsProps) {
                     await revertInvoicePayment(invoiceId)
                     setIsRevertOpen(false)
                     alert("Pagamento estornado com sucesso!")
+                    router.refresh()
                 } else if (transaction.payable_id) {
                     // Importar revertPayment de payables
                     const { revertPayment } = await import("@/app/(protected)/compromissos/payables/actions")
                     await revertPayment(transaction.payable_id)
                     setIsRevertOpen(false)
                     alert("Pagamento estornado com sucesso!")
+                    router.refresh()
                 }
             } catch (error: any) {
                 console.error("Revert error:", error)

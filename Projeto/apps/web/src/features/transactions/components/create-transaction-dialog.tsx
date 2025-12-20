@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { BaseModal } from "@/components/ui/base-modal"
 import { createTransaction, createTransfer } from "@/app/(protected)/caixa/transactions/actions"
 import { createTransaction as createCardTransaction } from "@/app/(protected)/compromissos/cards/actions"
@@ -13,6 +14,7 @@ interface CreateTransactionDialogProps {
 }
 
 export function CreateTransactionDialog({ onSuccess }: CreateTransactionDialogProps) {
+    const router = useRouter()
     const [open, setOpen] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
 
@@ -63,9 +65,7 @@ export function CreateTransactionDialog({ onSuccess }: CreateTransactionDialogPr
 
             onSuccess?.()
             setOpen(false)
-            setTimeout(() => {
-                window.location.reload()
-            }, 300)
+            router.refresh()
         } catch (error: any) {
             throw new Error(error.message || "Erro ao criar transação")
         } finally {

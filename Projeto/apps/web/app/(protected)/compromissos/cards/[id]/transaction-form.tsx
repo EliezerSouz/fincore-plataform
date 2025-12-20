@@ -59,7 +59,7 @@ export function TransactionForm({ cardId, cardName }: { cardId: string, cardName
 
             await createTransaction(formData)
             setOpen(false)
-            window.location.reload()
+            router.refresh()
         } catch (e: any) {
             alert(e.message || 'Erro ao criar transação')
         } finally {

@@ -9,6 +9,7 @@ import { Loader2, Lock, LockOpen, Sidebar, Landmark, Plus, Check } from "lucide-
 import { Switch } from "@/components/ui/switch"
 import { updateAccount } from "@/app/(protected)/caixa/accounts/actions"
 import { BaseModal } from "@/components/ui/base-modal"
+import { useRouter } from "next/navigation"
 
 const COLORS = [
     { name: 'Azul', value: '#3b82f6' },
@@ -24,6 +25,7 @@ const COLORS = [
 ]
 
 export function EditAccountDialog({ account, open, onOpenChange }: { account: any, open: boolean, onOpenChange: (open: boolean) => void }) {
+    const router = useRouter()
     const [loading, setLoading] = useState(false)
     const [balanceLocked, setBalanceLocked] = useState(true)
     const [selectedType, setSelectedType] = useState(account.type || "corrente")
@@ -41,9 +43,7 @@ export function EditAccountDialog({ account, open, onOpenChange }: { account: an
         try {
             await updateAccount(account.id, formData)
             onOpenChange(false)
-            setTimeout(() => {
-                window.location.reload()
-            }, 300)
+            router.refresh()
         } catch (error) {
             console.error(error)
         } finally {

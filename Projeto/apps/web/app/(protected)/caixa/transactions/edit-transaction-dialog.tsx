@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { BaseModal } from "@/components/ui/base-modal"
 import { updateTransaction } from "./actions"
 import { FinancialTransactionForm, FinancialTransactionFormData } from "@/features/transactions/components/financial-transaction-form"
@@ -13,6 +14,7 @@ interface EditTransactionDialogProps {
 }
 
 export function EditTransactionDialog({ open, onOpenChange, transaction }: EditTransactionDialogProps) {
+    const router = useRouter()
     const [isLoading, setIsLoading] = useState(false)
 
     // Preparar dados iniciais do form
@@ -58,9 +60,7 @@ export function EditTransactionDialog({ open, onOpenChange, transaction }: EditT
             await updateTransaction(transaction.id, formData)
 
             onOpenChange(false)
-            setTimeout(() => {
-                window.location.reload()
-            }, 300)
+            router.refresh()
         } catch (error: any) {
             throw new Error(error.message || "Erro ao atualizar transação")
         } finally {

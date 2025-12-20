@@ -272,28 +272,6 @@ export function FinancialTransactionForm({
                             <ArrowDownCircle className="w-4 h-4" /> Despesa
                         </button>
                     )}
-                    {(mode === 'create' || type === 'compra') && (
-                        <button
-                            type="button"
-                            disabled={mode === 'edit'}
-                            onClick={() => {
-                                setType('compra');
-                                // Tentar setar o paymentMethodId para o slug 'credit_card'
-                                const cardMethod = methods.find(m => m.slug === 'credit_card');
-                                if (cardMethod) setPaymentMethodId(cardMethod.id);
-                                else setPaymentMethodId('credit_card');
-                            }}
-                            className={cn(
-                                "flex-1 py-1.5 text-sm font-medium rounded-md transition-all flex items-center justify-center gap-2",
-                                type === 'compra'
-                                    ? "bg-white dark:bg-slate-700 text-orange-600 shadow-sm border border-orange-100 dark:border-orange-900/30"
-                                    : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300",
-                                mode === 'edit' && type !== 'compra' && "hidden"
-                            )}
-                        >
-                            <CreditCard className="w-4 h-4" /> Cartão
-                        </button>
-                    )}
                     {(mode === 'create' || type === 'receita') && (
                         <button
                             type="button"
@@ -333,10 +311,32 @@ export function FinancialTransactionForm({
                             {mode === 'create' && !can('transfer_between_accounts') && <Lock className="w-3 h-3 opacity-50" />}
                         </button>
                     )}
+                    {(mode === 'create' || type === 'compra') && (
+                        <button
+                            type="button"
+                            disabled={mode === 'edit'}
+                            onClick={() => {
+                                setType('compra');
+                                // Tentar setar o paymentMethodId para o slug 'credit_card'
+                                const cardMethod = methods.find(m => m.slug === 'credit_card');
+                                if (cardMethod) setPaymentMethodId(cardMethod.id);
+                                else setPaymentMethodId('credit_card');
+                            }}
+                            className={cn(
+                                "flex-1 py-1.5 text-sm font-medium rounded-md transition-all flex items-center justify-center gap-2",
+                                type === 'compra'
+                                    ? "bg-white dark:bg-slate-700 text-orange-600 shadow-sm border border-orange-100 dark:border-orange-900/30"
+                                    : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300",
+                                mode === 'edit' && type !== 'compra' && "hidden"
+                            )}
+                        >
+                            <CreditCard className="w-4 h-4" /> Cartão
+                        </button>
+                    )}
                 </div>
             )}
 
-            <div className="grid gap-4 py-2">
+            <div className="grid gap-5 py-2">
                 {/* VALOR E OPÇÃO DE RETROATIVO */}
                 <div className="space-y-4">
                     {!isRetroactive ? (
@@ -346,60 +346,60 @@ export function FinancialTransactionForm({
                             onChange={setAmount}
                             required
                             autoFocus={mode === 'create'}
-                            className="text-xl h-12 font-bold"
+                            className="text-2xl h-14 font-bold"
                         />
                     ) : (
-                        <div className="space-y-3 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in-95">
+                        <div className="space-y-4 bg-slate-50 dark:bg-slate-900/50 p-5 rounded-xl border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in-95">
                             <div className="flex items-center justify-between mb-2">
                                 <Label className="text-xs font-bold uppercase text-blue-600 dark:text-blue-400">Lançamento Retroativo</Label>
-                                <button type="button" onClick={() => setIsRetroactive(false)} className="text-[10px] text-slate-500 hover:underline">Alternar para comum</button>
+                                <button type="button" onClick={() => setIsRetroactive(false)} className="text-xs text-slate-500 hover:underline">Alternar para comum</button>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-2 gap-5">
                                 <CurrencyInput
                                     label="Valor da Parcela"
                                     value={installmentAmount}
                                     onChange={setInstallmentAmount}
                                     required
-                                    className="font-bold border-blue-200 dark:border-blue-900"
+                                    className="font-bold border-blue-200 dark:border-blue-900 h-11 text-lg"
                                 />
-                                <div className="space-y-1.5">
-                                    <Label className="text-[10px] font-semibold uppercase text-slate-500">Total de Parcelas</Label>
+                                <div className="space-y-2">
+                                    <Label className="text-xs font-semibold uppercase text-slate-500">Total de Parcelas</Label>
                                     <Input
                                         type="number"
                                         value={totalInstallments}
                                         onChange={e => setTotalInstallments(Number(e.target.value))}
-                                        className="h-10 border-blue-200 dark:border-blue-900"
+                                        className="h-11 border-blue-200 dark:border-blue-900"
                                     />
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1.5">
-                                    <Label className="text-[10px] font-semibold uppercase text-slate-500">Parcela Inicial</Label>
+                            <div className="grid grid-cols-2 gap-5">
+                                <div className="space-y-2">
+                                    <Label className="text-xs font-semibold uppercase text-slate-500">Parcela Inicial</Label>
                                     <Input
                                         type="number"
                                         value={startInstallment}
                                         onChange={e => setStartInstallment(Number(e.target.value))}
-                                        className="h-10 border-blue-200 dark:border-blue-900"
+                                        className="h-11 border-blue-200 dark:border-blue-900"
                                     />
                                 </div>
-                                <div className="space-y-1.5">
-                                    <Label className="text-[10px] font-semibold uppercase text-slate-500">Parcela Final</Label>
+                                <div className="space-y-2">
+                                    <Label className="text-xs font-semibold uppercase text-slate-500">Parcela Final</Label>
                                     <Input
                                         type="number"
                                         value={endInstallment}
                                         onChange={e => setEndInstallment(Number(e.target.value))}
-                                        className="h-10 border-blue-200 dark:border-blue-900"
+                                        className="h-11 border-blue-200 dark:border-blue-900"
                                     />
                                 </div>
                             </div>
 
-                            <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center">
-                                <span className="text-[10px] text-slate-500 font-medium">Representa {(endInstallment - startInstallment + 1)} parcelas</span>
+                            <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center">
+                                <span className="text-xs text-slate-500 font-medium">Representa {(endInstallment - startInstallment + 1)} parcelas</span>
                                 <div className="text-right">
-                                    <p className="text-[10px] text-slate-500 uppercase font-semibold leading-none">Total deste Lançamento</p>
-                                    <p className="text-lg font-bold text-slate-900 dark:text-white">
+                                    <p className="text-xs text-slate-500 uppercase font-semibold leading-none mb-1">Total deste Lançamento</p>
+                                    <p className="text-xl font-bold text-slate-900 dark:text-white">
                                         {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(installmentAmount * (endInstallment - startInstallment + 1))}
                                     </p>
                                 </div>

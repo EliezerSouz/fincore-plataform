@@ -28,6 +28,7 @@ export default async function TransactionsPage() {
                 accounts={accounts}
                 categories={categories}
                 initialInsights={[]}
+                lastUpdated={new Date().getTime()}
             />
         </Suspense>
     )

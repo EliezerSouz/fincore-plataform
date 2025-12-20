@@ -23,6 +23,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { useRouter } from "next/navigation"
 
 interface PaymentMethodDialogProps {
     method?: PaymentMethod
@@ -31,6 +32,7 @@ interface PaymentMethodDialogProps {
 }
 
 export function PaymentMethodDialog({ method, trigger, onSuccess }: PaymentMethodDialogProps) {
+    const router = useRouter()
     const [open, setOpen] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
 
@@ -95,9 +97,7 @@ export function PaymentMethodDialog({ method, trigger, onSuccess }: PaymentMetho
 
             onSuccess?.()
             setOpen(false)
-            setTimeout(() => {
-                window.location.reload()
-            }, 300)
+            router.refresh()
         } catch (error: any) {
             alert(error.message || "Erro ao salvar modalidade")
         } finally {
