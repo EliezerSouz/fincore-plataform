@@ -242,6 +242,11 @@ export function AppSidebar({ stats, ...props }: AppSidebarProps) {
 
             <SidebarFooter className="bg-slate-50 dark:bg-[#0F172A] border-t border-slate-200 dark:border-white/5 p-4">
                 <UserNav />
+                <div className="mt-2 flex justify-center group-data-[collapsible=icon]:hidden">
+                    <span className="text-[10px] font-mono text-slate-400 dark:text-slate-600 select-none hover:text-slate-600 dark:hover:text-slate-400 transition-colors cursor-default" title="Versão do Sistema">
+                        v0.1.0
+                    </span>
+                </div>
             </SidebarFooter>
             <SidebarRail />
         </Sidebar>
