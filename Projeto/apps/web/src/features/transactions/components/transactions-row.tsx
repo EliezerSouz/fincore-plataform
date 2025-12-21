@@ -34,6 +34,7 @@ const getAccountIcon = (type: string) => {
 
     if (normalized.includes('carteira')) return Wallet;
     if (normalized.includes('poupanca')) return PiggyBank;
+    if (normalized.includes('reserva_emergencia') || normalized.includes('reserva')) return PiggyBank;
     if (normalized.includes('investimento')) return TrendingUp;
     if (normalized.includes('digital')) return Smartphone;
     if (normalized.includes('corrente')) return Landmark;

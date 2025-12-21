@@ -41,6 +41,15 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+
+  /* Custom Semantic Colors */
+  --color-wealth: #059669;
+  --color-risk: #F59E0B;
+  --color-danger: #EF4444;
+  --color-insight: #8B5CF6;
+  --color-surface: #0F172A;
+  --color-surface-light: #1E293B;
+
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -55,16 +64,20 @@
   /* Mais arredondado = mais moderno */
 
   /* DEFAULT THEME: DARK (SOPHISTICATED DEEP BLUE) */
-  --background: oklch(0.12 0.02 260);    /* Deep Navy */
-  --foreground: oklch(0.92 0.01 260);    /* Off-white text */
+  --background: oklch(0.12 0.02 260);
+  /* Deep Navy */
+  --foreground: oklch(0.92 0.01 260);
+  /* Off-white text */
 
-  --card: oklch(0.15 0.03 260);          /* Slightly Lighter Navy */
+  --card: oklch(0.15 0.03 260);
+  /* Slightly Lighter Navy */
   --card-foreground: oklch(0.92 0.01 260);
 
   --popover: oklch(0.15 0.03 260);
   --popover-foreground: oklch(0.92 0.01 260);
 
-  --primary: oklch(0.60 0.18 260);       /* Vivid Blue Button */
+  --primary: oklch(0.60 0.18 260);
+  /* Vivid Blue Button */
   --primary-foreground: oklch(1 0 0);
 
   --secondary: oklch(0.20 0.04 260);
@@ -89,7 +102,8 @@
   --chart-4: oklch(0.70 0.15 40);
   --chart-5: oklch(0.80 0.15 60);
 
-  --sidebar: oklch(0.10 0.02 260);       /* Darker Sidebar */
+  --sidebar: oklch(0.10 0.02 260);
+  /* Darker Sidebar */
   --sidebar-foreground: oklch(0.92 0.01 260);
   --sidebar-primary: oklch(0.60 0.18 260);
   --sidebar-primary-foreground: oklch(1 0 0);
@@ -153,4 +167,463 @@
   body {
     @apply bg-background text-foreground tracking-tight;
   }
+}
+
+/* Heartbeat Animations - Fallback for Tailwind compilation issues */
+@keyframes heartbeat-slow {
+
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  14% {
+    transform: scale(1.3);
+  }
+
+  28% {
+    transform: scale(1);
+  }
+
+  42% {
+    transform: scale(1.3);
+  }
+
+  56% {
+    transform: scale(1);
+  }
+}
+
+@keyframes heartbeat-fast {
+
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  10% {
+    transform: scale(1.3);
+  }
+
+  20% {
+    transform: scale(1);
+  }
+
+  30% {
+    transform: scale(1.3);
+  }
+
+  40% {
+    transform: scale(1);
+  }
+}
+
+/* Batimento Irregular - Quase Parando (Crítico) */
+@keyframes heartbeat-irregular {
+
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  5% {
+    transform: scale(1.15);
+  }
+
+  10% {
+    transform: scale(1);
+  }
+
+  /* Pausa longa - batimento quase parando */
+  10%,
+  60% {
+    transform: scale(1);
+  }
+
+  65% {
+    transform: scale(1.2);
+  }
+
+  70% {
+    transform: scale(1);
+  }
+
+  /* Outra pausa longa */
+  70%,
+  95% {
+    transform: scale(1);
+  }
+}
+
+/* FINCORE: Batimentos Cardíacos Realistas - Baseados em Frequências Reais */
+
+/* NORMAL: 60-80 bpm (batimento saudável) - Bate, pausa, bate */
+@keyframes heartbeat-normal {
+
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  10% {
+    transform: scale(1.08);
+  }
+
+  20% {
+    transform: scale(1);
+  }
+
+  /* Pausa (simula diástole) */
+  20%,
+  80% {
+    transform: scale(1);
+  }
+}
+
+/* EXCELLENT: 60-70 bpm (coração forte) - Batimento forte e regular */
+@keyframes heartbeat-excellent {
+
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  8% {
+    transform: scale(1.10);
+  }
+
+  16% {
+    transform: scale(1);
+  }
+
+  /* Pausa regular (coração forte) */
+  16%,
+  85% {
+    transform: scale(1);
+  }
+}
+
+/* TAQUICARDIA LEVE: 90-110 bpm (alerta/estresse) - Batimento acelerado */
+@keyframes heartbeat-tachycardia {
+
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  15% {
+    transform: scale(1.08);
+  }
+
+  30% {
+    transform: scale(1);
+  }
+
+  /* Pausa menor */
+  30%,
+  70% {
+    transform: scale(1);
+  }
+}
+
+/* BRADICARDIA: 40-50 bpm (quase parando) - Batimento muito lento */
+@keyframes heartbeat-bradycardia {
+
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  5% {
+    transform: scale(1.08);
+  }
+
+  10% {
+    transform: scale(1);
+  }
+
+  /* Pausa MUITO longa (coração quase parando) */
+  10%,
+  90% {
+    transform: scale(1);
+  }
+}
+
+/* BRADICARDIA SEVERA: 30-40 bpm (crítico) - Batimento extremamente lento */
+@keyframes heartbeat-critical {
+
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  3% {
+    transform: scale(1.08);
+  }
+
+  6% {
+    transform: scale(1);
+  }
+
+  /* Pausa EXTREMAMENTE longa (coração quase parando) */
+  6%,
+  95% {
+    transform: scale(1);
+  }
+}
+
+@keyframes ecg-move {
+  0% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+/* ECG movendo da ESQUERDA para DIREITA (contínuo) */
+@keyframes ecg-move-ltr {
+  0% {
+    transform: translateX(-66.666%);
+  }
+
+  100% {
+    transform: translateX(0);
+  }
+}
+
+/* ECG em duas metades - chegando até o meio e saindo do meio */
+@keyframes ecg-move-ltr-half {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(0);
+  }
+}
+
+/* ECG sobreposto - atravessa toda a tela (150% width) */
+@keyframes ecg-move-ltr-overlap {
+  0% {
+    transform: translateX(-50%);
+  }
+
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* ECG COMPLETO: Esquerda → Direita (atravessa TODO o card) */
+@keyframes ecg-ltr-full {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* ECG COMPLETO: Direita → Esquerda (atravessa TODO o card) */
+@keyframes ecg-rtl-full {
+  0% {
+    transform: translateX(100%);
+  }
+
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+/* ========================================
+   NOVAS ANIMAÇÕES: ECG SINCRONIZADO COM BATIMENTO
+   Velocidade PADRONIZADA: 6s para todos os estados
+   O que muda: QUANDO o pulso aparece (quantidade de pulsos na tela)
+   ======================================== */
+
+/* ECG EXCELLENT: Pulso aparece quando coração bate (8%) - Velocidade 6s */
+@keyframes ecg-pulse-excellent {
+  0% {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+
+  /* Pulso aparece quando coração bate */
+  8% {
+    opacity: 1;
+    transform: translateX(-100%);
+  }
+
+  /* Pulso se move pela tela em 6s (velocidade padrão) */
+  100% {
+    opacity: 1;
+    transform: translateX(100%);
+  }
+}
+
+/* ECG NORMAL: Pulso aparece quando coração bate (10%) - Velocidade 6s */
+@keyframes ecg-pulse-normal {
+  0% {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+
+  /* Pulso aparece quando coração bate */
+  10% {
+    opacity: 1;
+    transform: translateX(-100%);
+  }
+
+  /* Pulso se move pela tela em 6s (velocidade padrão) */
+  100% {
+    opacity: 1;
+    transform: translateX(100%);
+  }
+}
+
+/* ECG TAQUICARDIA: Pulso aparece quando coração bate (15%) - Velocidade 6s */
+@keyframes ecg-pulse-tachycardia {
+  0% {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+
+  /* Pulso aparece quando coração bate */
+  15% {
+    opacity: 1;
+    transform: translateX(-100%);
+  }
+
+  /* Pulso se move pela tela em 6s (velocidade padrão) */
+  100% {
+    opacity: 1;
+    transform: translateX(100%);
+  }
+}
+
+/* ECG BRADICARDIA: Pulso aparece quando coração bate (5%) - Velocidade 6s */
+@keyframes ecg-pulse-bradycardia {
+  0% {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+
+  /* Pulso aparece quando coração bate */
+  5% {
+    opacity: 1;
+    transform: translateX(-100%);
+  }
+
+  /* Pulso se move pela tela em 6s (velocidade padrão) */
+  100% {
+    opacity: 1;
+    transform: translateX(100%);
+  }
+}
+
+/* ECG CRÍTICO: Pulso aparece quando coração bate (3%) - Velocidade 6s */
+@keyframes ecg-pulse-critical {
+  0% {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+
+  /* Pulso aparece quando coração bate */
+  3% {
+    opacity: 1;
+    transform: translateX(-100%);
+  }
+
+  /* Pulso se move pela tela em 6s (velocidade padrão) */
+  100% {
+    opacity: 1;
+    transform: translateX(100%);
+  }
+}
+
+/* Apply animations */
+.animate-heartbeat-slow {
+  animation: heartbeat-slow 2s infinite ease-in-out;
+}
+
+.animate-heartbeat-fast {
+  animation: heartbeat-fast 0.8s infinite ease-in-out;
+}
+
+/* Batimento quase parando - 4 segundos com pausas longas */
+.animate-heartbeat-irregular {
+  animation: heartbeat-irregular 4s infinite ease-in-out;
+}
+
+/* FINCORE: Batimentos Cardíacos Realistas */
+.animate-heartbeat-excellent {
+  animation: heartbeat-excellent 1.8s infinite ease-in-out;
+  /* 60-70 bpm */
+}
+
+.animate-heartbeat-normal {
+  animation: heartbeat-normal 2s infinite ease-in-out;
+  /* 60-80 bpm */
+}
+
+.animate-heartbeat-tachycardia {
+  animation: heartbeat-tachycardia 1.3s infinite ease-in-out;
+  /* 90-110 bpm */
+}
+
+.animate-heartbeat-bradycardia {
+  animation: heartbeat-bradycardia 3s infinite ease-in-out;
+  /* 40-50 bpm */
+}
+
+.animate-heartbeat-critical {
+  animation: heartbeat-critical 4s infinite ease-in-out;
+  /* 30-40 bpm */
+}
+
+.animate-ecg-move {
+  animation: ecg-move 4s linear infinite;
+}
+
+.animate-ecg-move-ltr {
+  animation: ecg-move-ltr 8s linear infinite;
+}
+
+.animate-ecg-move-ltr-half {
+  animation: ecg-move-ltr-half 8s linear infinite;
+}
+
+.animate-ecg-move-ltr-overlap {
+  animation: ecg-move-ltr-overlap 8s linear infinite;
+}
+
+.animate-ecg-ltr-full {
+  animation: ecg-ltr-full 8s linear infinite;
+}
+
+.animate-ecg-rtl-full {
+  animation: ecg-rtl-full 8s linear infinite;
+}
+
+/* NOVAS CLASSES: ECG Sincronizado com Batimento - VELOCIDADE PADRONIZADA 6s */
+.animate-ecg-pulse-excellent {
+  animation: ecg-pulse-excellent 6s infinite ease-in-out;
+}
+
+.animate-ecg-pulse-normal {
+  animation: ecg-pulse-normal 6s infinite ease-in-out;
+}
+
+.animate-ecg-pulse-tachycardia {
+  animation: ecg-pulse-tachycardia 6s infinite ease-in-out;
+}
+
+.animate-ecg-pulse-bradycardia {
+  animation: ecg-pulse-bradycardia 6s infinite ease-in-out;
+}
+
+.animate-ecg-pulse-critical {
+  animation: ecg-pulse-critical 6s infinite ease-in-out;
 }

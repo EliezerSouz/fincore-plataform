@@ -45,7 +45,7 @@ import {
     Wallet
 } from "lucide-react"
 import { EditTransactionDialog } from "@/features/transactions/components/edit-transaction-dialog"
-import { PayCardInvoiceDialog } from "./pay-invoice-dialog"
+import { PayCardInvoiceDialog } from "@/features/cards/components/pay-invoice-dialog"
 import { BrandIcon } from "@/features/transactions/components/brand-icon"
 import { usePermission } from "@/hooks/use-permission"
 import { usePrimaryCard } from "@/hooks/use-primary-card"

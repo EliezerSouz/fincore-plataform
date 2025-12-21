@@ -24,6 +24,7 @@ export interface Category {
     icon: string
     subcategories: any[]
     is_active?: boolean
+    is_system?: boolean
 }
 
 export async function getCategories(type: 'receita' | 'despesa') {
@@ -128,16 +129,21 @@ export async function updateSubcategory(formData: FormData) {
 // Helper para garantir categoria padrão de Faturas
 export async function getOrCreateInvoiceCategory() {
     // This helper logic checks for a specific category. 
-    // We can list categories via API and find it, or use Supabase directly if we want to avoid filtering logic on client side for performance?
-    // Actually, getting all expense categories is cheap.
+    // We can list categories via API and find it.
 
     try {
         const categories = await getCategories('despesa')
-        const existing = categories.find(c => c.name === 'Pagamento de Fatura')
+        
+        // Try to find existing category (Singular or Plural)
+        // Normalizes to lowercase for comparison to be safe
+        const existing = categories.find(c => {
+            const name = c.name.toLowerCase().trim()
+            return name === 'pagamento de fatura' || name === 'pagamento de faturas' || name === 'faturas'
+        })
 
         if (existing) return existing.id
 
-        // Create if not exists
+        // Create if not exists (Default to Singular)
         const client = await getApiClient()
         const newCat = await client.post<Category>('/api/categories', {
             name: 'Pagamento de Fatura',
@@ -149,6 +155,9 @@ export async function getOrCreateInvoiceCategory() {
         return newCat.id
     } catch (error) {
         console.error("Erro ao criar categoria padrao:", error)
-        throw new Error("Erro ao criar categoria padrão")
+        // If it fails, return undefined so the transaction is created without category (or handle upstream)
+        // But throwing allows the UI to show an error or fallback.
+        // Let's return null and handle it.
+        return undefined
     }
 }

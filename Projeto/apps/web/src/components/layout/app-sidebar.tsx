@@ -37,10 +37,15 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
     SidebarRail,
+    SidebarGroup,
+    SidebarGroupLabel,
+    SidebarGroupContent,
     useSidebar,
+    SidebarTrigger,
 } from "@/components/ui/sidebar"
 import { Logo } from "@/components/ui/logo"
 import { usePathname } from "next/navigation"
+import Link from "next/link"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ModeToggle } from "@/components/layout/mode-toggle"
@@ -75,18 +80,21 @@ export function AppSidebar({ stats, ...props }: AppSidebarProps) {
 
 
     return (
-        <Sidebar collapsible="icon" {...props} className="border-r border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-[#0F172A] text-slate-600 dark:text-slate-300">
-            <SidebarHeader className="h-16 border-b border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-[#0F172A]">
+        <Sidebar collapsible="icon" {...props} className="border-r border-zinc-200 dark:border-white/5 bg-zinc-50 dark:bg-[#09090b] text-zinc-600 dark:text-zinc-400">
+            <SidebarHeader className="h-20 border-b border-zinc-200 dark:border-white/5 bg-zinc-50 dark:bg-[#09090b] flex justify-center">
                 <SidebarMenu>
                     <SidebarMenuItem>
-                        <div className="flex items-center gap-3 px-2 py-1 transition-all group-data-[collapsible=icon]:justify-center">
-                            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold shadow-md">
-                                <span className="flex items-center">F<Heart className="w-2.5 h-2.5 ml-px fill-rose-500 text-rose-500" /></span>
+                        <div title="O coração da sua vida financeira" className="flex items-center gap-3 px-2 transition-all group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+                            <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white font-bold shadow-lg shadow-blue-500/20 group-data-[collapsible=icon]:h-9 group-data-[collapsible=icon]:w-9">
+                                <Heart className="w-5 h-5 fill-white text-white" />
+                                <div className="absolute inset-0 rounded-xl bg-white/20 blur-sm opacity-0 group-hover:opacity-100 transition-opacity" />
                             </div>
                             <div className="flex flex-col gap-0.5 leading-none group-data-[collapsible=icon]:hidden opacity-100 transition-opacity duration-300">
-                                <Logo size="lg" />
-                                <span className="text-[10px] text-muted-foreground font-medium tracking-wide">
-                                    O coração da sua vida financeira.
+                                <span className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white">
+                                    FinCore
+                                </span>
+                                <span className="text-[10px] text-zinc-500 font-medium tracking-wider uppercase">
+                                    v0.1.0 Beta
                                 </span>
                             </div>
                         </div>
@@ -94,159 +102,140 @@ export function AppSidebar({ stats, ...props }: AppSidebarProps) {
                 </SidebarMenu>
             </SidebarHeader>
 
-            <SidebarContent className="bg-slate-50 dark:bg-[#0F172A] pt-4">
-                <div className="px-3 space-y-6">
-                    {/* 1. VISÃO (Navegação Pura) */}
-                    <div>
-                        <SidebarMenu>
-                            <SidebarMenuItem>
+            <SidebarContent className="bg-zinc-50 dark:bg-[#09090b] px-2 py-4">
+                
+                {/* 1. VISÃO GERAL */}
+                <SidebarGroup>
+                    <SidebarMenu>
+                        <SidebarMenuItem>
+                            <SidebarMenuButton
+                                asChild
+                                isActive={isActive("/dashboard")}
+                                className="h-10 font-medium data-[active=true]:bg-zinc-900 data-[active=true]:text-white dark:data-[active=true]:bg-white dark:data-[active=true]:text-zinc-900 shadow-sm transition-all hover:bg-zinc-200 dark:hover:bg-white/10"
+                            >
+                                <Link href="/dashboard">
+                                    <LayoutDashboard className="h-4 w-4" />
+                                    <span>Visão Geral</span>
+                                </Link>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                    </SidebarMenu>
+                </SidebarGroup>
+
+                {/* 2. CAIXA (Cash Management) */}
+                <SidebarGroup>
+                    <SidebarGroupLabel className="group-data-[collapsible=icon]:hidden text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest px-2 mb-2 flex items-center justify-between">
+                        <span>Caixa</span>
+                        <span className="text-[10px] font-mono text-zinc-500 dark:text-zinc-400 bg-zinc-200/50 dark:bg-white/5 px-1.5 py-0.5 rounded">
+                            {formatCurrency(liquidez)}
+                        </span>
+                    </SidebarGroupLabel>
+                    <SidebarMenu>
+                        {[
+                            { title: "Transações", url: "/caixa/transactions", icon: ArrowRightLeft },
+                            { title: "Minhas Contas", url: "/caixa/accounts", icon: Landmark },
+                            { title: "Categorias", url: "/caixa/categories", icon: Tag },
+                        ].map((item) => (
+                            <SidebarMenuItem key={item.title}>
                                 <SidebarMenuButton
                                     asChild
-                                    isActive={isActive("/dashboard")}
-                                    className="h-10 font-medium data-[active=true]:bg-blue-600 data-[active=true]:text-white data-[active=true]:shadow-md transition-all hover:bg-slate-200 dark:hover:bg-white/10"
+                                    isActive={isActive(item.url)}
+                                    tooltip={item.title}
+                                    className="data-[active=true]:text-blue-600 dark:data-[active=true]:text-blue-400 data-[active=true]:bg-blue-50 dark:data-[active=true]:bg-blue-900/10 font-medium"
                                 >
-                                    <a href="/dashboard">
-                                        <div className="flex items-center justify-center w-5 h-5 rounded bg-blue-100 text-blue-600 data-[active=true]:bg-white/20 data-[active=true]:text-white dark:bg-blue-900/50 dark:text-blue-300 mr-2">
-                                            <LayoutDashboard className="h-4 w-4" />
-                                        </div>
-                                        <span>Dashboard</span>
-                                    </a>
+                                    <Link href={item.url}>
+                                        <item.icon className="h-4 w-4 opacity-70" />
+                                        <span>{item.title}</span>
+                                    </Link>
                                 </SidebarMenuButton>
                             </SidebarMenuItem>
-                        </SidebarMenu>
-                    </div>
+                        ))}
+                    </SidebarMenu>
+                </SidebarGroup>
 
-                    {/* 2. CAIXA (Cash Management) */}
-                    <div>
-                        <div className="flex items-center justify-between px-3 mb-2 mt-4 group-data-[collapsible=icon]:hidden">
-                            <h3 className="text-xs font-black text-slate-900 dark:text-slate-100/90 uppercase tracking-wider flex items-center gap-1.5">
-                                <Coins className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                                CAIXA
-                            </h3>
-                            <span className="text-[10px] font-mono font-bold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded-full shadow-sm">
-                                {formatCurrency(liquidez)}
-                            </span>
-                        </div>
-                        <SidebarMenu>
-                            {[
-                                { title: "Transações", url: "/caixa/transactions", icon: ArrowRightLeft },
-                                { title: "Minhas Contas", url: "/caixa/accounts", icon: Landmark },
-                                { title: "Categorias", url: "/caixa/categories", icon: Tag },
-                            ].map((item) => (
-                                <SidebarMenuItem key={item.title}>
-                                    <SidebarMenuButton
-                                        asChild
-                                        isActive={isActive(item.url)}
-                                        tooltip={item.title}
-                                        className="text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-white hover:bg-blue-50 dark:hover:bg-white/5 data-[active=true]:text-blue-700 dark:data-[active=true]:text-white data-[active=true]:bg-blue-50 dark:data-[active=true]:bg-white/5 data-[active=true]:border-l-2 data-[active=true]:border-blue-600 rounded-l-none pl-3 transition-all"
-                                    >
-                                        <a href={item.url}>
-                                            <item.icon className="h-4 w-4 opacity-70" />
-                                            <span>{item.title}</span>
-                                        </a>
-                                    </SidebarMenuButton>
-                                </SidebarMenuItem>
-                            ))}
-                        </SidebarMenu>
-                    </div>
-
-                    {/* 3. COMPROMISSOS (Accounts Payable) */}
-                    <div>
-                        <div className="flex items-center justify-between px-3 mb-2 mt-4 group-data-[collapsible=icon]:hidden">
-                            <h3 className="text-xs font-black text-slate-900 dark:text-slate-100/90 uppercase tracking-wider flex items-center gap-1.5">
-                                <AlertCircle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                                COMPROMISSOS
-                            </h3>
-                            <span className="text-[10px] font-mono font-bold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded-full shadow-sm">
-                                {formatCurrency(compromissos)}
-                            </span>
-                        </div>
-                        <SidebarMenu>
-                            {[
-                                { title: "Cartões de Crédito", url: "/compromissos/cards", icon: CreditCard },
-                                { title: "Contas a Pagar", url: "/compromissos/payables", icon: CalendarClock },
-                            ].map((item) => (
-                                <SidebarMenuItem key={item.title}>
-                                    <SidebarMenuButton
-                                        asChild
-                                        isActive={isActive(item.url)}
-                                        tooltip={item.title}
-                                        className="text-slate-500 dark:text-slate-400 hover:text-amber-600 dark:hover:text-white hover:bg-amber-50 dark:hover:bg-white/5 data-[active=true]:text-amber-700 dark:data-[active=true]:text-white data-[active=true]:bg-amber-50 dark:data-[active=true]:bg-white/5 data-[active=true]:border-l-2 data-[active=true]:border-amber-500 rounded-l-none pl-3 transition-all"
-                                    >
-                                        <a href={item.url}>
-                                            <item.icon className="h-4 w-4 opacity-70" />
-                                            <span>{item.title}</span>
-                                        </a>
-                                    </SidebarMenuButton>
-                                </SidebarMenuItem>
-                            ))}
-                        </SidebarMenu>
-                    </div>
-
-                    {/* 4. PATRIMÔNIO (Investments) */}
-                    <div>
-                        <div className="flex items-center justify-between px-3 mb-2 mt-4 group-data-[collapsible=icon]:hidden">
-                            <h3 className="text-xs font-black text-slate-900 dark:text-slate-100/90 uppercase tracking-wider flex items-center gap-1.5">
-                                <TrendingUp className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                                PATRIMÔNIO
-                            </h3>
-                            <span className="text-[10px] font-mono font-bold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded-full shadow-sm">
-                                {formatCurrency(patrimonio)}
-                            </span>
-                        </div>
-                        <SidebarMenu>
-                            {[
-                                { title: "Meus Investimentos", url: "/patrimonio/investments", icon: PieChart },
-                                { title: "Metas & Planejamento", url: "/patrimonio/planning", icon: Target },
-                            ].map((item) => (
-                                <SidebarMenuItem key={item.title}>
-                                    <SidebarMenuButton
-                                        asChild
-                                        isActive={isActive(item.url)}
-                                        tooltip={item.title}
-                                        className="text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-white hover:bg-emerald-50 dark:hover:bg-white/5 data-[active=true]:text-emerald-700 dark:data-[active=true]:text-white data-[active=true]:bg-emerald-50 dark:data-[active=true]:bg-white/5 data-[active=true]:border-l-2 data-[active=true]:border-emerald-500 rounded-l-none pl-3 transition-all"
-                                    >
-                                        <a href={item.url}>
-                                            <item.icon className="h-4 w-4 opacity-70" />
-                                            <span>{item.title}</span>
-                                        </a>
-                                    </SidebarMenuButton>
-                                </SidebarMenuItem>
-                            ))}
-                        </SidebarMenu>
-                    </div>
-
-
-                    {/* SISTEMA */}
-                    <div>
-                        <SidebarMenu>
-                            <SidebarMenuItem>
+                {/* 3. COMPROMISSOS (Accounts Payable) */}
+                <SidebarGroup>
+                    <SidebarGroupLabel className="group-data-[collapsible=icon]:hidden text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest px-2 mb-2 flex items-center justify-between">
+                        <span>Compromissos</span>
+                        <span className="text-[10px] font-mono text-zinc-500 dark:text-zinc-400 bg-zinc-200/50 dark:bg-white/5 px-1.5 py-0.5 rounded">
+                            {formatCurrency(compromissos)}
+                        </span>
+                    </SidebarGroupLabel>
+                    <SidebarMenu>
+                        {[
+                            { title: "Cartões de Crédito", url: "/compromissos/cards", icon: CreditCard },
+                            { title: "Contas a Pagar", url: "/compromissos/payables", icon: CalendarClock },
+                        ].map((item) => (
+                            <SidebarMenuItem key={item.title}>
                                 <SidebarMenuButton
                                     asChild
-                                    isActive={isActive("/sistema/settings")}
-                                    tooltip="Configurações"
-                                    className="text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
+                                    isActive={isActive(item.url)}
+                                    tooltip={item.title}
+                                    className="data-[active=true]:text-amber-600 dark:data-[active=true]:text-amber-400 data-[active=true]:bg-amber-50 dark:data-[active=true]:bg-amber-900/10 font-medium"
                                 >
-                                    <a href="/sistema/settings">
-                                        <Settings className="h-4 w-4" />
-                                        <span>Sistema</span>
-                                    </a>
+                                    <Link href={item.url}>
+                                        <item.icon className="h-4 w-4 opacity-70" />
+                                        <span>{item.title}</span>
+                                    </Link>
                                 </SidebarMenuButton>
                             </SidebarMenuItem>
+                        ))}
+                    </SidebarMenu>
+                </SidebarGroup>
 
+                {/* 4. PATRIMÔNIO (Investments) */}
+                <SidebarGroup>
+                    <SidebarGroupLabel className="group-data-[collapsible=icon]:hidden text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest px-2 mb-2 flex items-center justify-between">
+                        <span>Patrimônio</span>
+                        <span className="text-[10px] font-mono text-zinc-500 dark:text-zinc-400 bg-zinc-200/50 dark:bg-white/5 px-1.5 py-0.5 rounded">
+                            {formatCurrency(patrimonio)}
+                        </span>
+                    </SidebarGroupLabel>
+                    <SidebarMenu>
+                        {[
+                            { title: "Meus Investimentos", url: "/patrimonio/investments", icon: PieChart },
+                            { title: "Metas & Planejamento", url: "/patrimonio/planning", icon: Target },
+                        ].map((item) => (
+                            <SidebarMenuItem key={item.title}>
+                                <SidebarMenuButton
+                                    asChild
+                                    isActive={isActive(item.url)}
+                                    tooltip={item.title}
+                                    className="data-[active=true]:text-emerald-600 dark:data-[active=true]:text-emerald-400 data-[active=true]:bg-emerald-50 dark:data-[active=true]:bg-emerald-900/10 font-medium"
+                                >
+                                    <Link href={item.url}>
+                                        <item.icon className="h-4 w-4 opacity-70" />
+                                        <span>{item.title}</span>
+                                    </Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                        ))}
+                    </SidebarMenu>
+                </SidebarGroup>
 
-                        </SidebarMenu>
-                    </div>
-                </div>
+                {/* SISTEMA */}
+                <SidebarGroup className="mt-auto">
+                    <SidebarMenu>
+                        <SidebarMenuItem>
+                            <SidebarMenuButton
+                                asChild
+                                isActive={isActive("/sistema/settings")}
+                                tooltip="Configurações"
+                                className="text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors"
+                            >
+                                <Link href="/sistema/settings">
+                                    <Settings className="h-4 w-4" />
+                                    <span>Configurações do Sistema</span>
+                                </Link>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                    </SidebarMenu>
+                </SidebarGroup>
+
             </SidebarContent>
 
-            <SidebarFooter className="bg-slate-50 dark:bg-[#0F172A] border-t border-slate-200 dark:border-white/5 p-4">
+            <SidebarFooter className="bg-zinc-50 dark:bg-[#09090b] border-t border-zinc-200 dark:border-white/5 p-4">
                 <UserNav />
-                <div className="mt-2 flex justify-center group-data-[collapsible=icon]:hidden">
-                    <span className="text-[10px] font-mono text-slate-400 dark:text-slate-600 select-none hover:text-slate-600 dark:hover:text-slate-400 transition-colors cursor-default" title="Versão do Sistema">
-                        v0.1.0
-                    </span>
-                </div>
             </SidebarFooter>
             <SidebarRail />
         </Sidebar>
@@ -308,27 +297,18 @@ function UserNav() {
                 </DropdownMenuLabel>
                 <div className="p-1">
                     <DropdownMenuItem asChild>
-                        <a href="/sistema/account" className="flex items-center cursor-pointer py-2 px-3 rounded-md transition-colors hover:bg-slate-100 dark:hover:bg-white/10">
+                        <Link href="/sistema/account" className="flex items-center cursor-pointer py-2 px-3 rounded-md transition-colors hover:bg-slate-100 dark:hover:bg-white/10">
                             <Settings className="mr-2 h-4 w-4" />
-                            Minha Conta
-                        </a>
+                            <span>Minha Conta</span>
+                        </Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="cursor-pointer py-2 px-3 rounded-md transition-colors select-none hover:bg-slate-100 dark:hover:bg-white/10">
-                        <div className="flex w-full items-center justify-between">
-                            <span>Tema</span>
-                            <ModeToggle />
-                        </div>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                        asChild
-                        className="text-red-600 dark:text-red-400 focus:text-red-700 focus:bg-red-50 dark:focus:bg-red-950/30 cursor-pointer py-2 px-3 rounded-md transition-colors"
+                    <DropdownMenuSeparator className="my-1 bg-slate-100 dark:bg-white/5" />
+                    <DropdownMenuItem 
+                        className="flex items-center cursor-pointer text-red-600 dark:text-red-400 py-2 px-3 rounded-md transition-colors hover:bg-red-50 dark:hover:bg-red-900/10 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-900/10"
+                        onClick={() => signout()}
                     >
-                        <form action={signout} className="w-full">
-                            <button type="submit" className="flex w-full items-center">
-                                <LogOut className="mr-2 h-4 w-4" />
-                                Sair do Sistema
-                            </button>
-                        </form>
+                        <LogOut className="mr-2 h-4 w-4" />
+                        <span>Sair</span>
                     </DropdownMenuItem>
                 </div>
             </DropdownMenuContent>

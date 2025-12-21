@@ -22,6 +22,8 @@ export interface CreditCard {
     due_day: number,
     color: string,
     available_limit?: number // Campo calculado
+    next_invoice_amount?: number
+    next_invoice_date?: string
 }
 
 export async function getCreditCards() {
@@ -284,7 +286,7 @@ export async function deleteTransaction(id: string) {
     revalidatePath('/', 'layout')
 }
 
-export async function payInvoice(invoiceId: string, amount: number, accountId: string, date: string) {
+export async function payInvoice(invoiceId: string, amount: number, accountId: string, date: string, categoryId?: string) {
     const client = await getApiClient()
     // Ensure date is in ISO format with time, as Go's time.Time binding expects a full RFC3339 string
     // If date is YYYY-MM-DD, append T00:00:00Z
@@ -304,9 +306,11 @@ export async function payInvoice(invoiceId: string, amount: number, accountId: s
     await client.post(`/api/invoices/${invoiceId}/pay`, {
         amount,
         account_id: accountId,
-        date: isoDate
+        date: isoDate,
+        category_id: categoryId
     })
     revalidatePath('/compromissos/cards/[id]', 'page')
+    revalidatePath('/', 'layout')
 }
 
 export async function revertInvoicePayment(invoiceId: string) {

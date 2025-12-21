@@ -26,6 +26,7 @@ const getAccountIcon = (type: string) => {
         case 'carteira': return Wallet;
         case 'poupanca':
         case 'poupança': return PiggyBank;
+        case 'reserva_emergencia': return PiggyBank;
         case 'investimento': return TrendingUp;
         case 'digital': return Smartphone;
         case 'corrente': return Landmark;
@@ -40,6 +41,7 @@ const getAccountLabel = (type: string) => {
         case 'carteira': return 'Carteira';
         case 'poupanca':
         case 'poupança': return 'Poupança';
+        case 'reserva_emergencia': return 'Reserva de Emergência';
         case 'digital': return 'Conta Digital';
         case 'corrente': return 'Conta Corrente';
         case 'internacional': return 'Conta Internacional';
@@ -57,6 +59,7 @@ const getAccountColor = (type: string) => {
         case 'digital': return '#3b82f6' // blue-500
         case 'poupanca':
         case 'poupança': return '#f59e0b' // amber-500
+        case 'reserva_emergencia': return '#f59e0b' // amber-500 (mesma cor da poupança)
         case 'investimento': return '#8b5cf6' // violet-500
         case 'carteira': return '#64748b' // slate-500
         case 'cartao_credito': return '#f97316' // orange-500

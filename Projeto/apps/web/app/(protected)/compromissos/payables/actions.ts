@@ -99,6 +99,7 @@ export async function createPayable(formData: FormData) {
 
     await client.post('/api/payables', payload)
     revalidatePath('/compromissos/payables')
+    revalidatePath('/', 'layout')
 }
 
 export async function updatePayable(id: string, formData: FormData) {
@@ -131,6 +132,7 @@ export async function updatePayable(id: string, formData: FormData) {
 
     await client.put(`/api/payables/${id}`, payload)
     revalidatePath('/compromissos/payables')
+    revalidatePath('/', 'layout')
 }
 
 export async function markAsPaid(id: string, accountId: string, customDate?: string, paidAmount?: number, paymentMethod?: string) {

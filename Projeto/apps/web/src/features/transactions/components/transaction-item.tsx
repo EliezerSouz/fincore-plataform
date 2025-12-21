@@ -34,6 +34,7 @@ const getAccountIcon = (type: string) => {
 
     if (normalized.includes('carteira')) return Wallet;
     if (normalized.includes('poupanca')) return PiggyBank;
+    if (normalized.includes('reserva_emergencia') || normalized.includes('reserva')) return PiggyBank;
     if (normalized.includes('investimento')) return TrendingUp;
     if (normalized.includes('digital')) return Smartphone;
     if (normalized.includes('corrente')) return Landmark;
@@ -103,7 +104,7 @@ export function TransactionItem({ tx }: { tx: any }) {
                 </div>
                 {/* Pequeno badge com o ícone da categoria */}
                 {tx.category && (
-                    <div 
+                    <div
                         className="absolute -bottom-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center shadow-sm border border-white dark:border-slate-950"
                         style={{ backgroundColor: categoryColor, color: '#fff' }}
                     >
@@ -145,7 +146,7 @@ export function TransactionItem({ tx }: { tx: any }) {
                             return format(utcDate, 'dd/MM', { locale: ptBR })
                         })()}
                     </span>
-                    
+
                     {tx.category && (
                         <>
                             <span className="w-0.5 h-3 bg-slate-300 dark:bg-slate-700 rounded-full shrink-0" />
@@ -154,7 +155,7 @@ export function TransactionItem({ tx }: { tx: any }) {
                             </span>
                         </>
                     )}
-                    
+
                     {tx.subcategory && (
                         <>
                             <span className="w-0.5 h-3 bg-slate-300 dark:bg-slate-700 rounded-full shrink-0" />
@@ -181,14 +182,13 @@ export function TransactionItem({ tx }: { tx: any }) {
 
             {/* Valor e Ações à direita */}
             <div className="flex flex-col items-end gap-1 shrink-0">
-                <span className={`font-bold text-sm sm:text-base ${
-                    tx.type === 'receita' ? 'text-emerald-600 dark:text-emerald-400' :
-                    tx.type === 'despesa' ? 'text-rose-600 dark:text-rose-400' : 
-                    'text-slate-600 dark:text-slate-400'
-                }`}>
+                <span className={`font-bold text-sm sm:text-base ${tx.type === 'receita' ? 'text-emerald-600 dark:text-emerald-400' :
+                        tx.type === 'despesa' ? 'text-rose-600 dark:text-rose-400' :
+                            'text-slate-600 dark:text-slate-400'
+                    }`}>
                     {tx.type === 'despesa' && '- '}{formatCurrency(tx.amount)}
                 </span>
-                
+
                 {/* Status Badges Compactos */}
                 <div className="flex items-center gap-1">
                     {tx.is_paid === false && (

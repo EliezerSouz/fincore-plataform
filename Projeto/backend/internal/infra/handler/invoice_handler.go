@@ -141,9 +141,10 @@ func (h *InvoiceHandler) DeleteTransaction(c *gin.Context) {
 }
 
 type PayInvoiceRequest struct {
-	Amount    float64   `json:"amount" binding:"required,gt=0"`
-	AccountID string    `json:"account_id" binding:"required"`
-	Date      time.Time `json:"date" binding:"required"`
+	Amount     float64   `json:"amount" binding:"required,gt=0"`
+	AccountID  string    `json:"account_id" binding:"required"`
+	Date       time.Time `json:"date" binding:"required"`
+	CategoryID string    `json:"category_id"`
 }
 
 func (h *InvoiceHandler) PayInvoice(c *gin.Context) {
@@ -166,7 +167,7 @@ func (h *InvoiceHandler) PayInvoice(c *gin.Context) {
 		return
 	}
 
-	if err := h.Service.PayInvoice(c.Request.Context(), id, req.Amount, req.AccountID, req.Date, userID); err != nil {
+	if err := h.Service.PayInvoice(c.Request.Context(), id, req.Amount, req.AccountID, req.Date, req.CategoryID, userID); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}

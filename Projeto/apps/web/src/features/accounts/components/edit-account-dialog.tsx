@@ -31,13 +31,16 @@ export function EditAccountDialog({ account, open, onOpenChange }: { account: an
 
         try {
             await updateAccount(account.id, formData)
-            onOpenChange(false)
-            router.refresh()
             toast.success("Conta atualizada com sucesso!")
+            onOpenChange(false)
+
+            // Force page reload to update the list
+            setTimeout(() => {
+                window.location.reload()
+            }, 500)
         } catch (error: any) {
             console.error(error)
             toast.error(error.message || "Erro ao atualizar conta")
-        } finally {
             setLoading(false)
             isSubmittingRef.current = false
         }
@@ -113,6 +116,7 @@ export function EditAccountDialog({ account, open, onOpenChange }: { account: an
                             <SelectItem value="corrente">Conta Corrente</SelectItem>
                             <SelectItem value="digital">Conta Digital</SelectItem>
                             <SelectItem value="poupanca">Poupança</SelectItem>
+                            <SelectItem value="reserva_emergencia">Reserva de Emergência</SelectItem>
                             <SelectItem value="investimento">Investimento</SelectItem>
                             <SelectItem value="carteira">Carteira</SelectItem>
                             <SelectItem value="vale_alimentacao">Vale Alimentação / Refeição</SelectItem>

@@ -74,6 +74,31 @@ export function CreditCardItem({ card, isLocked = false }: { card: CreditCard, i
     const textColor = getTextColor(card.color)
     const isLight = isLightColor(card.color)
 
+    // Calculate invoice status
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    
+    let invoiceStatus: 'normal' | 'due_soon' | 'due_today' | 'overdue' = 'normal'
+    
+    if (card.next_invoice_date) {
+        const dueDate = new Date(card.next_invoice_date)
+        // Adjust due date timezone offset if needed, but assuming ISO string YYYY-MM-DDT00:00:00Z or similar
+        // Ideally we treat it as UTC or local date. The backend sends timestamp.
+        // Let's rely on standard Date comparison for now.
+        const dueDateLocal = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate())
+        
+        const diffTime = dueDateLocal.getTime() - today.getTime()
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+        
+        if (diffDays < 0) {
+            invoiceStatus = 'overdue'
+        } else if (diffDays === 0) {
+            invoiceStatus = 'due_today'
+        } else if (diffDays <= 3) {
+            invoiceStatus = 'due_soon'
+        }
+    }
+
     return (
         <>
             <div className="group relative">
@@ -135,10 +160,45 @@ export function CreditCardItem({ card, isLocked = false }: { card: CreditCard, i
                         {/* Content */}
                         <div className="relative z-10 px-6 pb-6 mt-auto">
                             <div className="space-y-4">
+                                {card.next_invoice_amount && card.next_invoice_amount > 0 ? (
+                                    <div className={cn(
+                                        "mb-3 pb-3 transition-all",
+                                        invoiceStatus === 'normal' && "border-b border-black/5 dark:border-white/10",
+                                        invoiceStatus === 'overdue' && "bg-red-600/60 backdrop-blur-md text-white rounded-lg p-3 -mx-3 border border-red-500/30 shadow-sm relative z-20",
+                                        (invoiceStatus === 'due_soon' || invoiceStatus === 'due_today') && "bg-amber-500/60 backdrop-blur-md text-white rounded-lg p-3 -mx-3 border border-amber-500/30 shadow-sm relative z-20"
+                                    )}>
+                                        <div className="flex justify-between items-end">
+                                            <span className={cn(
+                                                "text-xs font-medium uppercase tracking-wider opacity-100", 
+                                                (invoiceStatus === 'overdue' || invoiceStatus === 'due_soon' || invoiceStatus === 'due_today') 
+                                                    ? "text-white shadow-sm" 
+                                                    : (isLight ? "text-slate-800" : "text-slate-200")
+                                            )}>
+                                                {invoiceStatus === 'overdue' ? 'Fatura Vencida' : 
+                                                 invoiceStatus === 'due_today' ? 'Vence Hoje' :
+                                                 invoiceStatus === 'due_soon' ? 'Vence em Breve' : 'Fatura Atual'}
+                                            </span>
+                                            <div className="text-right">
+                                                <span className="font-mono font-bold text-lg leading-none block drop-shadow-sm">
+                                                    {formatCurrency(card.next_invoice_amount)}
+                                                </span>
+                                                {card.next_invoice_date && (
+                                                    <span className={cn(
+                                                        "text-[10px] opacity-100 block mt-0.5 font-medium",
+                                                        (invoiceStatus === 'overdue' || invoiceStatus === 'due_soon' || invoiceStatus === 'due_today') && "text-white shadow-sm"
+                                                    )}>
+                                                        Vence {new Date(card.next_invoice_date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : null}
+
                                 <div>
                                     <div className="flex justify-between items-end mb-1">
-                                        <span className={cn("text-xs font-medium uppercase tracking-wider opacity-80", isLight ? "text-slate-800" : "text-slate-200")}>Limite Disponível</span>
-                                        <span className="font-mono font-bold text-lg leading-none">
+                                        <span className={cn("text-xs font-medium uppercase tracking-wider opacity-80", isLight ? "text-slate-800" : "text-slate-200")}>Disponível</span>
+                                        <span className="font-mono font-bold text-base leading-none">
                                             {formatCurrency(card.available_limit || 0)}
                                         </span>
                                     </div>

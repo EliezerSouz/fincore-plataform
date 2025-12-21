@@ -189,11 +189,17 @@ function CategoryItem({
         return (
             <>
                 <div 
-                    onClick={onEdit}
-                    className="group flex items-center gap-4 p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all cursor-pointer active:scale-[0.98]"
+                    onClick={!category.is_system ? onEdit : undefined}
+                    className={cn(
+                        "group flex items-center gap-4 p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl transition-all",
+                        !category.is_system && "hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer active:scale-[0.98]"
+                    )}
                 >
                     <div 
-                        className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 transition-transform group-hover:scale-105"
+                        className={cn(
+                            "w-10 h-10 rounded-lg flex items-center justify-center shrink-0 transition-transform",
+                            !category.is_system && "group-hover:scale-105"
+                        )}
                         style={{ 
                             backgroundColor: isActive ? `${category.color}15` : '#f1f5f9', 
                             color: isActive ? category.color : '#94a3b8' 
@@ -207,6 +213,7 @@ function CategoryItem({
                             <h3 className={cn("font-semibold truncate text-sm", isActive ? "text-slate-900 dark:text-slate-100" : "text-slate-500")}>
                                 {category.name}
                             </h3>
+                            {category.is_system && <Badge variant="secondary" className="text-[10px] h-5 bg-slate-100 text-slate-500 border-slate-200"><Lock className="w-3 h-3 mr-1" /> Sistema</Badge>}
                             {!isActive && <Badge variant="outline" className="text-[10px] h-5">Inativa</Badge>}
                         </div>
                         <p className="text-xs text-slate-500 flex items-center gap-1">
@@ -215,9 +222,11 @@ function CategoryItem({
                     </div>
 
                     <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="icon" className="h-11 w-11 text-slate-400 hover:text-slate-600">
-                            <MoreHorizontal className="w-5 h-5" />
-                        </Button>
+                        {!category.is_system && (
+                            <Button variant="ghost" size="icon" className="h-11 w-11 text-slate-400 hover:text-slate-600">
+                                <MoreHorizontal className="w-5 h-5" />
+                            </Button>
+                        )}
                     </div>
                 </div>
                 <UpsellModal 
@@ -233,14 +242,20 @@ function CategoryItem({
     return (
         <>
             <div 
-                onClick={onEdit}
-                className="group relative bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 hover:shadow-lg hover:-translate-y-1 transition-all cursor-pointer overflow-hidden"
+                onClick={!category.is_system ? onEdit : undefined}
+                className={cn(
+                    "group relative bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 transition-all overflow-hidden",
+                    !category.is_system && "hover:shadow-lg hover:-translate-y-1 cursor-pointer"
+                )}
             >
                 <div className="absolute top-0 left-0 w-1 h-full" style={{ backgroundColor: isActive ? category.color : 'transparent' }} />
                 
                 <div className="flex items-start justify-between mb-3">
                     <div 
-                        className="w-12 h-12 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110 shadow-sm"
+                        className={cn(
+                            "w-12 h-12 rounded-xl flex items-center justify-center transition-transform shadow-sm",
+                            !category.is_system && "group-hover:scale-110"
+                        )}
                         style={{ 
                             backgroundColor: isActive ? `${category.color}15` : '#f1f5f9', 
                             color: isActive ? category.color : '#94a3b8' 
@@ -249,15 +264,19 @@ function CategoryItem({
                         <IconComponent className="w-6 h-6" />
                     </div>
                     
-                    <div 
-                        role="button"
-                        onClick={handleToggleActive}
-                        className={cn(
-                            "w-2 h-2 rounded-full ring-2 ring-white dark:ring-slate-900 transition-all hover:scale-150",
-                            isActive ? "bg-emerald-500" : "bg-slate-300"
-                        )}
-                        title={isActive ? "Categoria Ativa" : "Categoria Inativa"}
-                    />
+                    {!category.is_system ? (
+                        <div 
+                            role="button"
+                            onClick={handleToggleActive}
+                            className={cn(
+                                "w-2 h-2 rounded-full ring-2 ring-white dark:ring-slate-900 transition-all hover:scale-150",
+                                isActive ? "bg-emerald-500" : "bg-slate-300"
+                            )}
+                            title={isActive ? "Categoria Ativa" : "Categoria Inativa"}
+                        />
+                    ) : (
+                        <Lock className="w-4 h-4 text-slate-300" />
+                    )}
                 </div>
 
                 <div>

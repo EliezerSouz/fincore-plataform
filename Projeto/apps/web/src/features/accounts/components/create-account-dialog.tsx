@@ -8,10 +8,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { createAccount } from "@/app/(protected)/caixa/accounts/actions"
 import { CreateButton } from "@/components/ui/create-button"
 import { BaseModal } from "@/components/ui/base-modal"
-import { Plus, Check, Landmark } from "lucide-react"
+import { Plus, Check, Landmark, CreditCard } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { COLOR_PRESETS } from "@/constants/ui-presets"
 import { toast } from "sonner"
+import { Switch } from "@/components/ui/switch"
 
 export function CreateAccountDialog() {
     const router = useRouter()
@@ -19,6 +20,7 @@ export function CreateAccountDialog() {
     const [loading, setLoading] = useState(false)
     const [selectedType, setSelectedType] = useState("corrente")
     const [selectedColor, setSelectedColor] = useState(COLOR_PRESETS[0].hex)
+    const [hasCreditCard, setHasCreditCard] = useState(false)
     const isSubmittingRef = useRef(false)
 
     async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -31,13 +33,17 @@ export function CreateAccountDialog() {
 
         try {
             await createAccount(formData)
-            setOpen(false)
-            router.refresh()
             toast.success("Conta criada com sucesso!")
+            setOpen(false)
+            setHasCreditCard(false)
+
+            // Force page reload to update the list
+            setTimeout(() => {
+                window.location.reload()
+            }, 500)
         } catch (error: any) {
             console.error(error)
             toast.error(error.message || "Erro ao criar conta")
-        } finally {
             setLoading(false)
             isSubmittingRef.current = false
         }
@@ -85,6 +91,7 @@ export function CreateAccountDialog() {
                                 <SelectItem value="corrente">Conta Corrente</SelectItem>
                                 <SelectItem value="digital">Conta Digital</SelectItem>
                                 <SelectItem value="poupanca">Poupança</SelectItem>
+                                <SelectItem value="reserva_emergencia">Reserva de Emergência</SelectItem>
                                 <SelectItem value="investimento">Investimento</SelectItem>
                                 <SelectItem value="carteira">Carteira</SelectItem>
                                 <SelectItem value="vale_alimentacao">Vale Alimentação / Refeição</SelectItem>
@@ -106,6 +113,70 @@ export function CreateAccountDialog() {
                             </p>
                         </div>
                     )}
+
+                    <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800 space-y-4">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <CreditCard className="w-4 h-4 text-slate-500" />
+                                <Label htmlFor="has-credit-card" className="cursor-pointer">Conta possui Cartão de Crédito?</Label>
+                            </div>
+                            <Switch
+                                id="has-credit-card"
+                                name="has_credit_card"
+                                checked={hasCreditCard}
+                                onCheckedChange={setHasCreditCard}
+                            />
+                        </div>
+
+                        {hasCreditCard && (
+                            <div className="space-y-4 pt-2 animate-in fade-in slide-in-from-top-2">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="card-limit">Limite do Cartão</Label>
+                                        <Input id="card-limit" name="card_limit" placeholder="R$ 0,00" required={hasCreditCard} className="bg-white dark:bg-slate-950" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="card-brand">Bandeira</Label>
+                                        <Select name="card_brand" defaultValue="master">
+                                            <SelectTrigger id="card-brand" className="bg-white dark:bg-slate-950"><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="master">Mastercard</SelectItem>
+                                                <SelectItem value="visa">Visa</SelectItem>
+                                                <SelectItem value="elo">Elo</SelectItem>
+                                                <SelectItem value="amex">American Express</SelectItem>
+                                                <SelectItem value="hipercard">Hipercard</SelectItem>
+                                                <SelectItem value="other">Outra</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="card-closing">Dia Fechamento</Label>
+                                        <Select name="card_closing_day" defaultValue="1">
+                                            <SelectTrigger id="card-closing" className="bg-white dark:bg-slate-950"><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                                                    <SelectItem key={day} value={day.toString()}>{day}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="card-due">Dia Vencimento</Label>
+                                        <Select name="card_due_day" defaultValue="10">
+                                            <SelectTrigger id="card-due" className="bg-white dark:bg-slate-950"><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                                                    <SelectItem key={day} value={day.toString()}>{day}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
 
                     <div className="space-y-3">
                         <Label>Cor de Identificação</Label>

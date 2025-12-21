@@ -31,7 +31,7 @@ func (s *InvoiceService) DeleteTransaction(ctx context.Context, id, userID strin
 	return s.InvoiceRepo.DeleteTransaction(ctx, id, userID)
 }
 
-func (s *InvoiceService) PayInvoice(ctx context.Context, invoiceID string, amount float64, accountID string, date time.Time, userID string) error {
+func (s *InvoiceService) PayInvoice(ctx context.Context, invoiceID string, amount float64, accountID string, date time.Time, categoryID string, userID string) error {
 	// 1. Get Invoice
 	invoice, err := s.InvoiceRepo.FindByID(ctx, invoiceID)
 	if err != nil {
@@ -56,6 +56,10 @@ func (s *InvoiceService) PayInvoice(ctx context.Context, invoiceID string, amoun
 		Type:        "despesa",
 		Date:        date,
 		InvoiceID:   &invoiceID,
+	}
+
+	if categoryID != "" {
+		txInput.CategoryID = &categoryID
 	}
 
 	if _, err := s.TransactionRepo.Create(ctx, userID, txInput); err != nil {

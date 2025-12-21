@@ -49,9 +49,21 @@ export function EditCategorySheet({ category, open, onOpenChange }: { category: 
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
     const [isDeletingCategory, setIsDeletingCategory] = useState(false)
 
+    // Check if category is system/locked
+    // We check against common variations or specific names we want to lock
+    const isLocked = category.is_system || 
+                     category.name.trim().toLowerCase() === 'pagamento de fatura' || 
+                     category.name.trim().toLowerCase() === 'pagamento de faturas' ||
+                     category.name.trim().toLowerCase() === 'faturas';
+
     async function handleSubmit(e?: React.FormEvent) {
         if (e) e.preventDefault()
         if (!name) return
+
+        if (isLocked) {
+            toast.error("Esta categoria não pode ser editada.")
+            return
+        }
 
         setIsLoading(true)
         try {
@@ -169,6 +181,15 @@ export function EditCategorySheet({ category, open, onOpenChange }: { category: 
         >
             <div className="space-y-6 max-h-[70vh] overflow-y-auto px-1">
                 <form id="edit-category-form" onSubmit={handleSubmit} className="space-y-6">
+                    {isLocked && (
+                        <div className="bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 p-3 rounded-lg text-sm flex items-start gap-2 border border-amber-200 dark:border-amber-900/50">
+                            <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+                            <p>
+                                <strong>Categoria de Sistema:</strong> Esta categoria é essencial para o funcionamento do sistema e não pode ser editada ou ter subcategorias adicionadas.
+                            </p>
+                        </div>
+                    )}
+
                     <div className="flex gap-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg opacity-60 cursor-not-allowed" title="O tipo da categoria não pode ser alterado">
                         <button
                             type="button"
@@ -200,56 +221,55 @@ export function EditCategorySheet({ category, open, onOpenChange }: { category: 
                             placeholder="Ex: Assinaturas, Cursos..."
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            required
-                            className="text-lg font-semibold h-11"
+                            className="h-11 bg-slate-50 dark:bg-slate-900"
+                            disabled={isLocked}
                         />
                     </div>
 
-                    <div className="space-y-3">
-                        <Label>Cor de Identificação</Label>
-                        <div className="flex gap-3 flex-wrap bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg border border-slate-100 dark:border-slate-800">
-                            {COLOR_PRESETS.map((c) => (
+                    <div className="space-y-2">
+                        <Label>Cor da Etiqueta</Label>
+                        <div className="flex flex-wrap gap-2">
+                            {COLOR_PRESETS.map((preset) => (
                                 <button
-                                    key={c.hex}
+                                    key={preset.hex}
                                     type="button"
+                                    disabled={isLocked}
+                                    onClick={() => setColor(preset.hex)}
                                     className={cn(
-                                        "w-11 h-11 rounded-full transition-all shadow-sm flex items-center justify-center relative",
-                                        color === c.hex ? "ring-2 ring-offset-2 ring-slate-400 dark:ring-slate-600 scale-110" : "hover:scale-110 opacity-70 hover:opacity-100"
+                                        "w-8 h-8 rounded-full border-2 transition-all",
+                                        color === preset.hex 
+                                            ? "border-slate-900 dark:border-white scale-110 shadow-sm" 
+                                            : "border-transparent hover:scale-105",
+                                        isLocked && color !== preset.hex && "opacity-30 cursor-not-allowed"
                                     )}
-                                    style={{ backgroundColor: c.hex }}
-                                    onClick={() => setColor(c.hex)}
-                                    title={c.name}
-                                >
-                                    {color === c.hex && <Check className="w-4 h-4 text-white drop-shadow-md" />}
-                                </button>
+                                    style={{ backgroundColor: preset.hex }}
+                                    title={preset.label}
+                                />
                             ))}
                         </div>
                     </div>
 
-                    <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                            <Label>Ícone</Label>
-                            <span className="text-xs text-slate-500 font-medium bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
-                                {CATEGORY_ICONS[icon]?.label}
-                            </span>
-                        </div>
-                        <div className="grid grid-cols-6 gap-2 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800 max-h-[160px] overflow-y-auto custom-scrollbar">
-                            {Object.entries(CATEGORY_ICONS).map(([key, data]) => {
-                                const IconComponent = data.icon
+                    <div className="space-y-2">
+                        <Label>Ícone</Label>
+                        <div className="grid grid-cols-6 sm:grid-cols-8 gap-2 max-h-[160px] overflow-y-auto p-1 border rounded-lg bg-slate-50 dark:bg-slate-900/50">
+                            {Object.entries(CATEGORY_ICONS).map(([key, item]) => {
+                                const Icon = item.icon
+                                const isSelected = icon === key
                                 return (
                                     <button
                                         key={key}
                                         type="button"
-                                        className={cn(
-                                            "h-11 w-11 rounded-xl flex items-center justify-center transition-all",
-                                            icon === key
-                                                ? "bg-blue-600 text-white shadow-md scale-105"
-                                                : "text-slate-400 hover:bg-white dark:hover:bg-slate-700 hover:text-blue-600 hover:shadow-sm"
-                                        )}
+                                        disabled={isLocked}
                                         onClick={() => setIcon(key)}
-                                        title={data.label}
+                                        className={cn(
+                                            "flex flex-col items-center justify-center gap-1 p-2 rounded-lg transition-all aspect-square",
+                                            isSelected 
+                                                ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm scale-95" 
+                                                : isLocked ? "text-slate-300 cursor-not-allowed" : "text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
+                                        )}
+                                        title={item.label}
                                     >
-                                        <IconComponent className="w-5 h-5" />
+                                        <Icon className="w-5 h-5" />
                                     </button>
                                 )
                             })}
@@ -267,28 +287,30 @@ export function EditCategorySheet({ category, open, onOpenChange }: { category: 
                         </h3>
                     </div>
 
-                    <div className="flex gap-2">
-                        <Input 
-                            placeholder="Nova subcategoria..." 
-                            value={newSubName}
-                            onChange={(e) => setNewSubName(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                    e.preventDefault()
-                                    handleAddSub()
-                                }
-                            }}
-                            className="h-11 text-sm"
-                        />
-                        <Button onClick={handleAddSub} disabled={!newSubName.trim() || isCreatingSub} className="h-11 w-11 p-0 shrink-0">
-                            {isCreatingSub ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                        </Button>
-                    </div>
+                    {!isLocked && (
+                        <div className="flex gap-2">
+                            <Input 
+                                placeholder="Nova subcategoria..." 
+                                value={newSubName}
+                                onChange={(e) => setNewSubName(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        e.preventDefault()
+                                        handleAddSub()
+                                    }
+                                }}
+                                className="h-11 text-sm"
+                            />
+                            <Button onClick={handleAddSub} disabled={!newSubName.trim() || isCreatingSub} className="h-11 w-11 p-0 shrink-0">
+                                {isCreatingSub ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                            </Button>
+                        </div>
+                    )}
 
                     <div className="space-y-1">
                         {subcategories.length === 0 && (
                             <div className="text-center py-6 text-slate-400 text-xs border border-dashed border-slate-200 dark:border-slate-800 rounded-lg">
-                                Nenhuma subcategoria cadastrada.
+                                {isLocked ? "Esta categoria não permite subcategorias." : "Nenhuma subcategoria cadastrada."}
                             </div>
                         )}
                         {subcategories.map((sub) => (
@@ -298,6 +320,7 @@ export function EditCategorySheet({ category, open, onOpenChange }: { category: 
                                         checked={sub.is_active !== false}
                                         onCheckedChange={() => handleToggleSub(sub)}
                                         className="scale-75 data-[state=checked]:bg-emerald-500"
+                                        disabled={isLocked}
                                     />
                                     <span className={cn(
                                         "text-sm font-medium transition-colors",
@@ -306,51 +329,57 @@ export function EditCategorySheet({ category, open, onOpenChange }: { category: 
                                         {sub.name}
                                     </span>
                                 </div>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-11 w-11 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 opacity-0 group-hover:opacity-100 transition-opacity"
-                                    onClick={() => handleDeleteSub(sub.id)}
-                                >
-                                    <Trash2 className="w-4 h-4" />
-                                </Button>
+                                {!isLocked && (
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-11 w-11 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 opacity-0 group-hover:opacity-100 transition-opacity"
+                                        onClick={() => handleDeleteSub(sub.id)}
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                )}
                             </div>
                         ))}
                     </div>
                 </div>
 
-                <Separator />
-                
-                <div className="pt-2">
-                     <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
-                        <AlertDialogTrigger asChild>
-                            <Button variant="ghost" className="w-full text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20 gap-2 h-11">
-                                <Trash2 className="w-4 h-4" />
-                                Excluir Categoria
-                            </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                            <AlertDialogHeader>
-                                <AlertDialogTitle>Excluir categoria?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                    Esta ação não pode ser desfeita. Isso excluirá permanentemente a categoria <strong>{category.name}</strong> e todas as suas subcategorias.
-                                    <br/><br/>
-                                    <span className="flex items-center gap-2 text-amber-600 bg-amber-50 p-2 rounded text-xs font-medium">
-                                        <AlertTriangle className="w-4 h-4" />
-                                        Se houver transações vinculadas, a exclusão será bloqueada.
-                                    </span>
-                                </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction onClick={handleDeleteCategory} className="bg-red-600 hover:bg-red-700 text-white">
-                                    {isDeletingCategory ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                                    Sim, excluir
-                                </AlertDialogAction>
-                            </AlertDialogFooter>
-                        </AlertDialogContent>
-                    </AlertDialog>
-                </div>
+                {!isLocked && (
+                    <>
+                        <Separator />
+                        <div className="p-4 rounded-lg border border-red-100 dark:border-red-900/30 bg-red-50 dark:bg-red-900/10">
+                            <h4 className="text-sm font-semibold text-red-700 dark:text-red-400 mb-1">Zona de Perigo</h4>
+                            <p className="text-xs text-red-600/80 dark:text-red-400/70 mb-3">
+                                Ao excluir esta categoria, todas as transações vinculadas perderão a categorização.
+                            </p>
+                            
+                            <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="destructive" className="w-full">
+                                        Excluir Categoria
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Tem certeza absoluta?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            Esta ação não pode ser desfeita. Isso excluirá permanentemente a categoria
+                                            <span className="font-bold text-slate-900 dark:text-white mx-1">"{category.name}"</span>
+                                            e suas subcategorias.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                        <AlertDialogAction onClick={handleDeleteCategory} className="bg-red-600 hover:bg-red-700">
+                                            {isDeletingCategory ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                                            Sim, excluir categoria
+                                        </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        </div>
+                    </>
+                )}
             </div>
         </BaseModal>
     )

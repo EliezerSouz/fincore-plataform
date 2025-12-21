@@ -1,0 +1,132 @@
+{
+  "brand": "FinCore",
+  "tagline": "O coração da sua vida financeira",
+
+  "message_structure": [
+    "signal",
+    "cause",
+    "impact",
+    "direction"
+  ],
+
+  "tone": {
+    "style": "human_educational",
+    "avoid_judgment": true,
+    "avoid_technical_without_explanation": true
+  },
+
+  "terminology": {
+    "preferred": [
+      "ritmo",
+      "pulso",
+      "pressão",
+      "estabilidade",
+      "saúde financeira",
+      "margem de segurança"
+    ],
+    "restricted": [
+      "liquidez",
+      "déficit",
+      "insolvência",
+      "negativo"
+    ],
+    "liquidity_rule": {
+      "allowed_only_for": "investments"
+    }
+  },
+
+  "alerts": {
+    "cash_pressure": {
+      "label": "Pressão de Caixa",
+      "description_pattern": "Seus compromissos estão pressionando seu caixa atual."
+    }
+  },
+
+  "metrics": {
+    "score": {
+      "meaning": "Indicador de saúde financeira atual",
+      "avoid": "julgamento"
+    },
+    "runway": {
+      "meaning": "Tempo de sobrevivência financeira no ritmo atual"
+    }
+  },
+
+  "financial_model": {
+    "layers": {
+      "operational_balance": {
+        "description": "Dinheiro realmente disponível para o dia a dia",
+        "includes": ["conta_corrente", "conta_digital"],
+        "usage": ["pulso", "runway", "alertas", "arritmia"],
+        "rules": {
+          "defines_health": true
+        }
+      },
+      "liquidity_reserve": {
+        "description": "Dinheiro aplicado com liquidez rápida, mas não para uso diário",
+        "includes": ["cdb_diario", "mercado_pago", "cdi_diario"],
+        "usage": ["patrimonio", "protecao_emergencial"],
+        "rules": {
+          "defines_health": false,
+          "excluded_from_pulse": true
+        }
+      },
+      "investments": {
+        "description": "Ativos voltados para crescimento e proteção futura",
+        "includes": ["acoes", "etfs", "fundos", "previdencia"],
+        "usage": ["patrimonio_total", "metas"],
+        "rules": {
+          "defines_health": false,
+          "excluded_from_pulse": true,
+          "never_solves_alerts": true
+        }
+      }
+    },
+    "calculations": {
+      "financial_pulse": "operational_balance - commitments",
+      "runway": "operational_balance / average_expenses"
+    }
+  },
+
+  "messaging_system": {
+    "metaphors": {
+      "finances": "human_body",
+      "balance": "breath",
+      "commitments": "pressure",
+      "imbalance": "arrhythmia"
+    },
+    "states": {
+      "stable": {
+        "condition": "operational_balance > 0 && controlled_commitments",
+        "message_tone": "positive",
+        "examples": [
+          "Seu coração financeiro está batendo forte.",
+          "Você tem fôlego para manter o ritmo."
+        ]
+      },
+      "attention": {
+        "condition": "tight_margin",
+        "message_tone": "warning",
+        "examples": [
+          "Seu coração financeiro pede atenção.",
+          "O ritmo está alto, ajuste antes de forçar."
+        ]
+      },
+      "arrhythmia": {
+        "condition": "operational_balance < 0 || commitments > cash",
+        "message_tone": "critical",
+        "prohibitions": ["positive_messages"],
+        "examples": [
+          "Seu coração financeiro está sob pressão.",
+          "Regularizar agora evita complicações maiores."
+        ]
+      }
+    },
+    "prohibitions": [
+      "mix_investments_with_balance",
+      "mask_risk_with_assets",
+      "contradictory_messages",
+      "encourage_reserve_habit"
+    ]
+  }
+}

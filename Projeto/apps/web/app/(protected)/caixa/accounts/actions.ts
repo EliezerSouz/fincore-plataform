@@ -79,13 +79,42 @@ export async function createAccount(formData: FormData) {
         throw new Error('Dados inválidos')
     }
 
-    await client.post('/api/accounts', {
+    const newAccount = await client.post<Account>('/api/accounts', {
         name,
         type,
         balance,
         color,
         yield_rate
     })
+
+    // Create Credit Card if requested
+    const hasCreditCard = formData.get('has_credit_card') === 'on'
+    if (hasCreditCard) {
+        try {
+            const cardLimitStr = formData.get('card_limit') as string
+            const cardLimit = parseFloat(cardLimitStr.replace('R$', '').replace(/\s/g, '').replace(/\./g, '').replace(',', '.'))
+            const cardBrand = formData.get('card_brand') as string
+            const cardClosing = parseInt(formData.get('card_closing_day') as string)
+            const cardDue = parseInt(formData.get('card_due_day') as string)
+
+            if (!isNaN(cardLimit) && cardLimit > 0) {
+                 await client.post('/api/cards', {
+                    name: `${name} Crédito`,
+                    account_id: newAccount.id,
+                    brand: cardBrand,
+                    limit_amount: cardLimit,
+                    closing_day: cardClosing,
+                    due_day: cardDue,
+                    color: color,
+                    last_4_digits: null
+                })
+            }
+        } catch (error) {
+            console.error('Error creating linked credit card:', error)
+            // We don't throw here to avoid failing the account creation if card fails
+            // But ideally we should inform user. For now, silent failure or log.
+        }
+    }
 
     revalidatePath('/', 'layout')
 }

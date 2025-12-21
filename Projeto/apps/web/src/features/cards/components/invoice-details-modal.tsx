@@ -15,11 +15,12 @@ import {
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Calendar, CreditCard, DollarSign, ShoppingBag, RotateCcw, AlertCircle } from "lucide-react"
+import { Calendar, CreditCard, DollarSign, ShoppingBag, RotateCcw, AlertCircle, Wallet } from "lucide-react"
 import { formatCurrency, cn } from "@/lib/utils"
 import { adjustBrightness, getTextColor, isLightColor } from "@/lib/utils/colors"
 import { revertInvoicePayment } from "@/app/(protected)/compromissos/cards/actions"
 import { useRouter } from "next/navigation"
+import { PayCardInvoiceDialog } from "@/features/cards/components/pay-invoice-dialog"
 
 // Helpers de Cor removidos em favor de @/lib/utils/colors
 
@@ -35,6 +36,9 @@ export function InvoiceDetailsModal({ invoiceId, open, onOpenChange }: InvoiceDe
     const [loading, setLoading] = useState(false)
     const [isPending, startTransition] = useTransition()
     const [isRevertDialogOpen, setIsRevertDialogOpen] = useState(false)
+    const [isPayDialogOpen, setIsPayDialogOpen] = useState(false)
+    const [accounts, setAccounts] = useState<any[]>([])
+    const [paymentMethods, setPaymentMethods] = useState<any[]>([])
 
     useEffect(() => {
         if (open && invoiceId) {
@@ -55,6 +59,27 @@ export function InvoiceDetailsModal({ invoiceId, open, onOpenChange }: InvoiceDe
         } finally {
             setLoading(false)
         }
+    }
+
+    const handlePayClick = async () => {
+        if (accounts.length === 0) {
+            try {
+                const { getAccounts } = await import("@/app/(protected)/caixa/accounts/actions")
+                const { getPaymentMethods } = await import("@/app/(protected)/caixa/transactions/actions")
+                
+                const [accs, methods] = await Promise.all([
+                    getAccounts(true),
+                    getPaymentMethods()
+                ])
+                setAccounts(accs)
+                setPaymentMethods(methods)
+            } catch (error) {
+                console.error("Error loading payment options:", error)
+                toast.error("Erro ao carregar opções de pagamento")
+                return
+            }
+        }
+        setIsPayDialogOpen(true)
     }
 
     const handleRevert = () => {
@@ -84,7 +109,14 @@ export function InvoiceDetailsModal({ invoiceId, open, onOpenChange }: InvoiceDe
     const monthYear = closingDate ? closingDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }) : ''
     const isPaid = invoice?.status === 'paid'
 
+    // Calculate overdue status
+    const isOverdue = invoice?.status === 'open' && dueDate && dueDate < new Date(new Date().setHours(0, 0, 0, 0))
+
     const getStatusBadge = (status: string) => {
+        if (isOverdue) {
+            return <Badge className="bg-red-500 hover:bg-red-600 border-none text-white shadow-sm">Vencida</Badge>
+        }
+
         switch (status) {
             case 'paid':
             case 'paid':
@@ -92,7 +124,7 @@ export function InvoiceDetailsModal({ invoiceId, open, onOpenChange }: InvoiceDe
             case 'closed':
                 return <Badge variant="secondary" className="bg-slate-200 dark:bg-slate-800">Fechada</Badge>
             case 'open':
-                return <Badge variant="outline" className="border-blue-500 text-blue-500">Aberta</Badge>
+                return <Badge className="bg-white text-blue-600 hover:bg-blue-50 border-none shadow-sm">Aberta</Badge>
             case 'partial':
                 return (
                     <Badge className="bg-amber-500 hover:bg-amber-600 border-none text-white flex items-center gap-1">
@@ -167,29 +199,56 @@ export function InvoiceDetailsModal({ invoiceId, open, onOpenChange }: InvoiceDe
                             </div>
                         </div>
 
-                        {/* Valores */}
-                        <div className="grid grid-cols-2 gap-3">
-                            <div className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg border border-slate-200 dark:border-slate-800">
-                                <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mb-1">
-                                    <DollarSign className="w-3.5 h-3.5" />
-                                    Valor Total
+                        {/* Resumo Financeiro */}
+                        <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-200 dark:border-slate-800 space-y-3">
+                            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Resumo Financeiro</h4>
+                            
+                            <div className="space-y-2 text-sm">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-slate-600 dark:text-slate-300">Fatura Atual</span>
+                                    <span className="font-medium">{formatCurrency(invoice.total_amount || 0)}</span>
                                 </div>
-                                <p className="font-bold text-lg text-slate-900 dark:text-white">
-                                    {formatCurrency(invoice.total_amount || 0)}
-                                </p>
+
+                                {(invoiceData?.rollover_amount !== 0) && (
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-slate-600 dark:text-slate-300 flex items-center gap-1">
+                                            Saldo Anterior
+                                            <span className="text-[10px] bg-slate-200 dark:bg-slate-800 px-1.5 py-0.5 rounded text-slate-500">
+                                                {invoiceData?.rollover_amount > 0 ? 'Débito' : 'Crédito'}
+                                            </span>
+                                        </span>
+                                        <span className={cn("font-medium", invoiceData?.rollover_amount > 0 ? "text-red-600" : "text-emerald-600")}>
+                                            {invoiceData?.rollover_amount > 0 ? '+' : ''}{formatCurrency(invoiceData?.rollover_amount || 0)}
+                                        </span>
+                                    </div>
+                                )}
+
+                                {(invoice.paid_amount || 0) > 0 && (
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-slate-600 dark:text-slate-300">Pagamentos</span>
+                                        <span className="font-medium text-emerald-600">
+                                            -{formatCurrency(invoice.paid_amount || 0)}
+                                        </span>
+                                    </div>
+                                )}
                             </div>
-                            <div className="bg-emerald-50 dark:bg-emerald-950/20 p-3 rounded-lg border border-emerald-200 dark:border-emerald-900/30">
-                                <div className="flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400 mb-1">
-                                    <DollarSign className="w-3.5 h-3.5" />
-                                    Valor Pago
+
+                            <div className="border-t border-slate-200 dark:border-slate-700 pt-2 mt-2">
+                                <div className="flex justify-between items-center">
+                                    <span className="font-bold text-slate-900 dark:text-white">A Pagar</span>
+                                    <span className="font-bold text-lg text-slate-900 dark:text-white">
+                                        {formatCurrency(Math.max(0, (invoice.total_amount || 0) + (invoiceData?.rollover_amount || 0) - (invoice.paid_amount || 0)))}
+                                    </span>
                                 </div>
-                                <p className="font-bold text-lg text-emerald-700 dark:text-emerald-400">
-                                    {formatCurrency(invoice.paid_amount || 0)}
-                                </p>
+                                {(invoiceData?.rollover_amount < 0) && (
+                                    <p className="text-[10px] text-slate-500 mt-1 text-right">
+                                        * Crédito da fatura anterior aplicado
+                                    </p>
+                                )}
                             </div>
                         </div>
 
-                        {/* COMPOSIÇÃO DO PAGAMENTO (NOVO) */}
+                        {/* Composição do Pagamento (Apenas informativo se já pago) */}
                         {(() => {
                             const payments = invoiceData.payments || []
                             const rolloverAmount = invoiceData.rollover_amount || 0
@@ -197,54 +256,18 @@ export function InvoiceDetailsModal({ invoiceId, open, onOpenChange }: InvoiceDe
                             const fundsAvailable = paymentTotal + rolloverAmount
                             const surplusNext = Math.max(0, fundsAvailable - (invoice.total_amount || 0))
 
-                            const showComposition = (invoice.status === 'paid') &&
-                                ((Math.abs(paymentTotal - (invoice.total_amount || 0)) > 0.01) || (rolloverAmount > 0.01))
-
-                            if (!showComposition) return null
-
-                            // Determine styles based on card color
-                            const isDarkBg = isLightColor(invoice.credit_card?.color || '#000000') // Light color means needs dark text
-                            // But here we are in the modal body, which is white/dark-slate. 
-                            // The card header is above. This block is in the white area.
-                            // So standard text colors apply: slate-900 / white.
-                            // However, the user liked the amber highlight for surplus.
+                            // Show ONLY if there is a surplus carried over to NEXT month
+                            if (surplusNext <= 0.01) return null
 
                             return (
-                                <div className="mt-4 pt-2 pb-2">
-                                    <h4 className="text-[11px] uppercase font-bold tracking-wider text-slate-500 mb-3">
-                                        Composição do Pagamento
-                                    </h4>
-                                    <div className="space-y-2 text-xs font-medium">
-                                        {rolloverAmount > 0.01 && (
-                                            <div className="flex justify-between text-slate-600 dark:text-slate-300">
-                                                <span>Crédito fatura anterior</span>
-                                                <span>{formatCurrency(rolloverAmount)}</span>
-                                            </div>
-                                        )}
-                                        <div className="flex justify-between text-slate-600 dark:text-slate-300">
-                                            <span>Valor da fatura atual</span>
-                                            <span>{formatCurrency(invoice.total_amount || 0)}</span>
-                                        </div>
-                                        {surplusNext > 0.01 && (
-                                            <div className="flex justify-between text-amber-600 dark:text-amber-500 font-bold">
-                                                <span>Crédito para próxima fatura</span>
-                                                <span>{formatCurrency(surplusNext)}</span>
-                                            </div>
-                                        )}
-
-                                        <div className="h-px bg-slate-200 dark:bg-slate-800 my-2"></div>
-
-                                        <div className="flex justify-between text-sm font-bold text-slate-900 dark:text-white">
-                                            <span>Total pago</span>
-                                            <span>{formatCurrency(paymentTotal)}</span>
-                                        </div>
+                                <div className="bg-amber-50 dark:bg-amber-950/20 p-3 rounded-lg border border-amber-200 dark:border-amber-900/30">
+                                    <div className="flex justify-between text-amber-800 dark:text-amber-500 font-bold text-sm">
+                                        <span>Crédito para próxima fatura</span>
+                                        <span>{formatCurrency(surplusNext)}</span>
                                     </div>
-                                    {surplusNext > 0 && (
-                                        <p className="text-[10px] text-slate-500 mt-2 leading-tight">
-                                            O valor excedente foi convertido em crédito para a próxima fatura,
-                                            liberando limite imediatamente.
-                                        </p>
-                                    )}
+                                    <p className="text-[10px] text-amber-700/70 dark:text-amber-500/70 mt-1">
+                                        Valor excedente disponível como crédito.
+                                    </p>
                                 </div>
                             )
                         })()}
@@ -309,7 +332,39 @@ export function InvoiceDetailsModal({ invoiceId, open, onOpenChange }: InvoiceDe
                         </Button>
                     </DialogFooter>
                 )}
+
+                {/* Footer com botão de pagar (NOVO) */}
+                {!isPaid && invoice && (
+                    <DialogFooter className="border-t pt-4">
+                         <Button 
+                            className="w-full sm:w-auto shadow-lg bg-emerald-600 hover:bg-emerald-700 text-white"
+                            onClick={handlePayClick}
+                        >
+                            <Wallet className="w-4 h-4 mr-2" />
+                            Pagar {formatCurrency(Math.max(0, (invoice.total_amount || 0) + (invoiceData?.rollover_amount || 0) - (invoice.paid_amount || 0)))}
+                        </Button>
+                    </DialogFooter>
+                )}
             </DialogContent>
+
+            {/* Pay Dialog */}
+            {invoice && (
+                <PayCardInvoiceDialog
+                    open={isPayDialogOpen}
+                    onOpenChange={(val) => {
+                        setIsPayDialogOpen(val)
+                        if (!val) {
+                             loadInvoiceDetails()
+                             router.refresh()
+                        }
+                    }}
+                    invoice={invoice}
+                    sourceAccounts={accounts}
+                    paymentMethods={paymentMethods}
+                    cardName={invoice.credit_card?.name}
+                    remainingAmount={Math.max(0, (invoice.total_amount || 0) + (invoiceData?.rollover_amount || 0) - (invoice.paid_amount || 0))}
+                />
+            )}
 
             {/* Confirmation Dialog */}
             <AlertDialog open={isRevertDialogOpen} onOpenChange={setIsRevertDialogOpen}>

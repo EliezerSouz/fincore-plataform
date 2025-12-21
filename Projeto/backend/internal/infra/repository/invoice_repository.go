@@ -46,12 +46,22 @@ func (r *InvoiceRepository) FindByCardID(ctx context.Context, cardID string) ([]
 
 func (r *InvoiceRepository) FindByID(ctx context.Context, id string) (*entity.CreditCardInvoice, error) {
 	query := `
-		SELECT id, credit_card_id, reference_month, reference_year, closing_date, due_date, total_amount, paid_amount, status, created_at, updated_at
-		FROM credit_card_invoices
-		WHERE id = $1
+		SELECT 
+			i.id, i.credit_card_id, i.reference_month, i.reference_year, i.closing_date, i.due_date, 
+			i.total_amount, i.paid_amount, i.status, i.created_at, i.updated_at,
+			c.id, c.name, c.brand, c.last_4_digits, c.color
+		FROM credit_card_invoices i
+		LEFT JOIN credit_cards c ON i.credit_card_id = c.id
+		WHERE i.id = $1
 	`
 	var i entity.CreditCardInvoice
-	err := r.db.QueryRow(ctx, query, id).Scan(&i.ID, &i.CreditCardID, &i.ReferenceMonth, &i.ReferenceYear, &i.ClosingDate, &i.DueDate, &i.TotalAmount, &i.PaidAmount, &i.Status, &i.CreatedAt, &i.UpdatedAt)
+	i.CreditCard = &entity.CreditCard{}
+	
+	err := r.db.QueryRow(ctx, query, id).Scan(
+		&i.ID, &i.CreditCardID, &i.ReferenceMonth, &i.ReferenceYear, &i.ClosingDate, &i.DueDate, 
+		&i.TotalAmount, &i.PaidAmount, &i.Status, &i.CreatedAt, &i.UpdatedAt,
+		&i.CreditCard.ID, &i.CreditCard.Name, &i.CreditCard.Brand, &i.CreditCard.Last4Digits, &i.CreditCard.Color,
+	)
 	if err != nil {
 		return nil, err
 	}

@@ -18,10 +18,47 @@ async function getApiClient() {
     return new ApiClient(undefined, token)
 }
 
+export interface MonthlyHistory {
+    name: string
+    receita: number
+    despesa: number
+    saldo: number
+}
+
+export interface CategorySpending {
+    name: string
+    value: number
+    percent: number
+    color: string
+    icon: string
+}
+
+export interface InvoiceAlert {
+    id: string
+    card_id: string
+    card_name: string
+    card_last4: string
+    amount: number
+    due_date: string
+    status: string
+    days_remaining: number
+}
+
 export interface FinancialSummary {
     liquidez: number
     patrimonio: number
     compromissos: number
+    payables_total: number
+    invoices_total: number
+    receita_mensal: number
+    despesa_mensal: number
+    history: MonthlyHistory[]
+    top_categories: CategorySpending[]
+    invoices: InvoiceAlert[]
+    total_balance: number
+    health_status: string
+    score: number
+    runway: number
 }
 
 export async function getFinancialSummary(): Promise<FinancialSummary> {
@@ -32,7 +69,18 @@ export async function getFinancialSummary(): Promise<FinancialSummary> {
         return summary || {
             liquidez: 0,
             patrimonio: 0,
-            compromissos: 0
+            compromissos: 0,
+            payables_total: 0,
+            invoices_total: 0,
+            receita_mensal: 0,
+            despesa_mensal: 0,
+            history: [],
+            top_categories: [],
+            invoices: [],
+            total_balance: 0,
+            health_status: 'Estável',
+            score: 0,
+            runway: 0
         }
     } catch (error: any) {
         if (error.message !== 'No session found') {
@@ -42,7 +90,18 @@ export async function getFinancialSummary(): Promise<FinancialSummary> {
         return {
             liquidez: 0,
             patrimonio: 0,
-            compromissos: 0
+            compromissos: 0,
+            payables_total: 0,
+            invoices_total: 0,
+            receita_mensal: 0,
+            despesa_mensal: 0,
+            history: [],
+            top_categories: [],
+            invoices: [],
+            total_balance: 0,
+            health_status: 'Estável',
+            score: 0,
+            runway: 0
         }
     }
 }

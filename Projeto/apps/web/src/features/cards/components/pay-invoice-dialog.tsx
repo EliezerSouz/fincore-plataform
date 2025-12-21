@@ -5,6 +5,7 @@ import { toast } from "sonner"
 import { payInvoice } from "@/app/(protected)/compromissos/cards/actions"
 import { UnifiedPaymentDialog, PaymentData } from "@/components/finance/unified-payment-dialog"
 import { CreditCard } from "lucide-react"
+import { getOrCreateInvoiceCategory } from "@/app/(protected)/caixa/categories/actions"
 
 interface PayCardInvoiceDialogProps {
     children?: React.ReactNode
@@ -45,7 +46,15 @@ export function PayCardInvoiceDialog({
         if (!onOpenChange) return
 
         try {
-            await payInvoice(invoice.id, data.amount, data.accountId, data.date)
+            // Get default invoice category
+            let categoryId = undefined
+            try {
+                categoryId = await getOrCreateInvoiceCategory()
+            } catch (err) {
+                console.warn("Could not fetch default invoice category", err)
+            }
+
+            await payInvoice(invoice.id, data.amount, data.accountId, data.date, categoryId)
             toast.success("Pagamento realizado com sucesso!")
             onOpenChange(false)
         } catch (error) {

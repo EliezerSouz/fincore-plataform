@@ -2,14 +2,18 @@ import { SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/layout/app-sidebar"
 import { TopBar } from "@/components/layout/top-bar"
 import { UserProvider } from "@/providers/user-provider"
+import { TooltipProvider } from "@/components/ui/tooltip"
 import { getFinancialSummary } from "./summary-actions"
 import { getQueryClient } from "@/utils/get-query-client"
 import { queryKeys } from "@/lib/query-keys"
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query"
+import { cookies } from "next/headers"
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
     // 1. Prefetch dos dados no servidor
     const queryClient = getQueryClient()
+    const cookieStore = await cookies()
+    const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false"
 
     // Precisamos buscar os dados. Como o dashboard-service usa apiClient que pode depender
     // de headers/cookies no client, aqui no server usamos a Server Action 'getFinancialSummary'
@@ -30,22 +34,24 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
     return (
         <UserProvider>
-            {/* 2. HydrationBoundary passa o estado do servidor para o cliente */}
-            {/* Removing HydrationBoundary temporarily to debug "No QueryClient set" error. 
-                If this fixes it, we need to wrap it properly or investigate provider context. */}
-            {/* <HydrationBoundary state={dehydrate(queryClient)}> */}
-            <div className="flex h-screen w-full">
-                <SidebarProvider>
-                    <AppSidebar stats={stats} />
-                    <main className="flex-1 flex flex-col w-full h-full bg-muted/10">
-                        <TopBar />
-                        <div className="flex-1 overflow-auto">
-                            {children}
-                        </div>
-                    </main>
-                </SidebarProvider>
-            </div>
-            {/* </HydrationBoundary> */}
+            <TooltipProvider delayDuration={200}>
+                {/* 2. HydrationBoundary passa o estado do servidor para o cliente */}
+                {/* Removing HydrationBoundary temporarily to debug "No QueryClient set" error. 
+                    If this fixes it, we need to wrap it properly or investigate provider context. */}
+                {/* <HydrationBoundary state={dehydrate(queryClient)}> */}
+                <div className="flex h-screen w-full">
+                    <SidebarProvider defaultOpen={defaultOpen}>
+                        <AppSidebar stats={stats} />
+                        <main className="flex-1 flex flex-col w-full h-full bg-muted/10">
+                            <TopBar />
+                            <div className="flex-1 overflow-auto">
+                                {children}
+                            </div>
+                        </main>
+                    </SidebarProvider>
+                </div>
+                {/* </HydrationBoundary> */}
+            </TooltipProvider>
         </UserProvider>
     )
 }

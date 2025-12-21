@@ -138,8 +138,8 @@ export async function createTransaction(formData: FormData) {
     const type = formData.get('type') as TransactionType
     const date = formData.get('date') as string
     const accountId = formData.get('accountId') as string
-    const categoryId = formData.get('categoryId') as string
-    const subcategoryId = formData.get('subcategoryId') as string
+    const categoryId = formData.get('category_id') as string
+    const subcategoryId = formData.get('subcategory_id') as string
     const paymentMethodId = formData.get('paymentMethodId') as string
     const creditCardInvoiceId = formData.get('credit_card_invoice_id') as string
 
@@ -294,8 +294,8 @@ export async function updateTransaction(id: string, formData: FormData) {
     const type = formData.get('type') as TransactionType
     const date = formData.get('date') as string
     const accountId = formData.get('accountId') as string
-    const categoryId = formData.get('categoryId') as string
-    const subcategoryId = formData.get('subcategoryId') as string
+    const categoryId = formData.get('category_id') as string
+    const subcategoryId = formData.get('subcategory_id') as string
     const paymentMethodId = formData.get('paymentMethodId') as string
 
     const isValidUUID = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)

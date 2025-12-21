@@ -50,6 +50,7 @@ export function AccountsView() {
             case 'digital': return { Icon: Landmark, color: 'text-blue-600' }
             case 'poupanca':
             case 'poupança': return { Icon: PiggyBank, color: 'text-amber-600' }
+            case 'reserva_emergencia': return { Icon: PiggyBank, color: 'text-amber-600' }
             case 'investimento': return { Icon: TrendingUp, color: 'text-purple-600' }
             case 'carteira': return { Icon: Wallet, color: 'text-slate-600' }
             case 'cartao_credito': return { Icon: CreditCard, color: 'text-orange-600' }
@@ -64,6 +65,7 @@ export function AccountsView() {
             case 'digital': return 'Digitais'
             case 'poupanca':
             case 'poupança': return 'Poupança'
+            case 'reserva_emergencia': return 'Reserva de Emergência'
             case 'investimento': return 'Investimentos'
             case 'carteira': return 'Carteiras'
             case 'internacional': return 'Internacional'
@@ -105,11 +107,11 @@ export function AccountsView() {
                     <CardContent>
                         <div className="text-2xl font-bold text-slate-900 dark:text-white">{formatCurrency(totalBalance)}</div>
                         <p className="text-xs text-muted-foreground mt-1">
-                           Disponível para uso imediato
+                            Disponível para uso imediato
                         </p>
                     </CardContent>
                 </Card>
-                
+
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Investimentos</CardTitle>
@@ -118,7 +120,7 @@ export function AccountsView() {
                     <CardContent>
                         <div className="text-2xl font-bold text-slate-900 dark:text-white">{formatCurrency(totalInvested)}</div>
                         <p className="text-xs text-muted-foreground mt-1">
-                           Patrimônio acumulado
+                            Patrimônio acumulado
                         </p>
                     </CardContent>
                 </Card>
@@ -131,7 +133,7 @@ export function AccountsView() {
                     <CardContent>
                         <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{formatCurrency(totalGeneral)}</div>
                         <p className="text-xs text-muted-foreground mt-1">
-                           Soma de todas as contas
+                            Soma de todas as contas
                         </p>
                     </CardContent>
                 </Card>

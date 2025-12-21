@@ -27,7 +27,7 @@ type CategoryWithSubs struct {
 func (r *CategoryRepository) FindAll(ctx context.Context, userID, catType string) ([]CategoryWithSubs, error) {
 	// 1. Fetch Categories
 	queryCat := `
-		SELECT id, user_id, name, type, icon, color, is_active, created_at, updated_at
+		SELECT id, user_id, name, type, icon, color, is_active, is_system, created_at, updated_at
 		FROM categories
 		WHERE user_id = $1::uuid
 	`
@@ -52,7 +52,7 @@ func (r *CategoryRepository) FindAll(ctx context.Context, userID, catType string
 		cat.Subcategories = []entity.Subcategory{}
 		err := rows.Scan(
 			&cat.ID, &cat.UserID, &cat.Name, &cat.Type,
-			&cat.Icon, &cat.Color, &cat.IsActive, &cat.CreatedAt, &cat.UpdatedAt,
+			&cat.Icon, &cat.Color, &cat.IsActive, &cat.IsSystem, &cat.CreatedAt, &cat.UpdatedAt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan category: %w", err)
@@ -104,14 +104,14 @@ func (r *CategoryRepository) FindAll(ctx context.Context, userID, catType string
 
 func (r *CategoryRepository) Create(ctx context.Context, userID string, input entity.CreateCategoryInput) (*entity.Category, error) {
 	query := `
-		INSERT INTO categories (user_id, name, type, icon, color, is_active)
-		VALUES ($1::uuid, $2, $3, $4, $5, true)
-		RETURNING id, user_id, name, type, icon, color, is_active, created_at, updated_at
+		INSERT INTO categories (user_id, name, type, icon, color, is_active, is_system)
+		VALUES ($1::uuid, $2, $3, $4, $5, true, false)
+		RETURNING id, user_id, name, type, icon, color, is_active, is_system, created_at, updated_at
 	`
 	var cat entity.Category
 	err := r.db.QueryRow(ctx, query, userID, strings.ToUpper(input.Name), input.Type, input.Icon, input.Color).Scan(
 		&cat.ID, &cat.UserID, &cat.Name, &cat.Type,
-		&cat.Icon, &cat.Color, &cat.IsActive, &cat.CreatedAt, &cat.UpdatedAt,
+		&cat.Icon, &cat.Color, &cat.IsActive, &cat.IsSystem, &cat.CreatedAt, &cat.UpdatedAt,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create category: %w", err)
@@ -145,24 +145,30 @@ func (r *CategoryRepository) Update(ctx context.Context, id, userID string, inpu
 		args = append(args, *input.IsActive)
 	}
 
-	query += ` WHERE id = $1 AND user_id = $2::uuid RETURNING id, user_id, name, type, icon, color, is_active, created_at, updated_at`
+	query += ` WHERE id = $1 AND user_id = $2::uuid AND is_system = false RETURNING id, user_id, name, type, icon, color, is_active, is_system, created_at, updated_at`
 
 	var cat entity.Category
 	err := r.db.QueryRow(ctx, query, args...).Scan(
 		&cat.ID, &cat.UserID, &cat.Name, &cat.Type,
-		&cat.Icon, &cat.Color, &cat.IsActive, &cat.CreatedAt, &cat.UpdatedAt,
+		&cat.Icon, &cat.Color, &cat.IsActive, &cat.IsSystem, &cat.CreatedAt, &cat.UpdatedAt,
 	)
 	if err != nil {
+		if strings.Contains(err.Error(), "no rows in result set") {
+			return nil, fmt.Errorf("category not found, unauthorized, or is a system category")
+		}
 		return nil, fmt.Errorf("failed to update category: %w", err)
 	}
 	return &cat, nil
 }
 
 func (r *CategoryRepository) Delete(ctx context.Context, id, userID string) error {
-	query := `DELETE FROM categories WHERE id = $1 AND user_id = $2::uuid`
-	_, err := r.db.Exec(ctx, query, id, userID)
+	query := `DELETE FROM categories WHERE id = $1 AND user_id = $2::uuid AND is_system = false`
+	cmdTag, err := r.db.Exec(ctx, query, id, userID)
 	if err != nil {
 		return fmt.Errorf("failed to delete category: %w", err)
+	}
+	if cmdTag.RowsAffected() == 0 {
+		return fmt.Errorf("category not found, unauthorized, or is a system category")
 	}
 	return nil
 }
@@ -170,11 +176,11 @@ func (r *CategoryRepository) Delete(ctx context.Context, id, userID string) erro
 // Subcategory methods
 
 func (r *CategoryRepository) CreateSubcategory(ctx context.Context, userID, categoryID, name string) (*entity.Subcategory, error) {
-	// Validate category ownership
+	// Validate category ownership and check if it's not a system category
 	var exists bool
-	err := r.db.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM categories WHERE id=$1 AND user_id=$2::uuid)", categoryID, userID).Scan(&exists)
+	err := r.db.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM categories WHERE id=$1 AND user_id=$2::uuid AND is_system = false)", categoryID, userID).Scan(&exists)
 	if err != nil || !exists {
-		return nil, fmt.Errorf("category not found or unauthorized")
+		return nil, fmt.Errorf("category not found, unauthorized, or is a system category")
 	}
 
 	query := `

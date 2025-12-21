@@ -12,7 +12,7 @@ import { TransactionsFilters } from "@/features/transactions/components/transact
 import { TransactionRow } from "@/features/transactions/components/transactions-row"
 import { TransactionItem } from "@/features/transactions/components/transaction-item"
 import { CreateTransactionDialog } from "@/features/transactions/components/create-transaction-dialog"
-import { ReceiptText, CircleDashed, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown, Zap, BrainCircuit, AlertTriangle, TrendingUp, Info, CheckCircle, TrendingDown, Wallet, Filter } from "lucide-react"
+import { ReceiptText, CircleDashed, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown, Zap, BrainCircuit, AlertTriangle, TrendingUp, Info, CheckCircle, TrendingDown, Wallet, Filter, AlertCircle } from "lucide-react"
 import { useMemo, useState, useEffect } from 'react'
 import { useAccounts } from '@/hooks/use-accounts'
 import { getGroqTransactionInsight } from '@/features/ai/actions/groq-insight'
@@ -47,6 +47,18 @@ export function TransactionsView({ accounts, categories, initialInsights, lastUp
     // Sorting Logic
     const sortBy = searchParams.get('sort_by') || 'date'
     const sortOrder = (searchParams.get('sort_order') as 'asc' | 'desc') || 'desc'
+
+    // Alert State for Filters
+    const [showFilterAlert, setShowFilterAlert] = useState(false)
+    
+    useEffect(() => {
+        if (searchParams.get('type') === 'despesa') {
+            setShowFilterAlert(true)
+            // Auto-hide after 5 seconds if desired, or keep it persistent
+            const timer = setTimeout(() => setShowFilterAlert(false), 8000)
+            return () => clearTimeout(timer)
+        }
+    }, [searchParams])
 
     const { defaultFrom, defaultTo } = useMemo(() => {
         const now = new Date();
@@ -184,6 +196,32 @@ export function TransactionsView({ accounts, categories, initialInsights, lastUp
                 </div>
             }
         >
+            {/* Alert Banner for Active Filters */}
+            {showFilterAlert && (
+                <div className="mb-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900 rounded-lg p-4 flex items-center gap-3 animate-in slide-in-from-top-2 fade-in">
+                    <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0" />
+                    <div className="flex-1">
+                        <h4 className="font-medium text-red-900 dark:text-red-100 text-sm">Filtrando por Despesas</h4>
+                        <p className="text-red-700 dark:text-red-300 text-xs mt-0.5">
+                            Exibindo apenas suas despesas conforme solicitado via Dashboard.
+                        </p>
+                    </div>
+                    <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => {
+                            setShowFilterAlert(false)
+                            const params = new URLSearchParams(searchParams.toString())
+                            params.delete('type')
+                            router.push(pathname + '?' + params.toString())
+                        }}
+                        className="text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 h-8"
+                    >
+                        Limpar Filtro
+                    </Button>
+                </div>
+            )}
+
             <div className="grid gap-4 md:grid-cols-3 mb-6">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

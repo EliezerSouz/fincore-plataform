@@ -5,6 +5,7 @@ import (
 	"financeiro-api/internal/entity"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -19,14 +20,30 @@ func NewCardRepository(db *pgxpool.Pool) *CardRepository {
 
 func (r *CardRepository) FindAll(ctx context.Context, userID string) ([]entity.CreditCard, error) {
 	query := `
-		SELECT c.id, c.user_id, c.name, c.brand, c.last_4_digits, c.limit_amount, 
+		SELECT c.id, c.user_id, c.account_id, c.name, c.brand, c.last_4_digits, c.limit_amount, 
 		       c.closing_day, c.due_day, c.color, c.created_at, c.updated_at,
 		       (c.limit_amount - COALESCE((
 		           SELECT SUM(i.total_amount - i.paid_amount)
 		           FROM credit_card_invoices i
 		           WHERE i.credit_card_id = c.id
 		             AND i.status != 'paid'
-		       ), 0)) as available_limit
+		       ), 0)) as available_limit,
+		       (
+		           SELECT i.total_amount - i.paid_amount
+		           FROM credit_card_invoices i
+		           WHERE i.credit_card_id = c.id
+		             AND i.status != 'paid'
+		           ORDER BY i.due_date ASC
+		           LIMIT 1
+		       ) as next_invoice_amount,
+		       (
+		           SELECT i.due_date
+		           FROM credit_card_invoices i
+		           WHERE i.credit_card_id = c.id
+		             AND i.status != 'paid'
+		           ORDER BY i.due_date ASC
+		           LIMIT 1
+		       ) as next_invoice_date
 		FROM credit_cards c
 		WHERE c.user_id = $1
 		ORDER BY c.name
@@ -41,15 +58,19 @@ func (r *CardRepository) FindAll(ctx context.Context, userID string) ([]entity.C
 	for rows.Next() {
 		var card entity.CreditCard
 		var avail float64
+		var nextAmount *float64
+		var nextDate *time.Time
 		err := rows.Scan(
-			&card.ID, &card.UserID, &card.Name, &card.Brand, &card.Last4Digits,
+			&card.ID, &card.UserID, &card.AccountID, &card.Name, &card.Brand, &card.Last4Digits,
 			&card.LimitAmount, &card.ClosingDay, &card.DueDay, &card.Color,
-			&card.CreatedAt, &card.UpdatedAt, &avail,
+			&card.CreatedAt, &card.UpdatedAt, &avail, &nextAmount, &nextDate,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan card: %w", err)
 		}
 		card.AvailableLimit = &avail
+		card.NextInvoiceAmount = nextAmount
+		card.NextInvoiceDate = nextDate
 		cards = append(cards, card)
 	}
 
@@ -58,14 +79,14 @@ func (r *CardRepository) FindAll(ctx context.Context, userID string) ([]entity.C
 
 func (r *CardRepository) FindByID(ctx context.Context, id, userID string) (*entity.CreditCard, error) {
 	query := `
-		SELECT c.id, c.user_id, c.name, c.brand, c.last_4_digits, c.limit_amount, 
+		SELECT c.id, c.user_id, c.account_id, c.name, c.brand, c.last_4_digits, c.limit_amount, 
 		       c.closing_day, c.due_day, c.color, c.created_at, c.updated_at
 		FROM credit_cards c
 		WHERE c.id = $1 AND c.user_id = $2
 	`
 	var card entity.CreditCard
 	err := r.db.QueryRow(ctx, query, id, userID).Scan(
-		&card.ID, &card.UserID, &card.Name, &card.Brand, &card.Last4Digits,
+		&card.ID, &card.UserID, &card.AccountID, &card.Name, &card.Brand, &card.Last4Digits,
 		&card.LimitAmount, &card.ClosingDay, &card.DueDay, &card.Color,
 		&card.CreatedAt, &card.UpdatedAt,
 	)
@@ -78,15 +99,15 @@ func (r *CardRepository) FindByID(ctx context.Context, id, userID string) (*enti
 func (r *CardRepository) Create(ctx context.Context, userID string, input entity.CreateCardInput) (*entity.CreditCard, error) {
 	query := `
 		INSERT INTO credit_cards (
-			user_id, name, brand, last_4_digits, limit_amount, closing_day, due_day, color
+			user_id, account_id, name, brand, last_4_digits, limit_amount, closing_day, due_day, color
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		RETURNING id, user_id, name, brand, last_4_digits, limit_amount, closing_day, due_day, color, created_at, updated_at
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		RETURNING id, user_id, account_id, name, brand, last_4_digits, limit_amount, closing_day, due_day, color, created_at, updated_at
 	`
 	var card entity.CreditCard
-	err := r.db.QueryRow(ctx, query, userID, input.Name, strings.ToUpper(input.Brand), input.Last4Digits,
+	err := r.db.QueryRow(ctx, query, userID, input.AccountID, input.Name, strings.ToUpper(input.Brand), input.Last4Digits,
 		input.LimitAmount, input.ClosingDay, input.DueDay, input.Color).Scan(
-		&card.ID, &card.UserID, &card.Name, &card.Brand, &card.Last4Digits,
+		&card.ID, &card.UserID, &card.AccountID, &card.Name, &card.Brand, &card.Last4Digits,
 		&card.LimitAmount, &card.ClosingDay, &card.DueDay, &card.Color,
 		&card.CreatedAt, &card.UpdatedAt,
 	)
@@ -108,6 +129,11 @@ func (r *CardRepository) Update(ctx context.Context, id, userID string, input en
 		argCount++
 		query += fmt.Sprintf(", name = $%d", argCount)
 		args = append(args, *input.Name)
+	}
+	if input.AccountID != nil {
+		argCount++
+		query += fmt.Sprintf(", account_id = $%d", argCount)
+		args = append(args, *input.AccountID)
 	}
 	if input.Brand != nil {
 		argCount++
@@ -140,11 +166,11 @@ func (r *CardRepository) Update(ctx context.Context, id, userID string, input en
 		args = append(args, *input.Color)
 	}
 
-	query += ` WHERE id = $1 AND user_id = $2 RETURNING id, user_id, name, brand, last_4_digits, limit_amount, closing_day, due_day, color, created_at, updated_at`
+	query += ` WHERE id = $1 AND user_id = $2 RETURNING id, user_id, account_id, name, brand, last_4_digits, limit_amount, closing_day, due_day, color, created_at, updated_at`
 
 	var card entity.CreditCard
 	err := r.db.QueryRow(ctx, query, args...).Scan(
-		&card.ID, &card.UserID, &card.Name, &card.Brand, &card.Last4Digits,
+		&card.ID, &card.UserID, &card.AccountID, &card.Name, &card.Brand, &card.Last4Digits,
 		&card.LimitAmount, &card.ClosingDay, &card.DueDay, &card.Color,
 		&card.CreatedAt, &card.UpdatedAt,
 	)

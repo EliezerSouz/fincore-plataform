@@ -6,6 +6,9 @@ export function useFinancialSummaryQuery(initialData?: FinancialSummary) {
     return useQuery({
         queryKey: queryKeys.dashboard.summary(),
         queryFn: getFinancialSummary,
-        initialData
+        initialData,
+        staleTime: 0, // Always refetch on mount to ensure fresh data
+        refetchOnMount: true,
+        refetchOnWindowFocus: true // Update when switching tabs
     })
 }
