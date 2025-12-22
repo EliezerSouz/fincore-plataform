@@ -8,7 +8,7 @@ import { CreditCardItem } from "./credit-card-item"
 import { usePermission } from "@/hooks/use-permission"
 import { usePrimaryCard } from "@/hooks/use-primary-card"
 
-export function CreditCardList({ cards }: { cards: CreditCard[] }) {
+export function CreditCardList({ cards, accountsMap = {} }: { cards: CreditCard[], accountsMap?: Record<string, string> }) {
     const { can } = usePermission()
     const { primaryCardId } = usePrimaryCard()
 
@@ -36,8 +36,9 @@ export function CreditCardList({ cards }: { cards: CreditCard[] }) {
             {cards.map((card) => {
                 // Apenas o cartão selecionado como Principal é ativo no plano Free
                 const isLocked = !can('unlimited_cards') && card.id !== primaryCardId
+                const accountName = card.account_id ? accountsMap[card.account_id] : undefined
 
-                return <CreditCardItem key={card.id} card={card} isLocked={isLocked} />
+                return <CreditCardItem key={card.id} card={card} isLocked={isLocked} accountName={accountName} />
             })}
         </div>
     )

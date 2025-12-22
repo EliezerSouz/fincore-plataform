@@ -44,14 +44,14 @@ import {
     SidebarTrigger,
 } from "@/components/ui/sidebar"
 import { Logo } from "@/components/ui/logo"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import Link from "next/link"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ModeToggle } from "@/components/layout/mode-toggle"
-import { signout } from "@/app/actions"
 import { useUser } from "@/providers/user-provider"
 import { formatCurrency, cn } from "@/lib/utils"
+import { siteConfig } from "@/config/site"
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
     stats?: {
@@ -84,14 +84,14 @@ export function AppSidebar({ stats, ...props }: AppSidebarProps) {
             <SidebarHeader className="h-20 border-b border-zinc-200 dark:border-white/5 bg-zinc-50 dark:bg-[#09090b] flex justify-center">
                 <SidebarMenu>
                     <SidebarMenuItem>
-                        <div title="O coração da sua vida financeira" className="flex items-center gap-3 px-2 transition-all group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+                        <div title={siteConfig.slogan} className="flex items-center gap-3 px-2 transition-all group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
                             <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white font-bold shadow-lg shadow-blue-500/20 group-data-[collapsible=icon]:h-9 group-data-[collapsible=icon]:w-9">
                                 <Heart className="w-5 h-5 fill-white text-white" />
                                 <div className="absolute inset-0 rounded-xl bg-white/20 blur-sm opacity-0 group-hover:opacity-100 transition-opacity" />
                             </div>
                             <div className="flex flex-col gap-0.5 leading-none group-data-[collapsible=icon]:hidden opacity-100 transition-opacity duration-300">
                                 <span className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white">
-                                    FinCore
+                                    {siteConfig.name}
                                 </span>
                                 <span className="text-[10px] text-zinc-500 font-medium tracking-wider uppercase">
                                     v0.1.0 Beta
@@ -243,6 +243,7 @@ export function AppSidebar({ stats, ...props }: AppSidebarProps) {
 }
 
 function UserNav() {
+    const router = useRouter()
     const [isMounted, setIsMounted] = React.useState(false)
     const { isMobile } = useSidebar()
     const { user, isLoading } = useUser()
@@ -305,7 +306,7 @@ function UserNav() {
                     <DropdownMenuSeparator className="my-1 bg-slate-100 dark:bg-white/5" />
                     <DropdownMenuItem 
                         className="flex items-center cursor-pointer text-red-600 dark:text-red-400 py-2 px-3 rounded-md transition-colors hover:bg-red-50 dark:hover:bg-red-900/10 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-900/10"
-                        onClick={() => signout()}
+                        onClick={() => router.push('/logout')}
                     >
                         <LogOut className="mr-2 h-4 w-4" />
                         <span>Sair</span>

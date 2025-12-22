@@ -30,7 +30,7 @@ export function EditTransactionDialog({ open, onOpenChange, transaction, isCardT
         categoryId: transaction.category_id || "",
         subcategoryId: transaction.subcategory_id || "",
         paymentMethodId: transaction.payment_method_id || "",
-        date: transaction.transaction_date ? new Date(transaction.transaction_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+        date: (transaction.date || transaction.transaction_date) ? new Date(transaction.date || transaction.transaction_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         selectedCardId: transaction.credit_card_id || "",
         notes: transaction.notes || "",
     }

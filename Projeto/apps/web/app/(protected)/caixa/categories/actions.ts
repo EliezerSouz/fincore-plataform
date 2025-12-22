@@ -25,6 +25,7 @@ export interface Category {
     subcategories: any[]
     is_active?: boolean
     is_system?: boolean
+    is_premium?: boolean
 }
 
 export async function getCategories(type: 'receita' | 'despesa') {

@@ -14,6 +14,7 @@ type DashboardRepository struct {
 }
 
 func NewDashboardRepository(db *pgxpool.Pool) *DashboardRepository {
+	fmt.Println("DEBUG: DashboardRepository initialized - FIX APPLIED")
 	return &DashboardRepository{db: db}
 }
 
@@ -81,14 +82,15 @@ func (r *DashboardRepository) GetSummary(ctx context.Context, userID string) (*F
 	// 1. Calculate Liquidity, Patrimony and Emergency Reserve (Accounts)
 	queryAccounts := `
 		SELECT 
-			COALESCE(SUM(CASE WHEN type = 'corrente' OR type = 'poupanca' OR type = 'digital' THEN balance ELSE 0 END), 0) as liquidez,
+			COALESCE(SUM(CASE WHEN type = 'corrente' OR type = 'poupanca' OR type = 'carteira' OR type = 'outros' THEN balance ELSE 0 END), 0) as liquidez,
 			COALESCE(SUM(CASE WHEN type = 'investimento' THEN balance ELSE 0 END), 0) as patrimonio,
-			COALESCE(SUM(CASE WHEN type = 'reserva_emergencia' THEN balance ELSE 0 END), 0) as reserva_emergencia
+			0.0 as reserva_emergencia
 		FROM accounts
 		WHERE user_id = $1::uuid AND is_active = true
 	`
 	err := r.db.QueryRow(ctx, queryAccounts, userID).Scan(&summary.Liquidez, &summary.Patrimonio, &summary.ReservaEmergencia)
 	if err != nil {
+		fmt.Printf("ERROR in GetSummary (Accounts): %v\n", err)
 		return nil, fmt.Errorf("failed to calculate account summary: %w", err)
 	}
 
@@ -162,7 +164,7 @@ func (r *DashboardRepository) GetSummary(ctx context.Context, userID string) (*F
 		SELECT COALESCE(SUM(total_amount - paid_amount), 0), COUNT(*)
 		FROM credit_card_invoices
 		WHERE user_id = $1::uuid 
-		  AND status NOT IN ('paid', 'cancelled')
+		  AND status NOT IN ('paid')
 		  AND (total_amount - paid_amount) > 0.01
 		  AND due_date < $2
 	`
@@ -178,7 +180,7 @@ func (r *DashboardRepository) GetSummary(ctx context.Context, userID string) (*F
 		SELECT COALESCE(SUM(total_amount - paid_amount), 0)
 		FROM credit_card_invoices
 		WHERE user_id = $1::uuid 
-		  AND status NOT IN ('paid', 'cancelled')
+		  AND status NOT IN ('paid')
 		  AND (total_amount - paid_amount) > 0.01
 		  AND due_date >= $2
 		  AND due_date <= $3
@@ -251,6 +253,7 @@ func (r *DashboardRepository) GetSummary(ctx context.Context, userID string) (*F
 		WHERE t.user_id = $1::uuid 
 		  AND t.date >= $2 AND t.date <= $3
 		  AND t.type = 'despesa'
+		  AND t.exclude_from_totals IS NOT TRUE
 		GROUP BY c.name, c.color, c.icon
 		ORDER BY SUM(t.amount) DESC
 		LIMIT 3

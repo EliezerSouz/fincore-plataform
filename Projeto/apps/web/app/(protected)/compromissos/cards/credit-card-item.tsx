@@ -29,8 +29,9 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { getTextColor, isLightColor, adjustBrightness } from "@/lib/utils/colors"
+import { Landmark } from "lucide-react"
 
-export function CreditCardItem({ card, isLocked = false }: { card: CreditCard, isLocked?: boolean }) {
+export function CreditCardItem({ card, isLocked = false, accountName }: { card: CreditCard, isLocked?: boolean, accountName?: string }) {
     const { setPrimary } = usePrimaryCard()
     const [isDeleting, setIsDeleting] = useState(false)
     const [showEdit, setShowEdit] = useState(false)
@@ -149,11 +150,17 @@ export function CreditCardItem({ card, isLocked = false }: { card: CreditCard, i
                                 <p className={cn("text-xs opacity-80 uppercase tracking-widest font-medium mt-0.5", isLight ? "text-slate-900" : "text-white")}>
                                     {card.brand || 'Cartão'}
                                 </p>
+                                {accountName && (
+                                    <div className={cn("flex items-center gap-1 mt-1 text-[10px] opacity-75 font-medium", isLight ? "text-slate-800" : "text-slate-100")}>
+                                        <Landmark className="w-3 h-3" />
+                                        <span className="truncate max-w-[140px]">{accountName}</span>
+                                    </div>
+                                )}
                             </div>
                             <div className="opacity-80">
-                                {card.brand === 'master' && <div className="flex -space-x-2"><div className="w-6 h-6 rounded-full bg-red-500/90 mix-blend-multiply"></div><div className="w-6 h-6 rounded-full bg-yellow-500/90 mix-blend-multiply"></div></div>}
+                                {card.brand === 'mastercard' && <div className="flex -space-x-2"><div className="w-6 h-6 rounded-full bg-red-500/90 mix-blend-multiply"></div><div className="w-6 h-6 rounded-full bg-yellow-500/90 mix-blend-multiply"></div></div>}
                                 {card.brand === 'visa' && <span className="font-bold italic text-xl tracking-tighter">VISA</span>}
-                                {!['master', 'visa'].includes(card.brand || '') && <CreditCardIcon className="w-6 h-6" />}
+                                {!['mastercard', 'visa'].includes(card.brand || '') && <CreditCardIcon className="w-6 h-6" />}
                             </div>
                         </div>
 

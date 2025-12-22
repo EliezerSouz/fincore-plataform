@@ -17,9 +17,9 @@ const BRAND_OPTIONS = [
     { value: 'amex', label: 'American Express' },
     { value: 'elo', label: 'Elo' },
     { value: 'hipercard', label: 'Hipercard' },
-    { value: 'master', label: 'Mastercard' },
+    { value: 'mastercard', label: 'Mastercard' },
     { value: 'visa', label: 'Visa' },
-    { value: 'other', label: 'Outro' },
+    { value: 'outros', label: 'Outro / Loja' },
 ]
 
 export function CreateCardDialog({ trigger, cardsCount = 0 }: { trigger?: React.ReactNode, cardsCount?: number }) {
@@ -129,7 +129,7 @@ export function CreateCardDialog({ trigger, cardsCount = 0 }: { trigger?: React.
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="brand" className="text-xs font-semibold uppercase text-slate-500">Bandeira</Label>
-                            <Select name="brand" required defaultValue="master">
+                            <Select name="brand" required defaultValue="mastercard">
                                 <SelectTrigger>
                                     <SelectValue placeholder="Selecione" />
                                 </SelectTrigger>

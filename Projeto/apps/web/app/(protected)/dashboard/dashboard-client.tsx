@@ -35,6 +35,8 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { InvoiceDetailsModal } from "@/features/cards/components/invoice-details-modal"
 import { HeartbeatCore } from "@/components/heartbeat-core"
 
+import { siteConfig } from "@/config/site"
+
 // Tooltip Personalizado Rico
 const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
@@ -358,8 +360,8 @@ export function DashboardClient({ userData }: DashboardClientProps) {
         <>
             <OnboardingModal />
             <PageLayout
-                title="FinCore Dashboard"
-                description="O coração da sua vida financeira."
+                title={`${siteConfig.name} Dashboard`}
+                description={siteConfig.slogan}
                 icon={Activity}
                 action={
                     !isMounted ? (

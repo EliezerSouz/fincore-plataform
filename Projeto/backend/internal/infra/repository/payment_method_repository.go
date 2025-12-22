@@ -5,6 +5,7 @@ import (
 	"financeiro-api/internal/entity"
 	"fmt"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -24,7 +25,7 @@ func (r *PaymentMethodRepository) FindAll(ctx context.Context, userID string, fi
 		       affects_balance, affects_credit_card, affects_invoice, is_internal,
 		       icon, sort_order, is_active, created_at
 		FROM payment_methods
-		WHERE (user_id = $1::uuid OR is_internal = true)
+		WHERE (user_id = $1::uuid OR user_id IS NULL)
 	`
 	args := []interface{}{userID}
 
@@ -39,27 +40,64 @@ func (r *PaymentMethodRepository) FindAll(ctx context.Context, userID string, fi
 	if err != nil {
 		return nil, fmt.Errorf("failed to query payment methods: %w", err)
 	}
-	defer rows.Close()
 
 	var methods []entity.PaymentMethod
-	for rows.Next() {
-		var pm entity.PaymentMethod
-		err := rows.Scan(
-			&pm.ID, &pm.UserID, &pm.Name, &pm.Type, &pm.AllowsIncome, &pm.AllowsExpense, &pm.AllowsTransfer,
-			&pm.AffectsBalance, &pm.AffectsCreditCard, &pm.AffectsInvoice, &pm.IsInternal,
-			&pm.Icon, &pm.SortOrder, &pm.IsActive, &pm.CreatedAt,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan payment method: %w", err)
-		}
 
-		if filter.TransactionType != "" {
-			if !pm.CanBeUsedFor(filter.TransactionType) {
-				continue
+	// Helper to scan rows
+	scanRows := func(rows pgx.Rows) error {
+		defer rows.Close()
+		for rows.Next() {
+			var pm entity.PaymentMethod
+			var userID *string // Handle nullable user_id
+
+			err := rows.Scan(
+				&pm.ID, &userID, &pm.Name, &pm.Type, &pm.AllowsIncome, &pm.AllowsExpense, &pm.AllowsTransfer,
+				&pm.AffectsBalance, &pm.AffectsCreditCard, &pm.AffectsInvoice, &pm.IsInternal,
+				&pm.Icon, &pm.SortOrder, &pm.IsActive, &pm.CreatedAt,
+			)
+			if err != nil {
+				return fmt.Errorf("failed to scan payment method: %w", err)
 			}
-		}
 
-		methods = append(methods, pm)
+			if userID != nil {
+				pm.UserID = *userID
+			}
+
+			if filter.TransactionType != "" {
+				if !pm.CanBeUsedFor(filter.TransactionType) {
+					continue
+				}
+			}
+
+			methods = append(methods, pm)
+		}
+		return nil
+	}
+
+	err = scanRows(rows)
+	if err != nil {
+		return nil, err
+	}
+
+	// Self-healing: If no methods found, try to create defaults and retry
+	// This ensures that even if the trigger failed or user is new, they get methods.
+	if len(methods) == 0 {
+		// Only attempt creation if we really found nothing.
+		// If filter was strict (e.g. only active), we might want to check if ANY exist first?
+		// But create_default_payment_methods is idempotent (checks IF NOT EXISTS), so it's safe to call.
+
+		// We execute the function call
+		_, err := r.db.Exec(ctx, "SELECT create_default_payment_methods($1)", userID)
+		if err == nil {
+			// Retry the query
+			rows, err := r.db.Query(ctx, query, args...)
+			if err == nil {
+				methods = []entity.PaymentMethod{} // Clear previous empty
+				_ = scanRows(rows)
+			}
+		} else {
+			fmt.Printf("Warning: Failed to auto-create payment methods for user %s: %v\n", userID, err)
+		}
 	}
 
 	return methods, nil

@@ -7,6 +7,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { ShieldCheck } from "lucide-react"
 import Link from 'next/link'
 import { Logo } from "@/components/ui/logo"
+import { EcgBackground } from "@/components/ui/ecg-background"
+import { siteConfig } from "@/config/site"
 
 export default async function LoginPage(props: {
     searchParams: Promise<{ [key: string]: string | string[] | undefined }>
@@ -17,12 +19,13 @@ export default async function LoginPage(props: {
     return (
         <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 p-4">
             <Card className="w-full max-w-md border-slate-200 dark:border-slate-800 shadow-2xl bg-white dark:bg-slate-900">
-                <CardHeader className="space-y-1 flex flex-col items-center text-center pb-2">
-                    <CardTitle className="flex justify-center mb-2">
+                <CardHeader className="space-y-1 flex flex-col items-center text-center pb-2 relative overflow-hidden">
+                    <EcgBackground opacity={0.25} className="scale-[1.2] -mt-2" />
+                    <CardTitle className="flex justify-center mb-2 relative z-10">
                         <Logo size="xl" />
                     </CardTitle>
-                    <CardDescription className="text-slate-500 dark:text-slate-400">
-                        O coração da sua vida financeira.
+                    <CardDescription className="text-slate-500 dark:text-slate-400 relative z-10">
+                        {siteConfig.slogan}
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="pt-6">

@@ -16,9 +16,17 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+import { siteConfig } from "@/config/site"
+
 export const metadata: Metadata = {
-  title: "FINCORE",
-  description: "O coração da sua vida financeira.",
+  title: {
+    default: siteConfig.name,
+    template: `%s | ${siteConfig.name}`,
+  },
+  description: siteConfig.slogan,
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({

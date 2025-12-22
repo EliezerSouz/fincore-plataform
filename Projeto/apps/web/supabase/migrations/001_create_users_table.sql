@@ -30,7 +30,7 @@ CREATE TABLE public.users (
   email TEXT NOT NULL,
   
   -- Assinatura e pagamento
-  subscription_plan subscription_plan NOT NULL DEFAULT 'trial',
+  subscription_plan subscription_plan NOT NULL DEFAULT 'free',
   subscription_status subscription_status NOT NULL DEFAULT 'trial',
   subscription_started_at TIMESTAMPTZ,
   subscription_ends_at TIMESTAMPTZ,

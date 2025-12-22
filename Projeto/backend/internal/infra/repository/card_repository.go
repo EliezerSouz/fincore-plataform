@@ -4,7 +4,6 @@ import (
 	"context"
 	"financeiro-api/internal/entity"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -105,7 +104,7 @@ func (r *CardRepository) Create(ctx context.Context, userID string, input entity
 		RETURNING id, user_id, account_id, name, brand, last_4_digits, limit_amount, closing_day, due_day, color, created_at, updated_at
 	`
 	var card entity.CreditCard
-	err := r.db.QueryRow(ctx, query, userID, input.AccountID, input.Name, strings.ToUpper(input.Brand), input.Last4Digits,
+	err := r.db.QueryRow(ctx, query, userID, input.AccountID, input.Name, input.Brand, input.Last4Digits,
 		input.LimitAmount, input.ClosingDay, input.DueDay, input.Color).Scan(
 		&card.ID, &card.UserID, &card.AccountID, &card.Name, &card.Brand, &card.Last4Digits,
 		&card.LimitAmount, &card.ClosingDay, &card.DueDay, &card.Color,
@@ -138,7 +137,7 @@ func (r *CardRepository) Update(ctx context.Context, id, userID string, input en
 	if input.Brand != nil {
 		argCount++
 		query += fmt.Sprintf(", brand = $%d", argCount)
-		args = append(args, strings.ToUpper(*input.Brand))
+		args = append(args, *input.Brand)
 	}
 	if input.Last4Digits != nil {
 		argCount++

@@ -137,15 +137,15 @@ export function CreateAccountDialog() {
                                     </div>
                                     <div className="space-y-2">
                                         <Label htmlFor="card-brand">Bandeira</Label>
-                                        <Select name="card_brand" defaultValue="master">
+                                        <Select name="card_brand" defaultValue="mastercard">
                                             <SelectTrigger id="card-brand" className="bg-white dark:bg-slate-950"><SelectValue /></SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="master">Mastercard</SelectItem>
+                                                <SelectItem value="mastercard">Mastercard</SelectItem>
                                                 <SelectItem value="visa">Visa</SelectItem>
                                                 <SelectItem value="elo">Elo</SelectItem>
                                                 <SelectItem value="amex">American Express</SelectItem>
                                                 <SelectItem value="hipercard">Hipercard</SelectItem>
-                                                <SelectItem value="other">Outra</SelectItem>
+                                                <SelectItem value="outros">Outra / Loja</SelectItem>
                                             </SelectContent>
                                         </Select>
                                     </div>

@@ -1,9 +1,9 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu"
-import { signout } from "@/app/actions"
 
 interface UserDropdownProps {
     name: string
@@ -12,6 +12,7 @@ interface UserDropdownProps {
 }
 
 export function UserDropdown({ name, initials, avatarUrl }: UserDropdownProps) {
+    const router = useRouter()
     const [isMounted, setIsMounted] = useState(false)
 
     useEffect(() => {
@@ -42,12 +43,11 @@ export function UserDropdown({ name, initials, avatarUrl }: UserDropdownProps) {
             <DropdownMenuContent align="end" className="w-56 mt-2">
                 <DropdownMenuItem>Minha Conta</DropdownMenuItem>
                 <DropdownMenuItem>Configurações</DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                    <form action={signout} className="w-full">
-                        <button type="submit" className="flex w-full items-center text-red-500 focus:text-red-500">
-                            Sair
-                        </button>
-                    </form>
+                <DropdownMenuItem 
+                    className="text-red-500 focus:text-red-500 cursor-pointer"
+                    onClick={() => router.push('/logout')}
+                >
+                    Sair
                 </DropdownMenuItem>
             </DropdownMenuContent>
         </DropdownMenu>

@@ -10,14 +10,16 @@ import { CreditCard as CreditCardType, updateCreditCard } from "./actions"
 import { usePermission } from "@/hooks/use-permission"
 import { UpsellModal } from "@/components/ui/upsell-modal"
 import { COLOR_PRESETS } from "@/constants/ui-presets"
+import { toast } from "sonner"
+import { CurrencyInput } from "@/components/ui/currency-input"
 
 const BRAND_OPTIONS = [
-    { value: 'master', label: 'Mastercard' },
+    { value: 'mastercard', label: 'Mastercard' },
     { value: 'visa', label: 'Visa' },
     { value: 'elo', label: 'Elo' },
     { value: 'amex', label: 'American Express' },
     { value: 'hipercard', label: 'Hipercard' },
-    { value: 'other', label: 'Outro' },
+    { value: 'outros', label: 'Outro' },
 ]
 
 interface EditCardDialogProps {
@@ -29,6 +31,7 @@ interface EditCardDialogProps {
 export function EditCardDialog({ card, open, onOpenChange }: EditCardDialogProps) {
     const [loading, setLoading] = useState(false)
     const [selectedColor, setSelectedColor] = useState(card.color)
+    const [limit, setLimit] = useState(card.limit_amount)
     const { can } = usePermission()
 
     if (!can('edit_card')) {
@@ -139,6 +142,16 @@ export function EditCardDialog({ card, open, onOpenChange }: EditCardDialogProps
                             required
                             maxLength={4}
                             className="font-mono text-center h-11"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="edit-limit" className="text-xs font-semibold uppercase text-slate-500">Limite do Cartão</Label>
+                        <CurrencyInput
+                            id="edit-limit"
+                            name="limit_amount"
+                            value={limit}
+                            onChange={setLimit}
+                            required
                         />
                     </div>
                 </div>

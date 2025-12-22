@@ -14,12 +14,14 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
 import { CATEGORY_ICONS } from "@/lib/icons"
-import { Tag, Check, ArrowDownCircle, ArrowUpCircle, Loader2, Plus, Trash2, AlertTriangle } from "lucide-react"
+import { Tag, Check, ArrowDownCircle, ArrowUpCircle, Loader2, Plus, Trash2, AlertTriangle, Crown } from "lucide-react"
 import { COLOR_PRESETS } from "@/constants/ui-presets"
 import { useRouter } from "next/navigation"
 import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
 import { toast } from "sonner"
+import { usePermission } from "@/hooks/use-permission"
+import { UpsellModal } from "@/components/ui/upsell-modal"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,6 +36,8 @@ import {
 
 export function EditCategorySheet({ category, open, onOpenChange }: { category: any, open: boolean, onOpenChange: (open: boolean) => void }) {
     const router = useRouter()
+    const { can, isFree } = usePermission()
+    const [showUpsell, setShowUpsell] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
     const [name, setName] = useState(category.name)
     const [type, setType] = useState<'receita' | 'despesa'>(category.type)
@@ -49,19 +53,21 @@ export function EditCategorySheet({ category, open, onOpenChange }: { category: 
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
     const [isDeletingCategory, setIsDeletingCategory] = useState(false)
 
-    // Check if category is system/locked
-    // We check against common variations or specific names we want to lock
-    const isLocked = category.is_system || 
-                     category.name.trim().toLowerCase() === 'pagamento de fatura' || 
-                     category.name.trim().toLowerCase() === 'pagamento de faturas' ||
-                     category.name.trim().toLowerCase() === 'faturas';
+    // Check permissions
+    const isSystemLocked = category.is_system;
+    const canEdit = !isSystemLocked && can('edit_categories');
+    const isReadOnly = !canEdit;
 
     async function handleSubmit(e?: React.FormEvent) {
         if (e) e.preventDefault()
         if (!name) return
 
-        if (isLocked) {
-            toast.error("Esta categoria não pode ser editada.")
+        if (isReadOnly) {
+            if (isFree && !isSystemLocked) {
+                setShowUpsell(true)
+            } else {
+                toast.error("Esta categoria não pode ser editada.")
+            }
             return
         }
 
@@ -169,24 +175,47 @@ export function EditCategorySheet({ category, open, onOpenChange }: { category: 
                 </div>
             }
             description="Gerencie detalhes e subcategorias."
-            primaryButton={{
-                label: "Salvar Alterações",
-                onClick: () => handleSubmit(),
-                isLoading: isLoading
-            }}
+            primaryButton={
+                isReadOnly 
+                    ? (isFree && !isSystemLocked ? {
+                        label: "Fazer Upgrade",
+                        onClick: () => setShowUpsell(true)
+                      } : undefined)
+                    : {
+                        label: "Salvar Alterações",
+                        onClick: () => handleSubmit(),
+                        isLoading: isLoading
+                    }
+            }
             secondaryButton={{
-                label: "Cancelar",
+                label: isReadOnly ? "Fechar" : "Cancelar",
                 onClick: () => onOpenChange(false)
             }}
         >
             <div className="space-y-6 max-h-[70vh] overflow-y-auto px-1">
                 <form id="edit-category-form" onSubmit={handleSubmit} className="space-y-6">
-                    {isLocked && (
-                        <div className="bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 p-3 rounded-lg text-sm flex items-start gap-2 border border-amber-200 dark:border-amber-900/50">
-                            <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
-                            <p>
-                                <strong>Categoria de Sistema:</strong> Esta categoria é essencial para o funcionamento do sistema e não pode ser editada ou ter subcategorias adicionadas.
-                            </p>
+                    {isReadOnly && (
+                        <div className={cn(
+                            "p-3 rounded-lg text-sm flex items-start gap-2 border",
+                            isSystemLocked 
+                                ? "bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-900/50"
+                                : "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-900/50"
+                        )}>
+                            {isSystemLocked ? (
+                                <>
+                                    <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+                                    <p>
+                                        <strong>Categoria de Sistema:</strong> Esta categoria é essencial para o funcionamento do sistema e não pode ser editada ou ter subcategorias adicionadas.
+                                    </p>
+                                </>
+                            ) : (
+                                <>
+                                    <Crown className="w-4 h-4 mt-0.5 shrink-0" />
+                                    <p>
+                                        <strong>Modo de Visualização:</strong> Você está visualizando esta categoria. Faça upgrade para o plano Premium para editar e gerenciar categorias.
+                                    </p>
+                                </>
+                            )}
                         </div>
                     )}
 
@@ -222,7 +251,7 @@ export function EditCategorySheet({ category, open, onOpenChange }: { category: 
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             className="h-11 bg-slate-50 dark:bg-slate-900"
-                            disabled={isLocked}
+                            disabled={isReadOnly}
                         />
                     </div>
 
@@ -233,14 +262,14 @@ export function EditCategorySheet({ category, open, onOpenChange }: { category: 
                                 <button
                                     key={preset.hex}
                                     type="button"
-                                    disabled={isLocked}
+                                    disabled={isReadOnly}
                                     onClick={() => setColor(preset.hex)}
                                     className={cn(
                                         "w-8 h-8 rounded-full border-2 transition-all",
                                         color === preset.hex 
                                             ? "border-slate-900 dark:border-white scale-110 shadow-sm" 
                                             : "border-transparent hover:scale-105",
-                                        isLocked && color !== preset.hex && "opacity-30 cursor-not-allowed"
+                                        isReadOnly && color !== preset.hex && "opacity-30 cursor-not-allowed"
                                     )}
                                     style={{ backgroundColor: preset.hex }}
                                     title={preset.label}
@@ -259,13 +288,13 @@ export function EditCategorySheet({ category, open, onOpenChange }: { category: 
                                     <button
                                         key={key}
                                         type="button"
-                                        disabled={isLocked}
+                                        disabled={isReadOnly}
                                         onClick={() => setIcon(key)}
                                         className={cn(
                                             "flex flex-col items-center justify-center gap-1 p-2 rounded-lg transition-all aspect-square",
                                             isSelected 
                                                 ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm scale-95" 
-                                                : isLocked ? "text-slate-300 cursor-not-allowed" : "text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
+                                                : isReadOnly ? "text-slate-300 cursor-not-allowed" : "text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
                                         )}
                                         title={item.label}
                                     >
@@ -287,7 +316,7 @@ export function EditCategorySheet({ category, open, onOpenChange }: { category: 
                         </h3>
                     </div>
 
-                    {!isLocked && (
+                    {!isReadOnly && (
                         <div className="flex gap-2">
                             <Input 
                                 placeholder="Nova subcategoria..." 
@@ -310,7 +339,7 @@ export function EditCategorySheet({ category, open, onOpenChange }: { category: 
                     <div className="space-y-1">
                         {subcategories.length === 0 && (
                             <div className="text-center py-6 text-slate-400 text-xs border border-dashed border-slate-200 dark:border-slate-800 rounded-lg">
-                                {isLocked ? "Esta categoria não permite subcategorias." : "Nenhuma subcategoria cadastrada."}
+                                {isReadOnly ? "Esta categoria não permite subcategorias." : "Nenhuma subcategoria cadastrada."}
                             </div>
                         )}
                         {subcategories.map((sub) => (
@@ -320,7 +349,7 @@ export function EditCategorySheet({ category, open, onOpenChange }: { category: 
                                         checked={sub.is_active !== false}
                                         onCheckedChange={() => handleToggleSub(sub)}
                                         className="scale-75 data-[state=checked]:bg-emerald-500"
-                                        disabled={isLocked}
+                                        disabled={isReadOnly}
                                     />
                                     <span className={cn(
                                         "text-sm font-medium transition-colors",
@@ -329,7 +358,7 @@ export function EditCategorySheet({ category, open, onOpenChange }: { category: 
                                         {sub.name}
                                     </span>
                                 </div>
-                                {!isLocked && (
+                                {!isReadOnly && (
                                     <Button
                                         variant="ghost"
                                         size="icon"
@@ -344,7 +373,7 @@ export function EditCategorySheet({ category, open, onOpenChange }: { category: 
                     </div>
                 </div>
 
-                {!isLocked && (
+                {!isReadOnly && (
                     <>
                         <Separator />
                         <div className="p-4 rounded-lg border border-red-100 dark:border-red-900/30 bg-red-50 dark:bg-red-900/10">
@@ -381,6 +410,12 @@ export function EditCategorySheet({ category, open, onOpenChange }: { category: 
                     </>
                 )}
             </div>
+            <UpsellModal 
+                open={showUpsell} 
+                onOpenChange={setShowUpsell}
+                title="Funcionalidade Premium"
+                description="No plano gratuito você não pode editar categorias. Faça o upgrade para personalizar seu financeiro."
+            />
         </BaseModal>
     )
 }

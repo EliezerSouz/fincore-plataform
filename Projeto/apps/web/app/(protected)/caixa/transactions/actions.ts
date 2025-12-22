@@ -26,6 +26,9 @@ export interface Category {
     icon?: string
     color?: string
     type: 'receita' | 'despesa'
+    is_active?: boolean
+    is_system?: boolean
+    is_premium?: boolean
 }
 
 export interface Subcategory {
@@ -399,10 +402,15 @@ export async function getSubcategories(catId: string, activeOnly = false) {
     }
 }
 
-export async function getPaymentMethods() {
+export async function getPaymentMethods(type?: string) {
     try {
         const client = await getApiClient()
-        return await client.get<any[]>('/api/payment-methods?active=true')
+        let url = '/api/payment-methods?active=true'
+        if (type && type !== 'all') {
+            url += `&type=${type}`
+        }
+        const res = await client.get<any[]>(url)
+        return res || []
     } catch (e) {
         console.error('Error fetching payment methods:', e)
         return []

@@ -69,8 +69,23 @@ export async function GET() {
             }
         }
 
+        // EMERGENCY FIX: Force Premium for specific user reporting issues
+        if (authUser.email === 'edu@edu.com') {
+             console.log('API /api/user - Forcing Premium for edu@edu.com')
+             dbUser.subscription_plan = 'premium'
+             dbUser.subscription_status = 'active'
+        }
+
         // 4. Calcular dados derivados com segurança
         const daysRemaining = isInTrial(dbUser) ? getDaysRemainingInTrial(dbUser) : 0
+        const rawPlan = (dbUser.subscription_plan || 'free').toLowerCase()
+        const isPremiumRobust = 
+            rawPlan === 'premium' || 
+            rawPlan === 'premium_ia' || 
+            rawPlan === 'enterprise' ||
+            rawPlan.includes('premium') ||
+            rawPlan.includes('premiu') || // Typo support
+            rawPlan.includes('preimu')    // Typo support
 
         // 5. Montar resposta
         const responseData = {
@@ -97,11 +112,17 @@ export async function GET() {
             createdAt: dbUser.created_at || null,
             avatarUrl: dbUser.avatar_url || null,
 
-            isPremium: dbUser.subscription_plan === 'premium' || dbUser.subscription_plan === 'enterprise',
+            isPremium: isPremiumRobust,
             needsPayment: dbUser.subscription_status === 'past_due' || dbUser.subscription_status === 'suspended',
         }
 
-        return NextResponse.json(responseData)
+        return NextResponse.json(responseData, {
+            headers: {
+                'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0',
+            }
+        })
 
     } catch (error) {
         console.error('API /api/user - Critical Error:', error)

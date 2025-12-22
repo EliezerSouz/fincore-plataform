@@ -3,15 +3,25 @@
 import { useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { BaseModal } from "@/components/ui/base-modal"
-import { PartyPopper, CheckCircle2, Shield, Star, ArrowRight } from "lucide-react"
+import { PartyPopper, CheckCircle2, Shield, Star, ArrowRight, Gift, CreditCard } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useUser } from "@/providers/user-provider"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { validatePromoCode } from "@/app/actions/promo"
+import { toast } from "sonner"
 
 export function OnboardingModal() {
     const [open, setOpen] = useState(false)
+    const [step, setStep] = useState<'welcome' | 'promo'>('welcome')
+    const [promoCode, setPromoCode] = useState('')
+    const [isLoading, setIsLoading] = useState(false)
+    const [error, setError] = useState<string | null>(null)
+    
     const searchParams = useSearchParams()
     const router = useRouter()
-    const { user } = useUser()
+    const { user, refreshUser } = useUser()
 
     const promoApplied = searchParams.get("promo_applied") === "true"
     const isPremiumIA = user?.plan === 'premium_ia' || user?.plan === 'enterprise'
@@ -30,15 +40,151 @@ export function OnboardingModal() {
         router.replace(`/dashboard?${params.toString()}`)
     }
 
-    const title = promoApplied
-        ? (isPremiumIA ? "FINCORE IA Liberado!" : "FINCORE Premium Ativado!")
-        : "Seja bem-vindo ao FINCORE."
+    const handlePromoSubmit = async () => {
+        if (!promoCode.trim()) {
+            setError("Digite um código válido")
+            return
+        }
+        
+        setIsLoading(true)
+        setError(null)
+        
+        try {
+            const result = await validatePromoCode(promoCode)
+            
+            if (result.error) {
+                setError(result.error)
+                setIsLoading(false)
+                return
+            }
+            
+            if (result.success) {
+                toast.success(`Código aplicado! Plano ${result.plan} ativado por ${result.days} dias.`)
+                
+                // 1. Atualizar contexto do usuário (Client-side)
+                await refreshUser()
+                
+                // 2. Atualizar dados da página (Server-side)
+                router.refresh()
+                
+                // 3. Fechar modal
+                handleClose()
+            }
+        } catch (e) {
+            setError("Erro ao validar código. Tente novamente.")
+            setIsLoading(false)
+        }
+    }
 
-    const description = promoApplied
-        ? (isPremiumIA
-            ? "Você desbloqueou o poder do FINCORE IA e todos os recursos Premium para testar."
-            : "Você liberou acesso exclusivo aos recursos Premium para testar.")
-        : "Aqui começa o controle consciente da sua vida financeira."
+    // Conteúdo da etapa 'welcome'
+    const renderWelcomeContent = () => (
+        <div className="space-y-6">
+            <div className="space-y-4">
+                <div className="flex items-start gap-3">
+                    <div className="mt-1 bg-green-100 dark:bg-green-900/30 p-1.5 rounded-full">
+                        <CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-400" />
+                    </div>
+                    <div>
+                        <h4 className="font-semibold text-sm text-foreground">Controle Total</h4>
+                        <p className="text-xs text-muted-foreground">Gerencie contas, cartões e despesas em um só lugar.</p>
+                    </div>
+                </div>
+                
+                <div className="flex items-start gap-3">
+                    <div className="mt-1 bg-blue-100 dark:bg-blue-900/30 p-1.5 rounded-full">
+                        <Shield className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <div>
+                        <h4 className="font-semibold text-sm text-foreground">Segurança Garantida</h4>
+                        <p className="text-xs text-muted-foreground">Seus dados são criptografados e protegidos.</p>
+                    </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                    <div className="mt-1 bg-amber-100 dark:bg-amber-900/30 p-1.5 rounded-full">
+                        <Star className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                    </div>
+                    <div>
+                        <h4 className="font-semibold text-sm text-foreground">Recursos Premium</h4>
+                        <p className="text-xs text-muted-foreground">Inteligência Artificial, relatórios avançados e muito mais.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div className="pt-4 flex flex-col gap-3">
+                {/* Opção 1: Continuar Free */}
+                <Button 
+                    variant="outline" 
+                    onClick={handleClose}
+                    className="w-full justify-between h-auto py-3 px-4 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800"
+                >
+                    <span className="flex flex-col items-start">
+                        <span className="font-semibold text-sm">Continuar no Plano Gratuito</span>
+                        <span className="text-xs text-muted-foreground font-normal">Recursos essenciais para começar</span>
+                    </span>
+                    <ArrowRight className="w-4 h-4 text-slate-400" />
+                </Button>
+
+                {/* Opção 2: Conhecer Premium */}
+                <Button 
+                    onClick={() => window.open('/premium', '_blank')}
+                    className="w-full justify-between h-auto py-3 px-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg shadow-blue-500/20 border-0"
+                >
+                    <span className="flex flex-col items-start">
+                        <span className="font-semibold text-sm flex items-center gap-2">
+                            Conhecer Planos Premium
+                            <Star className="w-3 h-3 fill-current text-yellow-300" />
+                        </span>
+                        <span className="text-xs text-blue-100 font-normal">Desbloqueie todo o potencial do FinCore</span>
+                    </span>
+                    <ArrowRight className="w-4 h-4 text-blue-200" />
+                </Button>
+
+                {/* Opção 3: Código Promocional */}
+                <Button 
+                    variant="ghost" 
+                    onClick={() => setStep('promo')}
+                    className="w-full text-xs text-muted-foreground hover:text-foreground mt-1"
+                >
+                    <Gift className="w-3 h-3 mr-2" />
+                    Tenho um código promocional
+                </Button>
+            </div>
+        </div>
+    )
+
+    // Conteúdo da etapa 'promo'
+    const renderPromoContent = () => (
+        <div className="space-y-6 pt-2">
+            <div className="space-y-3">
+                <Label htmlFor="promo-code">Código de Acesso</Label>
+                <Input
+                    id="promo-code"
+                    placeholder="Ex: PROMO2025"
+                    value={promoCode}
+                    onChange={(e) => {
+                        setPromoCode(e.target.value.toUpperCase())
+                        setError(null)
+                    }}
+                    className={cn(
+                        "uppercase text-center text-lg tracking-widest font-mono",
+                        error && "border-red-500 focus-visible:ring-red-500"
+                    )}
+                />
+                {error && (
+                    <p className="text-sm text-red-500 font-medium flex items-center gap-1 justify-center animate-in fade-in slide-in-from-top-1">
+                        {error}
+                    </p>
+                )}
+            </div>
+            
+            <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-lg text-xs text-muted-foreground text-center border border-slate-100 dark:border-slate-800">
+                <p>Ao ativar um código, seu plano será atualizado imediatamente.</p>
+            </div>
+        </div>
+    )
+
+    const isWelcome = step === 'welcome'
 
     return (
         <BaseModal
@@ -46,91 +192,40 @@ export function OnboardingModal() {
             onOpenChange={handleClose}
             title={
                 <div className="flex items-center gap-2">
-                    {promoApplied ? <Star className="w-5 h-5 text-yellow-500 fill-current" /> : <PartyPopper className="w-5 h-5 text-blue-500" />}
-                    {title}
+                    {isWelcome ? (
+                        <>
+                            <PartyPopper className="w-5 h-5 text-blue-500" />
+                            <span>Bem-vindo ao FinCore</span>
+                        </>
+                    ) : (
+                        <>
+                            <Gift className="w-5 h-5 text-purple-500" />
+                            <span>Resgatar Código</span>
+                        </>
+                    )}
                 </div>
             }
-            description={description}
-            primaryButton={{
-                label: "Começar a usar",
-                onClick: handleClose,
-                className: "bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
-            }}
-            secondaryButton={!promoApplied ? {
-                label: "Conhecer Premium",
-                onClick: () => window.open('/premium', '_blank'),
-                variant: "ghost"
+            description={isWelcome 
+                ? "Sua jornada para a liberdade financeira começa agora. Escolha como deseja prosseguir."
+                : "Insira seu código promocional para liberar acesso exclusivo."
+            }
+            // Botões dinâmicos baseados na etapa
+            primaryButton={!isWelcome ? {
+                label: "Validar e Ativar",
+                onClick: handlePromoSubmit,
+                isLoading: isLoading,
+                className: "w-full bg-purple-600 hover:bg-purple-700"
+            } : undefined}
+            secondaryButton={!isWelcome ? {
+                label: "Voltar",
+                onClick: () => {
+                    setStep('welcome')
+                    setError(null)
+                },
+                className: "w-full"
             } : undefined}
         >
-            <div className="space-y-6">
-                <div className="space-y-4">
-                    <h3 className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                        <div className="relative">
-                            {promoApplied
-                                ? <Star className="w-5 h-5 text-yellow-500 fill-current" />
-                                : (
-                                    <>
-                                        <Shield className="w-5 h-5 text-blue-500" />
-                                        <Star className="w-2.5 h-2.5 text-blue-500 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[45%] fill-current" />
-                                    </>
-                                )
-                            }
-                        </div>
-                        {promoApplied ? "Seu plano temporário está ativo" : "Você está no Plano FINCORE Free"}
-                    </h3>
-
-                    <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-4 border border-slate-100 dark:border-slate-800 space-y-3">
-                        {promoApplied ? (
-                            <>
-                                <div className="flex gap-3">
-                                    <CheckCircle2 className="w-5 h-5 text-indigo-500 shrink-0 mt-0.5" />
-                                    <div>
-                                        <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Inteligência Artificial Financeira</p>
-                                        <p className="text-xs text-slate-500">Insights automáticos sobre seus gastos e receitas.</p>
-                                    </div>
-                                </div>
-                                <div className="flex gap-3">
-                                    <CheckCircle2 className="w-5 h-5 text-indigo-500 shrink-0 mt-0.5" />
-                                    <div>
-                                        <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Gestão Inteligente</p>
-                                        <p className="text-xs text-slate-500">Controle total de categorias e gestão de recorrências.</p>
-                                    </div>
-                                </div>
-                            </>
-                        ) : (
-                            <>
-                                <div className="flex gap-3">
-                                    <CheckCircle2 className="w-5 h-5 text-slate-400 shrink-0 mt-0.5" />
-                                    <div>
-                                        <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Lançamentos Ilimitados</p>
-                                        <p className="text-xs text-slate-500">Registre todas as suas receitas e despesas livremente.</p>
-                                    </div>
-                                </div>
-                                <div className="flex gap-3">
-                                    <CheckCircle2 className="w-5 h-5 text-slate-400 shrink-0 mt-0.5" />
-                                    <div>
-                                        <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Uso Diário Completo</p>
-                                        <p className="text-xs text-slate-500">Acesse dashboards, categorias e controle de contas.</p>
-                                    </div>
-                                </div>
-                            </>
-                        )}
-                    </div>
-
-                    <p className="text-xs text-slate-500 dark:text-slate-400 italic text-center px-4">
-                        {promoApplied
-                            ? "Aproveite para explorar todo o potencial da inteligência artificial nas suas finanças."
-                            : "\"O plano FINCORE Free é perfeito para o dia a dia. Recursos de IA são exclusivos do FINCORE Premium e estarão lá quando você precisar.\""
-                        }
-                    </p>
-                </div>
-
-                {!promoApplied && (
-                    <p className="text-center text-[11px] text-slate-400 font-medium">
-                        Você pode continuar no Free pelo tempo que quiser.
-                    </p>
-                )}
-            </div>
+            {isWelcome ? renderWelcomeContent() : renderPromoContent()}
         </BaseModal>
     )
 }

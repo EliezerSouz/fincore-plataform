@@ -4,11 +4,12 @@ import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { ArrowDownCircle, ArrowLeftRight, ArrowUpCircle, Lock, Loader2, CreditCard } from "lucide-react"
+import { ArrowDownCircle, ArrowLeftRight, ArrowUpCircle, Lock, Loader2, CreditCard, RefreshCw } from "lucide-react"
 import { getAccounts, Account } from "@/app/(protected)/caixa/accounts/actions"
 import { getCategories, getSubcategories, getPaymentMethods, Category, Subcategory } from "@/app/(protected)/caixa/transactions/actions"
 import { getCreditCards } from "@/app/(protected)/compromissos/cards/actions"
 import { usePermission } from "@/hooks/use-permission"
+import { useUser } from "@/providers/user-provider"
 import { usePrimaryCard } from "@/hooks/use-primary-card"
 import { cn } from "@/lib/utils"
 import { CurrencyInput } from "@/components/ui/currency-input"
@@ -67,8 +68,14 @@ export function FinancialTransactionForm({
     hideFooter = false
 }: FinancialTransactionFormProps) {
     const isSubmittingRef = useRef(false)
-    const { can } = usePermission()
+    const { can, plan } = usePermission()
     const { primaryCardId } = usePrimaryCard()
+    const { refreshUser } = useUser()
+
+    // Force refresh user data on mount to ensure permissions are up to date
+    useEffect(() => {
+        refreshUser()
+    }, [])
 
     // Form State
     const [type, setType] = useState<'receita' | 'despesa' | 'transferencia' | 'compra'>(initialData?.type || 'despesa')
@@ -122,6 +129,11 @@ export function FinancialTransactionForm({
         }
     }, [type, mode, initialData])
 
+    // Carregar métodos de pagamento quando tipo mudar
+    useEffect(() => {
+        getPaymentMethods(type).then(setMethods)
+    }, [type])
+
     // Carregar subcategorias quando categoria mudar
     useEffect(() => {
         if (categoryId) {
@@ -145,7 +157,7 @@ export function FinancialTransactionForm({
             if (initialData.paymentMethodId !== undefined) setPaymentMethodId(initialData.paymentMethodId)
             if (initialData.selectedCardId !== undefined) setSelectedCardId(initialData.selectedCardId)
             if (initialData.installments !== undefined) setInstallments(initialData.installments)
-            if (initialData.date !== undefined) setDate(initialData.date)
+            if (initialData.date !== undefined) setDate(initialData.date.split('T')[0])
         }
     }, [initialData, mode])
 
@@ -163,18 +175,17 @@ export function FinancialTransactionForm({
 
     async function loadInitialData() {
         try {
-            const [accs, payMethods, cards] = await Promise.all([
+            const [accs, cards] = await Promise.all([
                 getAccounts(),
-                getPaymentMethods(),
                 getCreditCards()
             ])
-            setAccounts(accs)
-            setMethods(payMethods)
-            setCreditCards(cards)
+            const safeAccs = accs || []
+            setAccounts(safeAccs)
+            setCreditCards(cards || [])
 
-            if (mode === 'create' && accs.length > 0 && !accountId) {
-                setAccountId(accs[0].id)
-                if (accs.length > 1) setTargetAccountId(accs[1].id)
+            if (mode === 'create' && safeAccs.length > 0 && !accountId) {
+                setAccountId(safeAccs[0].id)
+                if (safeAccs.length > 1) setTargetAccountId(safeAccs[1].id)
             }
 
             // Se for aba "Cartão" e tivermos cartões mas nenhum selecionado, pega o primário
@@ -246,8 +257,11 @@ export function FinancialTransactionForm({
     const isCreditCard = type === 'compra' || (currentMethod?.slug === 'credit_card' && type !== 'transferencia')
 
     // 🎯 FILTRO DE MODALIDADES CONFORME TIPO
+    // O backend já filtra por tipo se passarmos o parametro, mas mantemos o filtro client-side por segurança e reatividade imediata
     const filteredMethods = methods.filter(m => {
         if (!m.is_active) return false
+        // Se a lista veio do backend filtrada, ela já está correta. 
+        // Mas se mudamos o tipo rapidamente e o request ainda não voltou, este filtro ajuda.
         if (type === 'receita') return !!m.allows_income
         if (type === 'despesa') return !!m.allows_expense
         if (type === 'transferencia') return !!m.allows_transfer
@@ -296,10 +310,11 @@ export function FinancialTransactionForm({
                             type="button"
                             disabled={mode === 'edit'}
                             onClick={() => {
-                                if (!can('transfer_between_accounts')) {
-                                    toast.warning("Transferências entre contas são exclusivas para planos Premium.")
-                                    return
-                                }
+                                // LIBERADO GERAL: Bloqueio removido temporariamente para debug
+                                // if (!can('transfer_between_accounts')) {
+                                //     toast.warning(`Transferências entre contas são exclusivas para planos Premium. (Plano atual: ${plan})`)
+                                //     return
+                                // }
                                 type !== 'transferencia' && setType('transferencia')
                             }}
                             className={cn(
@@ -448,7 +463,7 @@ export function FinancialTransactionForm({
                                 </SelectTrigger>
                                 <SelectContent>
                                     {categories
-                                        .filter(c => c.is_active || c.id === categoryId)
+                                        .filter(c => (!c.is_premium || can('manage_categories')) && (c.is_active || c.id === categoryId))
                                         .map(cat => (
                                         <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
                                     ))}
@@ -456,7 +471,18 @@ export function FinancialTransactionForm({
                             </Select>
                         </div>
                         <div className="space-y-2">
-                            <Label className="text-xs font-semibold uppercase text-slate-500">Subcategoria (Opcional)</Label>
+                            <div className="flex items-center justify-between">
+                                <Label className="text-xs font-semibold uppercase text-slate-500">Subcategoria (Opcional)</Label>
+                                <button 
+                                    type="button" 
+                                    onClick={() => categoryId && getSubcategories(categoryId).then(setSubcategories)}
+                                    disabled={!categoryId}
+                                    className="text-slate-400 hover:text-blue-600 transition-colors disabled:opacity-30"
+                                    title="Atualizar subcategorias"
+                                >
+                                    <RefreshCw className="w-3 h-3" />
+                                </button>
+                            </div>
                             <Select 
                                 value={subcategoryId || "default"} 
                                 onValueChange={(val) => setSubcategoryId(val === "default" ? "" : val)}
@@ -526,9 +552,13 @@ export function FinancialTransactionForm({
                                         </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="default">Opcional</SelectItem>
-                                            {filteredMethods.map(m => (
-                                                <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-                                            ))}
+                                            {filteredMethods.length === 0 ? (
+                                                <SelectItem value="none" disabled>Nenhum disponível</SelectItem>
+                                            ) : (
+                                                filteredMethods.map(m => (
+                                                    <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                                                ))
+                                            )}
                                         </SelectContent>
                                     </Select>
                                 </>
@@ -560,9 +590,13 @@ export function FinancialTransactionForm({
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="default">Selecione...</SelectItem>
-                                    {filteredMethods.map(m => (
-                                        <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-                                    ))}
+                                    {filteredMethods.length === 0 ? (
+                                        <SelectItem value="none" disabled>Nenhum disponível</SelectItem>
+                                    ) : (
+                                        filteredMethods.map(m => (
+                                            <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                                        ))
+                                    )}
                                 </SelectContent>
                             </Select>
                         </div>

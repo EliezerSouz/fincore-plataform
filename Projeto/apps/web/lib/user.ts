@@ -60,16 +60,17 @@ export async function getCurrentUser(): Promise<User | null> {
     if (!data || error) {
         console.log('User not found in public.users. Attempting self-healing for:', authUser.id)
 
+        // Nota: Campos removidos para compatibilidade com schema atual (sem phone, dates corrigidas)
         const { data: newUser, error: createError } = await supabase
             .from('users')
             .insert({
                 id: authUser.id,
                 email: authUser.email!,
                 full_name: authUser.user_metadata?.full_name || 'Usuário',
-                phone: authUser.user_metadata?.phone || null,
+                // phone: authUser.user_metadata?.phone || null, // Coluna não existe
                 subscription_status: 'active', // Default active/free
                 subscription_plan: 'free',
-                subscription_started_at: new Date().toISOString()
+                subscription_start_date: new Date().toISOString() // Corrigido de subscription_started_at
             })
             .select()
             .single()
@@ -87,25 +88,58 @@ export async function getCurrentUser(): Promise<User | null> {
 
 /**
  * Verifica se o usuário tem assinatura válida
+ * Updated: Implementado em TS para evitar dependência de RPC instável
  */
-export async function hasValidSubscription(): Promise<boolean> {
-    const supabase = await createClient()
+export async function hasValidSubscription(userOrNull?: User | null): Promise<boolean> {
+    let user = userOrNull
 
-    const { data: { user } } = await supabase.auth.getUser()
+    // Se não foi passado o usuário, busca agora
+    if (!user) {
+        user = await getCurrentUser()
+    }
 
     if (!user) {
         return false
     }
 
-    const { data, error } = await supabase
-        .rpc('is_subscription_valid', { user_id: user.id })
-
-    if (error) {
-        console.error('Error checking subscription:', error)
+    // Lógica espelhada do banco de dados (is_subscription_valid)
+    
+    // 1. Trial
+    if (user.subscription_status === 'trial') {
+        // Se tiver trial_ends_at, valida data
+        if (user.trial_ends_at) {
+            return new Date(user.trial_ends_at) > new Date()
+        }
+        // Se não tiver data de fim de trial mas status é trial, assume inválido ou expirado por segurança
         return false
     }
 
-    return data as boolean
+    // 2. Ativa (Free, Premium, etc)
+    if (user.subscription_status === 'active') {
+        // Se não tiver data fim, é vitalício ou recorrente sem data fim definida (ex: Free)
+        if (!user.subscription_ends_at) return true
+        
+        return new Date(user.subscription_ends_at) > new Date()
+    }
+
+    // 3. Pagamento Pendente (Grace Period)
+    if (user.subscription_status === 'past_due') {
+        if (!user.subscription_ends_at) return false 
+        
+        // 3 dias de tolerância
+        const gracePeriod = new Date()
+        gracePeriod.setDate(gracePeriod.getDate() - 3)
+        
+        return new Date(user.subscription_ends_at) > gracePeriod
+    }
+
+    // 4. Acesso Temporário (Promo Code)
+    if (user.is_temp_access && user.temp_access_expires_at) {
+        return new Date(user.temp_access_expires_at) > new Date()
+    }
+
+    // Outros status: cancelado, suspenso = false
+    return false
 }
 
 /**

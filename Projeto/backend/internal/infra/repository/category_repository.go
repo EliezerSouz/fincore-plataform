@@ -27,7 +27,7 @@ type CategoryWithSubs struct {
 func (r *CategoryRepository) FindAll(ctx context.Context, userID, catType string) ([]CategoryWithSubs, error) {
 	// 1. Fetch Categories
 	queryCat := `
-		SELECT id, user_id, name, type, icon, color, is_active, is_system, created_at, updated_at
+		SELECT id, user_id, name, type, icon, color, is_active, is_system, is_premium, created_at, updated_at
 		FROM categories
 		WHERE user_id = $1::uuid
 	`
@@ -52,7 +52,7 @@ func (r *CategoryRepository) FindAll(ctx context.Context, userID, catType string
 		cat.Subcategories = []entity.Subcategory{}
 		err := rows.Scan(
 			&cat.ID, &cat.UserID, &cat.Name, &cat.Type,
-			&cat.Icon, &cat.Color, &cat.IsActive, &cat.IsSystem, &cat.CreatedAt, &cat.UpdatedAt,
+			&cat.Icon, &cat.Color, &cat.IsActive, &cat.IsSystem, &cat.IsPremium, &cat.CreatedAt, &cat.UpdatedAt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan category: %w", err)
@@ -104,14 +104,14 @@ func (r *CategoryRepository) FindAll(ctx context.Context, userID, catType string
 
 func (r *CategoryRepository) Create(ctx context.Context, userID string, input entity.CreateCategoryInput) (*entity.Category, error) {
 	query := `
-		INSERT INTO categories (user_id, name, type, icon, color, is_active, is_system)
-		VALUES ($1::uuid, $2, $3, $4, $5, true, false)
-		RETURNING id, user_id, name, type, icon, color, is_active, is_system, created_at, updated_at
+		INSERT INTO categories (user_id, name, type, icon, color, is_active, is_system, is_premium)
+		VALUES ($1::uuid, $2, $3, $4, $5, true, false, false)
+		RETURNING id, user_id, name, type, icon, color, is_active, is_system, is_premium, created_at, updated_at
 	`
 	var cat entity.Category
 	err := r.db.QueryRow(ctx, query, userID, strings.ToUpper(input.Name), input.Type, input.Icon, input.Color).Scan(
 		&cat.ID, &cat.UserID, &cat.Name, &cat.Type,
-		&cat.Icon, &cat.Color, &cat.IsActive, &cat.IsSystem, &cat.CreatedAt, &cat.UpdatedAt,
+		&cat.Icon, &cat.Color, &cat.IsActive, &cat.IsSystem, &cat.IsPremium, &cat.CreatedAt, &cat.UpdatedAt,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create category: %w", err)

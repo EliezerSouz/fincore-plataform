@@ -14,11 +14,12 @@ export async function signup(formData: FormData) {
     const confirmPassword = formData.get('confirm_password') as string
     const fullName = formData.get('full_name') as string
     const phone = formData.get('phone') as string
-    const promoCode = formData.get('promo_code') as string
 
     if (password !== confirmPassword) {
         return { error: 'As senhas não coincidem.' }
     }
+
+    console.log('[Signup] Iniciando cadastro para email:', email)
 
     const { data, error } = await supabase.auth.signUp({
         email,
@@ -27,58 +28,57 @@ export async function signup(formData: FormData) {
             data: {
                 full_name: fullName,
                 phone: phone,
-                promo_code: promoCode,
             },
         },
     })
 
     if (error) {
+        console.error('[Signup] Erro no Supabase Auth:', error)
         return { error: error.message }
     }
 
+    console.log('[Signup] Auth User criado:', data.user?.id)
+
     // Attempt to apply promo code immediately if we have a session (Auto Confirm enabled)
-    if (data.session?.access_token && promoCode) {
-        console.log('[Signup] Session created. Attempting to apply Promo Code:', promoCode)
+    if (data.session?.access_token) {
+        console.log('[Signup] Sessão ativa. Iniciando setup pós-cadastro.')
+        
         try {
-            const client = new ApiClient(undefined, data.session.access_token)
-
-            // 1. Force Self-Healing (Create user in public.users if missing)
-            // Use Supabase directly instead of failing API call
-            if (data.user) {
-                console.log('[Signup] Ensuring user exists in public.users for ID:', data.user.id)
-                const { error: upsertError } = await supabase
-                    .from('users')
-                    .upsert({
-                        id: data.user.id,
-                        email: email,
-                        full_name: fullName,
-                        subscription_plan: 'free',
-                        subscription_status: 'active', // Changed from 'trial' to 'active' to match free plan logic
-                        is_temp_access: false
-                        // Note: There are duplicate columns like subscription_started_at (Go uses subscription_start_date)
-                        // We will cleanup this later. For now, we populate minimal required fields for Go backend.
-                    }, { onConflict: 'id', ignoreDuplicates: true }) // ignore if exists to not overwrite
-
-                if (upsertError) {
-                    console.error('[Signup] User Upsert Error:', upsertError)
-                }
+            // 1. Setup New User Defaults (Categorias, etc)
+            // Agora fazemos via RPC para garantir transação e performance
+            // O trigger on_auth_user_created faria isso, mas se falhar ou se quisermos garantir...
+            // Vamos confiar no trigger primeiro, mas se não tiver trigger, chamamos a função.
+            
+            // Melhor: Chamar uma função idempotente que garante que tudo está criado.
+            // Para garantir, vamos chamar a função 'setup_new_user_defaults' se ela existir.
+            
+            const { error: rpcError } = await supabase.rpc('setup_new_user_defaults', { 
+               target_user_id: data.user.id 
+            })
+            
+            if (rpcError) {
+               console.error('[Signup] Erro ao criar categorias padrão (RPC):', rpcError)
+               // Fallback: Se RPC falhar, tentamos via API ou ignoramos se for erro de duplicidade
+            } else {
+               console.log('[Signup] Categorias padrão verificadas/criadas com sucesso via RPC.')
             }
-
-            // 2. Apply Promo Code
-            console.log('[Signup] Calling POST /api/setup...')
-            await client.post('/api/setup', { promo_code: promoCode })
-            console.log('[Signup] Promo Code Applied Successfully!')
 
             // Redirect with success flag
             revalidatePath('/', 'layout')
-            redirect('/dashboard?welcome=true&promo_applied=true')
+            const redirectUrl = '/dashboard?welcome=true'
+            
+            console.log('[Signup] Redirecionando para:', redirectUrl)
+            redirect(redirectUrl)
             return
         } catch (e) {
-            console.error('[Signup] Failed to setup promo code. Error details:', e)
-            // If it fails, we still redirect but maybe without the flag
+            console.error('[Signup] Erro no fluxo pós-cadastro. Detalhes:', e)
+            // Se falhar o redirect ou api, logamos. O redirect do nextjs lança erro, então cuidado.
+            if ((e as Error).message === 'NEXT_REDIRECT') {
+                throw e
+            }
         }
     } else {
-        console.log('[Signup] No promo code provided or no session text.')
+        console.log('[Signup] Sem sessão ativa (email confirmation required?). User ID:', data.user?.id)
     }
 
     revalidatePath('/', 'layout')

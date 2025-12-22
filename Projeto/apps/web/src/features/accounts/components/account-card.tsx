@@ -17,8 +17,9 @@ import { deleteAccount } from "@/app/(protected)/caixa/accounts/actions"
 import { EditAccountDialog } from "./edit-account-dialog"
 import { PayInvoiceDialog } from "@/features/accounts/components/pay-invoice-dialog"
 import { BalanceAdjustmentHistory } from "./balance-adjustment-history"
-import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { toast } from "sonner"
+import { useRouter } from "next/navigation"
 
 
 const getAccountIcon = (type: string) => {
@@ -69,7 +70,8 @@ const getAccountColor = (type: string) => {
     }
 }
 
-export function AccountCard({ account, allAccounts = [], paymentMethods = [] }: { account: any, allAccounts?: any[], paymentMethods?: any[] }) {
+export function AccountCard({ account, allAccounts = [], paymentMethods = [], onUpdate }: { account: any, allAccounts?: any[], paymentMethods?: any[], onUpdate?: () => void }) {
+    const router = useRouter()
     const [showEdit, setShowEdit] = useState(false)
     const [showPayInvoice, setShowPayInvoice] = useState(false)
     const [showDelete, setShowDelete] = useState(false)
@@ -88,6 +90,7 @@ export function AccountCard({ account, allAccounts = [], paymentMethods = [] }: 
         try {
             await deleteAccount(account.id)
             router.refresh()
+            if (onUpdate) onUpdate()
             toast.success("Conta excluída com sucesso!")
         } catch (error: any) {
             console.error("Erro ao excluir:", error)
@@ -279,6 +282,9 @@ export function AccountCard({ account, allAccounts = [], paymentMethods = [] }: 
 
             <Dialog open={showHistory} onOpenChange={setShowHistory}>
                 <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>Histórico e Ajustes</DialogTitle>
+                    </DialogHeader>
                     <BalanceAdjustmentHistory
                         accountId={account.id}
                         accountName={account.name}

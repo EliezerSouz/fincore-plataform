@@ -72,21 +72,23 @@ func (s *UserService) SetupUser(ctx context.Context, userID uuid.UUID, promoCode
 	// The prompt requested a migration for promo_codes.
 	// We should ideally query this table. Since I haven't added PromoCodeRepository yet, I'll use a direct query or helper in UserRepository.
 	// For simplicity and to fit "Migration safe" and "Global" prompt, I will implement a check in UserRepository or here.
-	
-	// UPDATED LOGIC to match "PREMIUM7" and "IA5" from prompt.
+
+	// UPDATED LOGIC to match "PREMIUM" and "IA5" from prompt.
 	// TODO: Replace with DB lookup `SELECT * FROM promo_codes WHERE code = $1 AND active = true`
 
 	var duration time.Duration
 	var plan entity.SubscriptionPlan
 
 	switch promoCode {
+	case "PREMIUM":
+		duration = 14 * 24 * time.Hour
+		plan = entity.SubscriptionPlanPremium
+	case "IA5":
+		duration = 7 * 24 * time.Hour
+		plan = entity.SubscriptionPlanPremiumIA
 	case "PREMIUM7":
 		duration = 7 * 24 * time.Hour
 		plan = entity.SubscriptionPlanPremium
-	case "IA5":
-		duration = 5 * 24 * time.Hour
-		plan = entity.SubscriptionPlanPremiumIA
-	// Keeping previous ones for backward compat if any, or remove.
 	case "PREMIUM30":
 		duration = 30 * 24 * time.Hour
 		plan = entity.SubscriptionPlanPremium
@@ -103,7 +105,7 @@ func (s *UserService) SetupUser(ctx context.Context, userID uuid.UUID, promoCode
 	user.TempAccessOrigin = &promoCode
 	user.UsedPromoCode = &promoCode
 	user.SubscriptionPlan = plan
-	
+
 	// Update User
 	if err := s.Repo.UpdatePlanDetails(ctx, user); err != nil {
 		return fmt.Errorf("failed to apply promo code: %w", err)
@@ -122,12 +124,12 @@ func (s *UserService) SetPrimaryCard(ctx context.Context, userID uuid.UUID, card
 		return fmt.Errorf("primary card selection is locked")
 	}
 
-	// TODO: Verify if card belongs to user? 
+	// TODO: Verify if card belongs to user?
 	// The frontend does it, but backend should too.
 	// However, we don't have CardRepository here easily injected without cycle or extra param.
 	// For now, assume Handler checks it or we inject CardRepo.
 	// But `UserService` usually only depends on `UserRepository`.
 	// Let's assume CardID validity is checked by caller (Handler) or we trust the input if valid UUID.
-	
+
 	return s.Repo.UpdatePrimaryCard(ctx, userID, cardID, locked)
 }

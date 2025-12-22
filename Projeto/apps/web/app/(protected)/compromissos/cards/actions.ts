@@ -14,6 +14,7 @@ async function getApiClient() {
 
 export interface CreditCard {
     id: string,
+    account_id?: string
     name: string,
     brand: string,
     last_4_digits: string,
@@ -46,6 +47,8 @@ export async function getCreditCardById(id: string) {
     }
 }
 
+import { getPrimaryCard, setPrimaryCard } from "./primary-card-actions"
+
 export async function createCreditCard(formData: FormData) {
     const client = await getApiClient()
 
@@ -71,7 +74,11 @@ export async function createCreditCard(formData: FormData) {
         throw new Error('Valor do limite inválido')
     }
 
-    await client.post('/api/cards', {
+    // Check primary card status before creating
+    const primaryInfo = await getPrimaryCard()
+    const hasPrimary = !!primaryInfo?.primaryCardId
+
+    const newCard = await client.post<CreditCard>('/api/cards', {
         name,
         brand,
         last_4_digits: last4 || null,
@@ -80,6 +87,11 @@ export async function createCreditCard(formData: FormData) {
         due_day: dueDay,
         color
     })
+
+    // If it's the first card (no primary set), set it as primary automatically
+    if (!hasPrimary && newCard?.id) {
+        await setPrimaryCard(newCard.id)
+    }
 
     // Revalidar a página de cartões especificamente
     revalidatePath('/compromissos/cards')
@@ -242,7 +254,11 @@ export async function createTransaction(formData: FormData) {
     const cardId = formData.get('card_id') as string
     const description = formData.get('description') as string
     const amount = parseFloat((formData.get('amount') as string).replace('R$', '').replace(/\./g, '').replace(',', '.').trim())
-    const date = (formData.get('transaction_date') as string) || (formData.get('date') as string)
+    const rawDate = (formData.get('transaction_date') as string) || (formData.get('date') as string)
+    // Fix date timezone to avoid errors and offsets
+    const [y, m, d] = rawDate.split('-').map(Number)
+    const date = new Date(Date.UTC(y, m - 1, d, 12, 0, 0)).toISOString()
+
     const installments = parseInt(formData.get('installments') as string || '1')
     const categoryId = formData.get('category_id') as string || null
     const subcategoryId = formData.get('subcategory_id') as string || null

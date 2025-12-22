@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/utils/supabase/server'
 import { ApiClient } from "@/lib/api-client"
+import { getPrimaryCard, setPrimaryCard } from "../../compromissos/cards/primary-card-actions"
 
 /**
  * Obter token do usuário autenticado
@@ -98,7 +99,11 @@ export async function createAccount(formData: FormData) {
             const cardDue = parseInt(formData.get('card_due_day') as string)
 
             if (!isNaN(cardLimit) && cardLimit > 0) {
-                 await client.post('/api/cards', {
+                 // Check primary card status
+                 const primaryInfo = await getPrimaryCard()
+                 const hasPrimary = !!primaryInfo?.primaryCardId
+
+                 const newCard = await client.post<{id: string}>('/api/cards', {
                     name: `${name} Crédito`,
                     account_id: newAccount.id,
                     brand: cardBrand,
@@ -108,11 +113,22 @@ export async function createAccount(formData: FormData) {
                     color: color,
                     last_4_digits: null
                 })
+
+                // Auto-set primary if none exists
+                if (!hasPrimary && newCard?.id) {
+                    await setPrimaryCard(newCard.id)
+                }
+            } else {
+                console.warn('Invalid card limit, skipping card creation:', cardLimitStr)
             }
         } catch (error) {
             console.error('Error creating linked credit card:', error)
-            // We don't throw here to avoid failing the account creation if card fails
-            // But ideally we should inform user. For now, silent failure or log.
+            // If card creation fails, we should probably let the user know, 
+            // but we can't easily return a partial success/error state to the form action 
+            // without changing the signature significantly or using a more complex return type.
+            // For now, we log it. 
+            // In a real app, we might want to return { success: true, warning: "Account created but card failed" }
+            throw new Error('Conta criada, mas erro ao criar cartão de crédito vinculado: ' + (error instanceof Error ? error.message : 'Erro desconhecido'))
         }
     }
 

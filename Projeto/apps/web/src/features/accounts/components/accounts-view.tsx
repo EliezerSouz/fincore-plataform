@@ -9,7 +9,7 @@ import { formatCurrency } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 export function AccountsView() {
-    const { accounts, loading } = useAccounts()
+    const { accounts, loading, refresh } = useAccounts()
 
     // Separação de Contas
     const activeAccounts = accounts.filter((a: any) => a.is_active !== false)
@@ -185,7 +185,7 @@ export function AccountsView() {
                                             key={account.id}
                                             account={account}
                                             allAccounts={activeAccounts}
-
+                                            onUpdate={refresh}
                                         />
                                     ))}
                                 </div>
@@ -213,7 +213,7 @@ export function AccountsView() {
                             </div>
                             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                                 {accounts.filter((a: any) => a.is_active === false).map((account: any) => (
-                                    <AccountCard key={account.id} account={account} />
+                                    <AccountCard key={account.id} account={account} onUpdate={refresh} />
                                 ))}
                             </div>
                         </div>

@@ -10,12 +10,13 @@ import { ShieldCheck } from "lucide-react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import Link from 'next/link'
 import { Logo } from "@/components/ui/logo"
+import { EcgBackground } from "@/components/ui/ecg-background"
+import { siteConfig } from "@/config/site"
 
 export function SignupForm() {
     const [error, setError] = useState<string | null>(null)
     const [loading, setLoading] = useState(false)
     const [phone, setPhone] = useState('')
-    const [promoCode, setPromoCode] = useState('')
 
     const formatPhone = (value: string) => {
         const numbers = value.replace(/\D/g, '')
@@ -31,10 +32,6 @@ export function SignupForm() {
 
     const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setPhone(formatPhone(e.target.value))
-    }
-
-    const handlePromoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setPromoCode(e.target.value.toUpperCase())
     }
 
     async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -65,16 +62,17 @@ export function SignupForm() {
 
     return (
         <Card className="w-full max-w-md border-slate-200 dark:border-slate-800 shadow-2xl bg-white dark:bg-slate-900">
-            <CardHeader className="space-y-1 flex flex-col items-center text-center pb-2">
-                <CardTitle className="flex justify-center mb-2">
+            <CardHeader className="space-y-1 flex flex-col items-center text-center pb-2 relative overflow-hidden">
+                <EcgBackground opacity={0.25} className="scale-[1.2] -mt-2" />
+                <CardTitle className="flex justify-center mb-2 relative z-10">
                     <Logo size="xl" />
                 </CardTitle>
-                <h3 className="text-lg font-semibold tracking-tight text-slate-900 dark:text-white mt-2">
+                <CardDescription className="text-slate-500 dark:text-slate-400 relative z-10">
+                    {siteConfig.slogan}
+                </CardDescription>
+                <h3 className="text-lg font-semibold tracking-tight text-slate-900 dark:text-white mt-4 relative z-10">
                     Criar Nova Conta
                 </h3>
-                <CardDescription className="text-slate-500 dark:text-slate-400">
-                    Comece sua jornada no FINCORE
-                </CardDescription>
             </CardHeader>
             <CardContent className="pt-6">
                 {error && (
@@ -137,22 +135,6 @@ export function SignupForm() {
                             name="confirm_password"
                             required
                             className="bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus-visible:ring-blue-500"
-                        />
-                    </div>
-
-                    <div className="space-y-2">
-                        <Label htmlFor="promo_code" className="flex items-center gap-2">
-                            Código Promocional
-                            <span className="text-xs text-slate-400 font-normal">(Opcional)</span>
-                        </Label>
-                        <Input
-                            id="promo_code"
-                            name="promo_code"
-                            type="text"
-                            placeholder="Ex: DEMO2025"
-                            value={promoCode}
-                            onChange={handlePromoChange}
-                            className="bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus-visible:ring-blue-500 uppercase placeholder:normal-case"
                         />
                     </div>
 

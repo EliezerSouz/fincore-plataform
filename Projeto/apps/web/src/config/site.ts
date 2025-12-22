@@ -4,7 +4,8 @@
  */
 
 export const siteConfig = {
-    name: 'Financeiro Platform',
+    name: 'FinCore',
+    slogan: 'O coração da sua vida financeira',
     description: 'Plataforma completa de gestão financeira pessoal e empresarial',
     url: process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
 

@@ -19,7 +19,7 @@ export async function getUserData() {
     }
 
     // Verificar se tem assinatura válida
-    const hasValidSub = await hasValidSubscription()
+    const hasValidSub = await hasValidSubscription(user)
 
     // Calcular dias restantes de trial
     const daysRemaining = isInTrial(user) ? getDaysRemainingInTrial(user) : 0

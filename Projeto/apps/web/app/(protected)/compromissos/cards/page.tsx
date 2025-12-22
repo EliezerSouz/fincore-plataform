@@ -1,5 +1,6 @@
 import { Metadata } from "next"
 import { getCreditCards } from "./actions"
+import { getAccounts } from "@/app/(protected)/caixa/accounts/actions"
 import { CreditCardList } from "./card-list"
 import { CreateCardDialog } from "./create-card-dialog"
 import { PrimaryCardManager } from "./primary-card-manager"
@@ -15,7 +16,15 @@ export const metadata: Metadata = {
 }
 
 export default async function CardsPage() {
-    const cards = await getCreditCards()
+    const [cards, accounts] = await Promise.all([
+        getCreditCards(),
+        getAccounts()
+    ])
+
+    const accountsMap = accounts.reduce((acc, account) => {
+        acc[account.id] = account.name
+        return acc
+    }, {} as Record<string, string>)
 
     // Cálculos de resumo
     const totalLimit = cards.reduce((acc, card) => acc + card.limit_amount, 0)
@@ -44,7 +53,7 @@ export default async function CardsPage() {
 
     const getBrandLabel = (brand: string) => {
         const labels: Record<string, string> = {
-            'master': 'Mastercard',
+            'mastercard': 'Mastercard',
             'visa': 'Visa',
             'elo': 'Elo',
             'amex': 'American Express',
@@ -155,12 +164,12 @@ export default async function CardsPage() {
                                                         </p>
                                                     </div>
                                                 </div>
-                                                <CreditCardList cards={cardsOfBrand} />
+                                                <CreditCardList cards={cardsOfBrand} accountsMap={accountsMap} />
                                             </div>
                                         )
                                     })
                                 ) : (
-                                    <CreditCardList cards={cards} />
+                                    <CreditCardList cards={cards} accountsMap={accountsMap} />
                                 )}
                             </div>
                         )}

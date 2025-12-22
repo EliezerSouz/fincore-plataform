@@ -11,6 +11,7 @@ type Category struct {
 	Color     string    `json:"color" db:"color"`
 	IsActive  bool      `json:"is_active" db:"is_active"`
 	IsSystem  bool      `json:"is_system" db:"is_system"`
+	IsPremium bool      `json:"is_premium" db:"is_premium"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
 }

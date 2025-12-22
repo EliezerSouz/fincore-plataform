@@ -9,6 +9,7 @@ import { Logo } from "@/components/ui/logo"
 import { usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { ModeToggle } from "@/components/layout/mode-toggle"
+import { siteConfig } from "@/config/site"
 
 export function TopBar() {
     const { user, isLoading } = useUser()
@@ -70,7 +71,7 @@ export function TopBar() {
                     </div>
                     <div className="flex flex-col gap-0.5 leading-none">
                         <span className="text-lg font-bold tracking-tight text-zinc-900 dark:text-white">
-                            FinCore
+                            {siteConfig.name}
                         </span>
                         <span className="text-[9px] text-zinc-500 font-medium tracking-wider uppercase">
                             v0.1.0 Beta
@@ -93,7 +94,7 @@ export function TopBar() {
             <div className="flex items-center space-x-2 md:space-x-4 ml-auto">
                 {/* Motto - Hidden on mobile */}
                 <span className="hidden xl:block text-xs text-zinc-400 dark:text-zinc-500 italic mr-4">
-                    "O coração da sua vida financeira"
+                    "{siteConfig.slogan}"
                 </span>
 
                 {/* Subscription status */}

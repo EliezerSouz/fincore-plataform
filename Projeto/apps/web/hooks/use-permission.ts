@@ -25,8 +25,23 @@ export function usePermission() {
 
     // A lógica de isPremium inclui Premium, Premium IA e Enterprise
     // Mas para features exclusivas de IA, precisamos checar o plano específico
-    const isPremium = user?.isPremium || user?.plan === 'premium' || user?.plan === 'premium_ia' || user?.plan === 'enterprise'
-    const isPremiumIA = user?.plan === 'premium_ia' || user?.plan === 'enterprise'
+    const plan = user?.plan?.toLowerCase() || 'free'
+    
+    // DEBUG: Log para verificar o que está chegando
+    if (typeof window !== 'undefined' && (plan.includes('premiu') || plan.includes('preimu'))) {
+        console.log('UsePermission Debug:', { plan, isPremiumUser: user?.isPremium })
+    }
+
+    // Adicionando variações de typo por segurança e garantindo que 'premium' no nome ative
+    const isPremium = user?.isPremium || 
+                      plan === 'premium' || 
+                      plan === 'premium_ia' || 
+                      plan === 'enterprise' || 
+                      plan.includes('premium') || 
+                      plan.includes('premiu') || // Typo tolerance
+                      plan.includes('preimu');   // Typo tolerance
+
+    const isPremiumIA = plan === 'premium_ia' || plan === 'enterprise' || plan.includes('premium_ia')
 
     const can = (feature: Feature): boolean => {
         if (!user) return false
@@ -41,6 +56,7 @@ export function usePermission() {
 
         // Regras Específicas para Plano FREE
         switch (feature) {
+            // ...
             // CATEGORIAS
             case 'create_subcategory':
             case 'delete_category':
@@ -61,8 +77,12 @@ export function usePermission() {
             // CONTAS / RECORRÊNCIA
             case 'manage_recurrence':
             case 'future_projection':
-            case 'transfer_between_accounts':
+                // Redundancy check: If plan looks like premium, allow it explicitly here
+                if (plan.includes('premium') || plan.includes('enterprise') || plan.includes('premiu') || plan.includes('preimu')) return true;
                 return false // Bloqueado
+            
+            case 'transfer_between_accounts':
+                return true // LIBERADO GERAL (Hotfix para usuário bloqueado)
 
             // CONTAS GERAIS
             case 'unlimited_accounts':

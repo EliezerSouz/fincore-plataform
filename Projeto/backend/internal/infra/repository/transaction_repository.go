@@ -15,6 +15,23 @@ type TransactionRepository struct {
 }
 
 func NewTransactionRepository(db *pgxpool.Pool) *TransactionRepository {
+	// Ensure conflicting triggers are removed
+	// This is a safety measure to prevent double balance updates (Trigger + Go Logic)
+	// especially for historical transactions where the trigger doesn't respect the logic.
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		query := `
+			DROP TRIGGER IF EXISTS on_transaction_change ON public.transactions;
+			DROP FUNCTION IF EXISTS public.handle_balance_update();
+		`
+		_, err := db.Exec(ctx, query)
+		if err != nil {
+			fmt.Printf("WARNING: Failed to drop legacy triggers: %v\n", err)
+		} else {
+			fmt.Println("SUCCESS: Legacy balance triggers dropped to ensure consistency.")
+		}
+	}()
 	return &TransactionRepository{db: db}
 }
 
@@ -240,8 +257,17 @@ func (r *TransactionRepository) createWithTx(ctx context.Context, tx pgx.Tx, use
 		LIMIT 1
 	`
 	err := tx.QueryRow(ctx, adjustmentQuery, input.AccountID).Scan(&lastAdjustmentDate)
-	if err != nil && err.Error() != "no rows in result set" {
-		return nil, fmt.Errorf("failed to check balance adjustments: %w", err)
+	if err != nil {
+		if err.Error() == "no rows in result set" {
+			// Fallback: use account creation date if no adjustment record found
+			var createdAt time.Time
+			err := tx.QueryRow(ctx, "SELECT created_at FROM accounts WHERE id = $1", input.AccountID).Scan(&createdAt)
+			if err == nil {
+				lastAdjustmentDate = &createdAt
+			}
+		} else {
+			return nil, fmt.Errorf("failed to check balance adjustments: %w", err)
+		}
 	}
 
 	// Determine if transaction is historical
@@ -249,13 +275,17 @@ func (r *TransactionRepository) createWithTx(ctx context.Context, tx pgx.Tx, use
 	if lastAdjustmentDate != nil {
 		// If transaction date is before last adjustment, it's historical
 		// Compare only the date part (ignore time)
-		transactionDate := time.Date(input.Date.Year(), input.Date.Month(), input.Date.Day(), 0, 0, 0, 0, input.Date.Location())
-		adjustmentDate := time.Date(lastAdjustmentDate.Year(), lastAdjustmentDate.Month(), lastAdjustmentDate.Day(), 0, 0, 0, 0, lastAdjustmentDate.Location())
+		// Force UTC for comparison to avoid timezone issues
+		transactionDate := time.Date(input.Date.Year(), input.Date.Month(), input.Date.Day(), 0, 0, 0, 0, time.UTC)
+		adjustmentDate := time.Date(lastAdjustmentDate.Year(), lastAdjustmentDate.Month(), lastAdjustmentDate.Day(), 0, 0, 0, 0, time.UTC)
+
+		fmt.Printf("DEBUG: Transaction Date: %v, Adjustment Date: %v\n", transactionDate, adjustmentDate)
 
 		if transactionDate.Before(adjustmentDate) {
 			isHistorical = true
 		}
 	}
+	fmt.Printf("DEBUG: Is Historical: %v\n", isHistorical)
 
 	// 2. Insert transaction with is_historical flag
 	query := `

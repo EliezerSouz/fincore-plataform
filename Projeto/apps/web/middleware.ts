@@ -2,52 +2,53 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { updateSession } from '@/utils/supabase/middleware'
 
 export async function middleware(request: NextRequest) {
-    // return await updateSession(request)
-
-    // Atualiza a sessão
-    const response = await updateSession(request);
-
-    // Cria o cliente Supabase para verificar a sessão no middleware
-    // Note: updateSession já lida com a resposta, mas aqui precisamos ler o cookie atualizado para lógica de roteamento
-    // Como simplificação, vamos assumir que se updateSession retornou sucesso, a sessão está OK ou sendo renovada.
-    // Mas para roteamento preciso, o ideal é checar o getUser novamente ou confiar nos cookies se estiverem presentes.
-    // O padrão do Supabase sugere checar user no updateSession ou logo após.
-
-    // Vamos adicionar uma verificação simples de rota protegida baseada na presença do cookie de auth
-    // (Isso é uma verificação 'leve', a segurança real está no RLS no banco e no getUser nas Server Actions/Components)
+    // Atualiza a sessão e obtém o usuário validado
+    // updateSession já lida com refresh de token se necessário
+    const { response, user } = await updateSession(request);
 
     const { pathname } = request.nextUrl;
 
-    // Se quiser ser mais estrito, precisamos chamar getUser aqui, mas createServerClient do middleware é diferente.
-    // Vamos confiar no comportamento padrão de redirecionamento das páginas/layouts se não houver dados também.
-    // Mas para UX (redirecionar antes de renderizar), podemos checar cookies.
-
-    // PROTEÇÃO DE ROTA SIMPLIFICADA (UX)
-    // Se tentar acessar dashboard sem cookie de auth -> Login
-    // Se tentar acessar login com cookie de auth -> Dashboard
-
-    const hasAuthCookie = request.cookies.getAll().some(c => c.name.startsWith('sb-') && c.name.endsWith('-auth-token'));
-
-    // Rotas protegidas (precisa de login)
+    // PROTEÇÃO DE ROTA (UX + Segurança)
+    
+    // Lista de prefixos protegidos
     const protectedPrefixes = ['/dashboard', '/caixa', '/compromissos', '/patrimonio', '/sistema'];
+    const isProtectedRoute = protectedPrefixes.some(prefix => pathname.startsWith(prefix));
+    
+    // Rotas de Autenticação (onde usuário logado não deve estar)
+    const isAuthRoute = pathname === '/login' || pathname === '/signup' || pathname === '/';
 
-    if (protectedPrefixes.some(prefix => pathname.startsWith(prefix))) {
-        if (!hasAuthCookie) {
-            const url = request.nextUrl.clone()
-            url.pathname = '/login'
-            return NextResponse.redirect(url)
-        }
+    // 1. Redirecionar para Login se tentar acessar rota protegida sem usuário
+    if (isProtectedRoute && !user) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/login'
+        const redirectResponse = NextResponse.redirect(url)
+        
+        // CRÍTICO: Copiar cookies da resposta do Supabase.
+        // Se updateSession tentou limpar cookies inválidos/expirados, precisamos passar isso adiante.
+        response.cookies.getAll().forEach(c => {
+            redirectResponse.cookies.set(c.name, c.value, c)
+        })
+        
+        return redirectResponse
     }
 
-    // Rotas de Auth (se já logado, redireciona para dentro)
-    if (pathname === '/login' || pathname === '/signup' || pathname === '/') {
-        if (hasAuthCookie) {
-            const url = request.nextUrl.clone()
-            url.pathname = '/dashboard'
-            return NextResponse.redirect(url)
-        }
+    // 2. Redirecionar para Dashboard se usuário logado tentar acessar login/signup/home
+    if (isAuthRoute && user) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/dashboard'
+        const redirectResponse = NextResponse.redirect(url)
+        
+        // CRÍTICO: Copiar cookies da resposta do Supabase.
+        // Se updateSession fez refresh do token, precisamos passar o novo token adiante.
+        response.cookies.getAll().forEach(c => {
+            redirectResponse.cookies.set(c.name, c.value, c)
+        })
+        
+        return redirectResponse
     }
 
+    // Se não houve redirecionamento, retorna a resposta original do updateSession
+    // que contém os cookies atualizados (refresh token, etc)
     return response;
 }
 

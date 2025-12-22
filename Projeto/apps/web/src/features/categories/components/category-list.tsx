@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Category, updateCategory } from "@/app/(protected)/caixa/categories/actions"
-import { Tag, MoreHorizontal, LayoutGrid, List as ListIcon, Search, Archive } from "lucide-react"
+import { Tag, MoreHorizontal, LayoutGrid, List as ListIcon, Search, Archive, Lock, Crown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { CATEGORY_ICONS } from "@/lib/icons"
@@ -161,15 +161,28 @@ function CategoryItem({
     onEdit: () => void 
 }) {
     const router = useRouter()
-    const { can } = usePermission()
+    const { can, isFree } = usePermission()
     const [showUpsell, setShowUpsell] = useState(false)
     const IconComponent = CATEGORY_ICONS[category.icon]?.icon || Tag
     const subCount = category.subcategories?.length || 0
     const isActive = category.is_active !== false
+    
+    // Permission Logic
+    // 1. System categories (Invoice/Transfer) are NEVER editable
+    // 2. Free users cannot edit ANY category
+    // 3. Premium users can edit non-system categories
+    const canEdit = !category.is_system && can('edit_categories')
+    const isPremiumCategory = category.is_premium
+
+    const handleClick = () => {
+        // Always allow opening the sheet to view details/subcategories
+        // The sheet handles read-only state for Free users/System categories
+        onEdit()
+    }
 
     const handleToggleActive = async (e: React.MouseEvent) => {
         e.stopPropagation()
-        if (!can('unlimited_categories')) {
+        if (!can('edit_categories')) {
             setShowUpsell(true)
             return
         }
@@ -189,16 +202,16 @@ function CategoryItem({
         return (
             <>
                 <div 
-                    onClick={!category.is_system ? onEdit : undefined}
+                    onClick={handleClick}
                     className={cn(
                         "group flex items-center gap-4 p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl transition-all",
-                        !category.is_system && "hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer active:scale-[0.98]"
+                        (canEdit || isFree) && "hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer active:scale-[0.98]"
                     )}
                 >
                     <div 
                         className={cn(
                             "w-10 h-10 rounded-lg flex items-center justify-center shrink-0 transition-transform",
-                            !category.is_system && "group-hover:scale-105"
+                            canEdit && "group-hover:scale-105"
                         )}
                         style={{ 
                             backgroundColor: isActive ? `${category.color}15` : '#f1f5f9', 
@@ -213,6 +226,7 @@ function CategoryItem({
                             <h3 className={cn("font-semibold truncate text-sm", isActive ? "text-slate-900 dark:text-slate-100" : "text-slate-500")}>
                                 {category.name}
                             </h3>
+                            {isPremiumCategory && isFree && <Badge variant="secondary" className="text-[10px] h-5 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-800"><Crown className="w-3 h-3 mr-1" /> Premium</Badge>}
                             {category.is_system && <Badge variant="secondary" className="text-[10px] h-5 bg-slate-100 text-slate-500 border-slate-200"><Lock className="w-3 h-3 mr-1" /> Sistema</Badge>}
                             {!isActive && <Badge variant="outline" className="text-[10px] h-5">Inativa</Badge>}
                         </div>
@@ -222,18 +236,19 @@ function CategoryItem({
                     </div>
 
                     <div className="flex items-center gap-2">
-                        {!category.is_system && (
+                        {canEdit && (
                             <Button variant="ghost" size="icon" className="h-11 w-11 text-slate-400 hover:text-slate-600">
                                 <MoreHorizontal className="w-5 h-5" />
                             </Button>
                         )}
+                        {!canEdit && isFree && <Lock className="w-4 h-4 text-slate-300" />}
                     </div>
                 </div>
                 <UpsellModal 
                     open={showUpsell} 
                     onOpenChange={setShowUpsell}
-                    title="Limite de Categorias"
-                    description="No plano gratuito você não pode arquivar categorias. Faça o upgrade para ter controle total."
+                    title="Funcionalidade Premium"
+                    description="No plano gratuito você não pode editar categorias. Faça o upgrade para personalizar seu financeiro."
                 />
             </>
         )
@@ -242,10 +257,10 @@ function CategoryItem({
     return (
         <>
             <div 
-                onClick={!category.is_system ? onEdit : undefined}
+                onClick={handleClick}
                 className={cn(
                     "group relative bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 transition-all overflow-hidden",
-                    !category.is_system && "hover:shadow-lg hover:-translate-y-1 cursor-pointer"
+                    (canEdit || isFree) && "hover:shadow-lg hover:-translate-y-1 cursor-pointer"
                 )}
             >
                 <div className="absolute top-0 left-0 w-1 h-full" style={{ backgroundColor: isActive ? category.color : 'transparent' }} />
@@ -254,7 +269,7 @@ function CategoryItem({
                     <div 
                         className={cn(
                             "w-12 h-12 rounded-xl flex items-center justify-center transition-transform shadow-sm",
-                            !category.is_system && "group-hover:scale-110"
+                            canEdit && "group-hover:scale-110"
                         )}
                         style={{ 
                             backgroundColor: isActive ? `${category.color}15` : '#f1f5f9', 
@@ -264,7 +279,7 @@ function CategoryItem({
                         <IconComponent className="w-6 h-6" />
                     </div>
                     
-                    {!category.is_system ? (
+                    {canEdit ? (
                         <div 
                             role="button"
                             onClick={handleToggleActive}
@@ -275,7 +290,10 @@ function CategoryItem({
                             title={isActive ? "Categoria Ativa" : "Categoria Inativa"}
                         />
                     ) : (
-                        <Lock className="w-4 h-4 text-slate-300" />
+                        <div className="flex gap-1">
+                             {isPremiumCategory && <Crown className="w-4 h-4 text-amber-500" />}
+                             {!isPremiumCategory && <Lock className="w-4 h-4 text-slate-300" />}
+                        </div>
                     )}
                 </div>
 
@@ -291,8 +309,8 @@ function CategoryItem({
             <UpsellModal 
                 open={showUpsell} 
                 onOpenChange={setShowUpsell}
-                title="Limite de Categorias"
-                description="No plano gratuito você não pode arquivar categorias. Faça o upgrade para ter controle total."
+                title="Funcionalidade Premium"
+                description="No plano gratuito você não pode editar categorias. Faça o upgrade para personalizar seu financeiro."
             />
         </>
     )

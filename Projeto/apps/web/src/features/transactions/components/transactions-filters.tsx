@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button"
 import { X } from "lucide-react"
 import { DateRangeFilter } from "@/components/ui/date-range-filter"
+import { usePermission } from "@/hooks/use-permission"
 
 interface TransactionsFiltersProps {
     accounts: any[]
@@ -16,6 +17,7 @@ export function TransactionsFilters({ accounts, categories }: TransactionsFilter
     const router = useRouter()
     const pathname = usePathname()
     const searchParams = useSearchParams()
+    const { can } = usePermission()
 
     const accountId = searchParams.get('accountId') || "all"
     const categoryId = searchParams.get('categoryId') || "all"
@@ -90,7 +92,9 @@ export function TransactionsFilters({ accounts, categories }: TransactionsFilter
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem value="all">Categorias: Todas</SelectItem>
-                        {categories.map(c => (
+                        {categories
+                            .filter(c => !c.is_premium || can('manage_categories'))
+                            .map(c => (
                             <SelectItem key={c.id} value={c.id}>
                                 <div className="flex items-center gap-2">
                                     <div className="w-2 h-2 rounded-full" style={{ backgroundColor: c.color }} />
