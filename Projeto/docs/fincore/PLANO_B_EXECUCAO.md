@@ -11,11 +11,11 @@
 
 | Fase | Duração | Status | Início | Fim |
 |------|---------|--------|--------|-----|
-| 0. Preparação | 1 dia | 🟢 EM EXECUÇÃO | 23/12 | 23/12 |
-| 1. Schema Consolidado | 2 dias | ⏳ Pendente | 24/12 | 25/12 |
-| 2. Migrar Código | 2 dias | ⏳ Pendente | 26/12 | 27/12 |
-| 3. Validação | 1 dia | ⏳ Pendente | 28/12 | 28/12 |
-| 4. Documentação | 1 dia | ⏳ Pendente | 29/12 | 29/12 |
+| 0. Preparação | 1 dia | ✅ CONCLUÍDA | 23/12 | 23/12 |
+| 1. Schema Consolidado | 2 dias | 🟢 EM EXECUÇÃO | 23/12 | 24/12 |
+| 2. Migrar Código | 2 dias | ⏳ Pendente | 25/12 | 26/12 |
+| 3. Validação | 1 dia | ⏳ Pendente | 27/12 | 27/12 |
+| 4. Documentação | 1 dia | ⏳ Pendente | 28/12 | 28/12 |
 | 5. Deploy | 1 dia | ⏳ Pendente | 30/12 | 30/12 |
 
 **Conclusão Estimada:** 30/12/2025
