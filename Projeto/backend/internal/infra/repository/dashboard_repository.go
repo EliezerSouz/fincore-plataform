@@ -253,7 +253,6 @@ func (r *DashboardRepository) GetSummary(ctx context.Context, userID string) (*F
 		WHERE t.user_id = $1::uuid 
 		  AND t.date >= $2 AND t.date <= $3
 		  AND t.type = 'despesa'
-		  AND t.exclude_from_totals IS NOT TRUE
 		GROUP BY c.name, c.color, c.icon
 		ORDER BY SUM(t.amount) DESC
 		LIMIT 3

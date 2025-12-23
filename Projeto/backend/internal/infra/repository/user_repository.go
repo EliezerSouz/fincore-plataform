@@ -25,7 +25,7 @@ func (r *UserRepository) Create(ctx context.Context, user *entity.User) error {
 			id, full_name, email, 
 			subscription_status, subscription_plan, base_plan,
 			is_temp_access, temp_access_expires_at, temp_access_origin,
-			subscription_start_date, billing_cycle
+			subscription_started_at, billing_cycle
 		)
 		VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		RETURNING created_at, updated_at
@@ -66,7 +66,7 @@ func (r *UserRepository) FindByID(ctx context.Context, id uuid.UUID) (*entity.Us
 			id, full_name, email, 
 			subscription_status, subscription_plan, base_plan,
 			is_temp_access, temp_access_expires_at, temp_access_origin, used_promo_code,
-			subscription_start_date, subscription_due_date, subscription_end_date, 
+			subscription_started_at, subscription_ends_at, 
 			billing_cycle, created_at, updated_at 
 		FROM public.users WHERE id = $1::uuid`
 
@@ -83,7 +83,6 @@ func (r *UserRepository) FindByID(ctx context.Context, id uuid.UUID) (*entity.Us
 		&user.TempAccessOrigin,
 		&user.UsedPromoCode,
 		&user.SubscriptionStartDate,
-		&user.SubscriptionDueDate,
 		&user.SubscriptionEndDate,
 		&user.BillingCycle,
 		&user.CreatedAt,
