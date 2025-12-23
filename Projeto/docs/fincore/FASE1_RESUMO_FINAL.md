@@ -235,6 +235,7 @@ docs/fincore/
 
 ## 🎯 PRÓXIMOS PASSOS
 
+
 ### IMEDIATO (Próxima Sessão)
 
 1. **Criar Novo Projeto no Supabase**

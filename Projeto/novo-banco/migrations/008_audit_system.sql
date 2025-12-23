@@ -9,6 +9,9 @@
 -- PARTE 1: TABELA DE AUDITORIA (IMUTÁVEL)
 -- =====================================================
 
+-- Dropar tabela se já existir (para recriar limpa)
+DROP TABLE IF EXISTS audit_log CASCADE;
+
 CREATE TABLE audit_log (
     -- Identificação
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -105,36 +108,43 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- =====================================================
 
 -- Auditoria em TRANSACTIONS (crítico)
+DROP TRIGGER IF EXISTS audit_transactions_trigger ON transactions;
 CREATE TRIGGER audit_transactions_trigger
     AFTER INSERT OR UPDATE OR DELETE ON transactions
     FOR EACH ROW EXECUTE FUNCTION audit_trigger_function();
 
 -- Auditoria em ACCOUNTS (crítico)
+DROP TRIGGER IF EXISTS audit_accounts_trigger ON accounts;
 CREATE TRIGGER audit_accounts_trigger
     AFTER INSERT OR UPDATE OR DELETE ON accounts
     FOR EACH ROW EXECUTE FUNCTION audit_trigger_function();
 
 -- Auditoria em CREDIT_CARD_INVOICES (crítico)
+DROP TRIGGER IF EXISTS audit_invoices_trigger ON credit_card_invoices;
 CREATE TRIGGER audit_invoices_trigger
     AFTER INSERT OR UPDATE OR DELETE ON credit_card_invoices
     FOR EACH ROW EXECUTE FUNCTION audit_trigger_function();
 
 -- Auditoria em CREDIT_CARD_TRANSACTIONS (crítico)
+DROP TRIGGER IF EXISTS audit_cc_transactions_trigger ON credit_card_transactions;
 CREATE TRIGGER audit_cc_transactions_trigger
     AFTER INSERT OR UPDATE OR DELETE ON credit_card_transactions
     FOR EACH ROW EXECUTE FUNCTION audit_trigger_function();
 
 -- Auditoria em PAYABLES (crítico)
+DROP TRIGGER IF EXISTS audit_payables_trigger ON payables;
 CREATE TRIGGER audit_payables_trigger
     AFTER INSERT OR UPDATE OR DELETE ON payables
     FOR EACH ROW EXECUTE FUNCTION audit_trigger_function();
 
 -- Auditoria em CREDIT_CARDS (importante)
+DROP TRIGGER IF EXISTS audit_credit_cards_trigger ON credit_cards;
 CREATE TRIGGER audit_credit_cards_trigger
     AFTER INSERT OR UPDATE OR DELETE ON credit_cards
     FOR EACH ROW EXECUTE FUNCTION audit_trigger_function();
 
 -- Auditoria em ACCOUNT_BALANCE_ADJUSTMENTS (crítico)
+DROP TRIGGER IF EXISTS audit_balance_adjustments_trigger ON account_balance_adjustments;
 CREATE TRIGGER audit_balance_adjustments_trigger
     AFTER INSERT OR UPDATE OR DELETE ON account_balance_adjustments
     FOR EACH ROW EXECUTE FUNCTION audit_trigger_function();
