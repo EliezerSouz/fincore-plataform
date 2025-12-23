@@ -36,7 +36,7 @@ import {
 
 export function EditCategorySheet({ category, open, onOpenChange }: { category: any, open: boolean, onOpenChange: (open: boolean) => void }) {
     const router = useRouter()
-    const { can, isFree } = usePermission()
+    const { can, isFree, plan } = usePermission()
     const [showUpsell, setShowUpsell] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
     const [name, setName] = useState(category.name)
@@ -53,9 +53,14 @@ export function EditCategorySheet({ category, open, onOpenChange }: { category: 
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
     const [isDeletingCategory, setIsDeletingCategory] = useState(false)
 
+    // Check for Premium IA plan
+    const isPremiumIA = plan === 'premium_ia' || plan === 'enterprise' || plan?.includes('premium_ia')
+
     // Check permissions
-    const isSystemLocked = category.is_system;
-    const canEdit = !isSystemLocked && can('edit_categories');
+    // HOTFIX: GLOBAL UNLOCK as per user request ("de momento deixa tudo liberado")
+    // We ignore is_system and permission checks for now
+    const isSystemLocked = false; 
+    const canEdit = true;
     const isReadOnly = !canEdit;
 
     async function handleSubmit(e?: React.FormEvent) {
@@ -100,7 +105,11 @@ export function EditCategorySheet({ category, open, onOpenChange }: { category: 
             formData.append('name', newSubName)
             formData.append('categoryId', category.id)
             
-            await createSubcategory(formData)
+            const newSub = await createSubcategory(formData)
+            
+            if (newSub) {
+                setSubcategories(prev => [...prev, newSub])
+            }
             
             setNewSubName("")
             router.refresh()
@@ -160,7 +169,7 @@ export function EditCategorySheet({ category, open, onOpenChange }: { category: 
         if (category.subcategories) {
             setSubcategories(category.subcategories)
         }
-    }, [category.subcategories])
+    }, [])
 
     return (
         <BaseModal

@@ -46,11 +46,13 @@ import type { BalanceAdjustment, ControlledPeriod } from '@/lib/types/balance-ad
 interface BalanceAdjustmentHistoryProps {
     accountId: string
     accountName: string
+    onUpdate?: () => void
 }
 
 export function BalanceAdjustmentHistory({
     accountId,
     accountName,
+    onUpdate,
 }: BalanceAdjustmentHistoryProps) {
     const [adjustments, setAdjustments] = useState<BalanceAdjustment[]>([])
     const [periods, setPeriods] = useState<ControlledPeriod[]>([])
@@ -86,6 +88,7 @@ export function BalanceAdjustmentHistory({
         try {
             await deleteBalanceAdjustment(deletingAdjustmentId)
             await loadData()
+            onUpdate?.()
         } catch (error) {
             console.error('Error deleting adjustment:', error)
         } finally {
@@ -289,7 +292,10 @@ export function BalanceAdjustmentHistory({
                 accountId={accountId}
                 accountName={accountName}
                 adjustment={editingAdjustment || undefined}
-                onSuccess={loadData}
+                onSuccess={() => {
+                    loadData()
+                    onUpdate?.()
+                }}
             />
 
             <BalanceAdjustmentDialog
@@ -300,6 +306,7 @@ export function BalanceAdjustmentHistory({
                 onSuccess={() => {
                     loadData()
                     setIsCreating(false)
+                    onUpdate?.()
                 }}
             />
 
@@ -310,7 +317,10 @@ export function BalanceAdjustmentHistory({
                     accountId={accountId}
                     accountName={accountName}
                     period={convertingPeriod}
-                    onSuccess={loadData}
+                    onSuccess={() => {
+                        loadData()
+                        onUpdate?.()
+                    }}
                 />
             )}
 

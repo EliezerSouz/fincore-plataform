@@ -131,7 +131,7 @@ export function CreateAccountDialog() {
                         {hasCreditCard && (
                             <div className="space-y-4 pt-2 animate-in fade-in slide-in-from-top-2">
                                 <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
+                                    <div className="space-y-2 col-span-2">
                                         <Label htmlFor="card-limit">Limite do Cartão</Label>
                                         <Input id="card-limit" name="card_limit" placeholder="R$ 0,00" required={hasCreditCard} className="bg-white dark:bg-slate-950" />
                                     </div>
@@ -145,9 +145,19 @@ export function CreateAccountDialog() {
                                                 <SelectItem value="elo">Elo</SelectItem>
                                                 <SelectItem value="amex">American Express</SelectItem>
                                                 <SelectItem value="hipercard">Hipercard</SelectItem>
-                                                <SelectItem value="outros">Outra / Loja</SelectItem>
+                                                <SelectItem value="outro">Outro</SelectItem>
                                             </SelectContent>
                                         </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="card-last-digits">4 Últimos Dígitos</Label>
+                                        <Input 
+                                            id="card-last-digits" 
+                                            name="card_last_digits" 
+                                            placeholder="Ex: 1234" 
+                                            maxLength={4}
+                                            className="bg-white dark:bg-slate-950" 
+                                        />
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">

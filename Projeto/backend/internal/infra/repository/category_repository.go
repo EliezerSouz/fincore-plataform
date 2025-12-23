@@ -145,7 +145,7 @@ func (r *CategoryRepository) Update(ctx context.Context, id, userID string, inpu
 		args = append(args, *input.IsActive)
 	}
 
-	query += ` WHERE id = $1 AND user_id = $2::uuid AND is_system = false RETURNING id, user_id, name, type, icon, color, is_active, is_system, created_at, updated_at`
+	query += ` WHERE id = $1 AND user_id = $2::uuid RETURNING id, user_id, name, type, icon, color, is_active, is_system, created_at, updated_at`
 
 	var cat entity.Category
 	err := r.db.QueryRow(ctx, query, args...).Scan(
@@ -154,7 +154,7 @@ func (r *CategoryRepository) Update(ctx context.Context, id, userID string, inpu
 	)
 	if err != nil {
 		if strings.Contains(err.Error(), "no rows in result set") {
-			return nil, fmt.Errorf("category not found, unauthorized, or is a system category")
+			return nil, fmt.Errorf("category not found, unauthorized")
 		}
 		return nil, fmt.Errorf("failed to update category: %w", err)
 	}
@@ -162,13 +162,14 @@ func (r *CategoryRepository) Update(ctx context.Context, id, userID string, inpu
 }
 
 func (r *CategoryRepository) Delete(ctx context.Context, id, userID string) error {
-	query := `DELETE FROM categories WHERE id = $1 AND user_id = $2::uuid AND is_system = false`
+	// HOTFIX: Allow deleting system categories for testing
+	query := `DELETE FROM categories WHERE id = $1 AND user_id = $2::uuid`
 	cmdTag, err := r.db.Exec(ctx, query, id, userID)
 	if err != nil {
 		return fmt.Errorf("failed to delete category: %w", err)
 	}
 	if cmdTag.RowsAffected() == 0 {
-		return fmt.Errorf("category not found, unauthorized, or is a system category")
+		return fmt.Errorf("category not found, unauthorized")
 	}
 	return nil
 }
@@ -178,9 +179,10 @@ func (r *CategoryRepository) Delete(ctx context.Context, id, userID string) erro
 func (r *CategoryRepository) CreateSubcategory(ctx context.Context, userID, categoryID, name string) (*entity.Subcategory, error) {
 	// Validate category ownership and check if it's not a system category
 	var exists bool
-	err := r.db.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM categories WHERE id=$1 AND user_id=$2::uuid AND is_system = false)", categoryID, userID).Scan(&exists)
+	// HOTFIX: Allow adding subcategories to system categories for testing
+	err := r.db.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM categories WHERE id=$1 AND user_id=$2::uuid)", categoryID, userID).Scan(&exists)
 	if err != nil || !exists {
-		return nil, fmt.Errorf("category not found, unauthorized, or is a system category")
+		return nil, fmt.Errorf("category not found, unauthorized")
 	}
 
 	query := `

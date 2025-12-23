@@ -288,6 +288,7 @@ export function AccountCard({ account, allAccounts = [], paymentMethods = [], on
                     <BalanceAdjustmentHistory
                         accountId={account.id}
                         accountName={account.name}
+                        onUpdate={onUpdate}
                     />
                 </DialogContent>
             </Dialog>

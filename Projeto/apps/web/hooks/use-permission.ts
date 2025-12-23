@@ -44,6 +44,11 @@ export function usePermission() {
     const isPremiumIA = plan === 'premium_ia' || plan === 'enterprise' || plan.includes('premium_ia')
 
     const can = (feature: Feature): boolean => {
+        // HOTFIX: GLOBAL UNLOCK FOR TESTING AS REQUESTED BY USER
+        // "de momento deixa tudo liberado para qualquer usuario"
+        return true;
+
+        /*
         if (!user) return false
         if (isLoading) return false
 
@@ -99,6 +104,7 @@ export function usePermission() {
             default:
                 return true
         }
+        */
     }
 
     return {

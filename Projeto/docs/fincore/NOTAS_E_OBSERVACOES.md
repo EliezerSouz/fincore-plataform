@@ -9,8 +9,14 @@ Use este arquivo para registrar bugs, melhorias e observações, organizado por 
 ## 1. Cadastro e Login (Auth)
 **Telas:** `/signup`, `/login`, `/esqueci-senha`
 
-*   [x] **[Cadastro]** Erro: Nao esta cadastrando - Database error saving new user
-    *   *Correção (Backend/DB):* Corrigido valor padrão inválido ('trial') na coluna `subscription_plan` na migração `001_create_users_table.sql`. O valor correto é 'free'. Criada migração `057` para aplicar correção em bancos existentes.
+*   [x] **[Cadastro]** ✅ **RESOLVIDO** - Erro: Database error saving new user
+    *   *Causa Raiz:* Falta de constraint UNIQUE na tabela `payment_methods`, causando falha no `ON CONFLICT DO NOTHING` durante criação de métodos de pagamento padrão.
+    *   *Correção (23/12/2025):* Criada migration `20251223000000_fix_payment_methods_constraints.sql` que:
+        - Adiciona constraint `UNIQUE (user_id, slug)` na tabela `payment_methods`
+        - Limpa duplicatas existentes
+        - Atualiza função `create_default_payment_methods()` para usar corretamente o ON CONFLICT
+        - Reorganiza policies RLS para acesso correto
+    *   *Documentação:* Ver `docs/fincore/FIX_DATABASE_ERROR_SAVING_USER.md`
 *   [!] **[Infraestrutura]** **Supabase SMTP Incident (21/12/2025):** E-mails de autenticação (confirmação, recuperação de senha) não estão sendo enviados via SMTP compartilhado do Supabase devido a uma interrupção no serviço deles.
     *   *Impacto:* Usuários não recebem e-mail de confirmação de cadastro.
     *   *Solução Temporária (Dev):* Desativar "Enable Email Confirmations" no painel do Supabase (Authentication -> Providers -> Email).

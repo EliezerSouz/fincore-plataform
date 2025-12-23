@@ -64,7 +64,18 @@ export function PaymentMethodDialog({ method, trigger, onSuccess }: PaymentMetho
         try {
             const formData = new FormData()
             formData.append('name', name)
-            formData.append('slug', slug)
+            
+            // Auto-generate slug if empty (creation)
+            let finalSlug = slug
+            if (!finalSlug && name) {
+                finalSlug = name.toLowerCase()
+                    .normalize("NFD")
+                    .replace(/[\u0300-\u036f]/g, "")
+                    .replace(/[^a-z0-9]+/g, "_")
+                    .replace(/^_+|_+$/g, "")
+            }
+            formData.append('slug', finalSlug)
+            
             formData.append('allows_income', String(allowsIncome))
             formData.append('allows_expense', String(allowsExpense))
             formData.append('allows_transfer', String(allowsTransfer))
@@ -119,7 +130,7 @@ export function PaymentMethodDialog({ method, trigger, onSuccess }: PaymentMetho
                     onClick: () => setOpen(false)
                 }}
             >
-                <form id="payment-method-form" onSubmit={handleSubmit} className="grid gap-6 py-4">
+                <form id="payment-method-form" onSubmit={handleSubmit} className="grid gap-6 py-4 max-h-[65vh] overflow-y-auto pr-2">
                     {/* INFORMAÇÕES BÁSICAS */}
                     <div className="space-y-4">
                         <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
@@ -139,17 +150,14 @@ export function PaymentMethodDialog({ method, trigger, onSuccess }: PaymentMetho
                             />
                         </div>
 
-                        <div className="space-y-2">
-                            <Label className="text-xs font-semibold uppercase text-slate-500">Identificador (Slug)</Label>
-                            <Input
-                                placeholder="Ex: pix, cash, debit_card..."
-                                value={slug}
-                                onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/\s+/g, '_'))}
-                                required
-                                className="shadow-sm font-mono text-sm h-11"
-                            />
-                            <p className="text-[10px] text-slate-500">Usado internamente. Não altere após criar.</p>
-                        </div>
+                        {method && (
+                            <div className="space-y-2">
+                                <Label className="text-xs font-semibold uppercase text-slate-500">Identificador (Slug)</Label>
+                                <div className="px-3 py-2.5 bg-slate-50 dark:bg-slate-900 rounded-md border border-slate-200 dark:border-slate-800">
+                                    <code className="text-xs font-mono text-slate-500 break-all">{slug}</code>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* CONTEXTOS DE USO */}

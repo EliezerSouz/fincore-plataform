@@ -106,7 +106,7 @@ export function BalanceAdjustmentDialog({
 
             const input = {
                 account_id: accountId,
-                adjustment_date: format(values.adjustment_date, 'yyyy-MM-dd'),
+                adjustment_date: values.adjustment_date.toISOString(),
                 balance: balanceValue,
                 type: values.type,
                 notes: values.notes,

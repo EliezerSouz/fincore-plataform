@@ -98,6 +98,8 @@ export async function createAccount(formData: FormData) {
             const cardClosing = parseInt(formData.get('card_closing_day') as string)
             const cardDue = parseInt(formData.get('card_due_day') as string)
 
+            const cardLastDigits = formData.get('card_last_digits') as string
+
             if (!isNaN(cardLimit) && cardLimit > 0) {
                  // Check primary card status
                  const primaryInfo = await getPrimaryCard()
@@ -111,7 +113,7 @@ export async function createAccount(formData: FormData) {
                     closing_day: cardClosing,
                     due_day: cardDue,
                     color: color,
-                    last_4_digits: null
+                    last_4_digits: cardLastDigits || null
                 })
 
                 // Auto-set primary if none exists

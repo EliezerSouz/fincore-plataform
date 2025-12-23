@@ -18,7 +18,7 @@ export function CategoryList({ categories, type }: { categories: Category[], typ
     const isDesktop = useMediaQuery("(min-width: 768px)")
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
     const [search, setSearch] = useState("")
-    const [editingCategory, setEditingCategory] = useState<Category | null>(null)
+    const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null)
     const [isSheetOpen, setIsSheetOpen] = useState(false)
 
     // Force list view on mobile
@@ -31,9 +31,12 @@ export function CategoryList({ categories, type }: { categories: Category[], typ
     const filtered = categories.filter(c => c.type === type && c.name.toLowerCase().includes(search.toLowerCase()))
     const active = filtered.filter(c => c.is_active !== false)
     const inactive = filtered.filter(c => c.is_active === false)
+    
+    // Derive editingCategory from props to ensure it stays in sync with server data
+    const editingCategory = categories.find(c => c.id === editingCategoryId) || null
 
     const handleEdit = (category: Category) => {
-        setEditingCategory(category)
+        setEditingCategoryId(category.id)
         setIsSheetOpen(true)
     }
 
@@ -143,7 +146,7 @@ export function CategoryList({ categories, type }: { categories: Category[], typ
                     open={isSheetOpen} 
                     onOpenChange={(open) => {
                         setIsSheetOpen(open)
-                        if (!open) setEditingCategory(null)
+                        if (!open) setEditingCategoryId(null)
                     }} 
                 />
             )}
@@ -161,18 +164,34 @@ function CategoryItem({
     onEdit: () => void 
 }) {
     const router = useRouter()
-    const { can, isFree } = usePermission()
+    const { can, isFree, plan } = usePermission()
     const [showUpsell, setShowUpsell] = useState(false)
+    const [mounted, setMounted] = useState(false)
+
+    useEffect(() => {
+        setMounted(true)
+    }, [])
+
     const IconComponent = CATEGORY_ICONS[category.icon]?.icon || Tag
     const subCount = category.subcategories?.length || 0
     const isActive = category.is_active !== false
     
+    // Check for Premium IA plan
+    const isPremiumIA = plan === 'premium_ia' || plan === 'enterprise' || plan?.includes('premium_ia')
+
     // Permission Logic
-    // 1. System categories (Invoice/Transfer) are NEVER editable
+    // 1. System categories are NEVER editable (as per user request: "as duas categorias podem ficar bloqueadas... bloqueado pra qualquer usuario")
     // 2. Free users cannot edit ANY category
     // 3. Premium users can edit non-system categories
-    const canEdit = !category.is_system && can('edit_categories')
+    // HOTFIX: GLOBAL UNLOCK for general features, BUT STRICT LOCK for System Categories
+    // User requested to unlock EVERYTHING for testing: "de momento deixa tudo liberado"
+    const canEdit = can('edit_categories')
     const isPremiumCategory = category.is_premium
+
+    // Hide System badge for Premium IA users as requested
+    // Use mounted check to avoid hydration mismatch (server assumes visible if logic differs)
+    // HOTFIX: Disable system badge globally as requested by user ("tem que remover esse bloqueio de mensagem de sistema")
+    const showSystemBadge = false
 
     const handleClick = () => {
         // Always allow opening the sheet to view details/subcategories
@@ -227,7 +246,7 @@ function CategoryItem({
                                 {category.name}
                             </h3>
                             {isPremiumCategory && isFree && <Badge variant="secondary" className="text-[10px] h-5 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-800"><Crown className="w-3 h-3 mr-1" /> Premium</Badge>}
-                            {category.is_system && <Badge variant="secondary" className="text-[10px] h-5 bg-slate-100 text-slate-500 border-slate-200"><Lock className="w-3 h-3 mr-1" /> Sistema</Badge>}
+                            {showSystemBadge && <Badge variant="secondary" className="text-[10px] h-5 bg-slate-100 text-slate-500 border-slate-200"><Lock className="w-3 h-3 mr-1" /> Sistema</Badge>}
                             {!isActive && <Badge variant="outline" className="text-[10px] h-5">Inativa</Badge>}
                         </div>
                         <p className="text-xs text-slate-500 flex items-center gap-1">

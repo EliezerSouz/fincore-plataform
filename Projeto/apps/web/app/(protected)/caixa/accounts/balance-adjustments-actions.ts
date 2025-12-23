@@ -41,21 +41,118 @@ export async function getBalanceAdjustments(accountId: string): Promise<BalanceA
 
 /**
  * Create a new balance adjustment
+ * GUARDIAN OF INTEGRITY IMPLEMENTATION
  */
 export async function createBalanceAdjustment(
     input: CreateBalanceAdjustmentInput
 ): Promise<BalanceAdjustment> {
+    const supabase = await createClient()
+    const client = await getApiClient()
+
     try {
-        const client = await getApiClient()
+        // 1. Get Account Info (Current Balance)
+        const { data: account } = await supabase
+            .from('accounts')
+            .select('balance')
+            .eq('id', input.account_id)
+            .single()
+        
+        const currentBalance = account?.balance || 0
+
+        // 2. Get Last Transaction Date
+        const { data: transactions } = await supabase
+            .from('transactions')
+            .select('date')
+            .eq('account_id', input.account_id)
+            .order('date', { ascending: false })
+            .limit(1)
+        
+        const lastTxDate = transactions?.[0]?.date ? new Date(transactions[0].date) : null
+        const inputDate = new Date(input.adjustment_date)
+
+        // SCENARIO 1: No Transactions (Initial Balance)
+        if (!lastTxDate) {
+            const payload = {
+                ...input,
+                starts_controlled_period: input.starts_controlled_period ?? true
+            }
+            // Create checkpoint
+            const data = await client.post<BalanceAdjustment>('/api/balance-adjustments', payload)
+            
+            // Force update account balance (Scenario 1 Requirement)
+            if (currentBalance !== input.balance) {
+                await supabase.from('accounts').update({ balance: input.balance }).eq('id', input.account_id)
+            }
+            
+            revalidatePath('/caixa/accounts')
+            return data
+        }
+
+        // SCENARIO 2: Retroactive Check (Guardian Rule)
+        if (inputDate < lastTxDate) {
+            throw new Error("Não é possível ajustar o saldo em data anterior à última movimentação da conta.")
+        }
+
+        // SCENARIO 3: Adjustment via Transaction (Integrity Rule)
+        const diff = input.balance - currentBalance
+
+        // Only create transaction if there is a difference
+        if (Math.abs(diff) > 0.009) {
+            const type = diff > 0 ? 'receita' : 'despesa'
+            const amount = Math.abs(diff)
+            
+            // Helper to get/create category
+            const getAdjustmentCategory = async (type: 'receita' | 'despesa') => {
+                try {
+                    const categories = await client.get<any[]>(`/api/categories?type=${type}`)
+                    const found = categories?.find((c: any) => c.name === 'Ajuste de Saldo' || c.name === 'Ajustes')
+                    if (found) return found.id
+
+                    const newCat = await client.post<any>('/api/categories', {
+                        name: 'Ajuste de Saldo',
+                        type,
+                        icon: 'scale',
+                        color: '#64748b',
+                        is_active: true
+                    })
+                    return newCat.id
+                } catch (e) {
+                    console.error('Error getting adjustment category:', e)
+                    return null // Allow proceeding without category if needed
+                }
+            }
+
+            const categoryId = await getAdjustmentCategory(type)
+
+            // Create Transaction to adjust balance
+            await client.post('/api/transactions', {
+                account_id: input.account_id,
+                description: `Ajuste de Saldo${input.notes ? ' - ' + input.notes : ''}`,
+                amount: amount,
+                type: type,
+                date: input.adjustment_date,
+                category_id: categoryId,
+            })
+        }
+
+        // Create BalanceAdjustment record as a Checkpoint/Audit Log
+        // This marks the user's intent and defines the "Controlled Period" start if requested
         const payload = {
             ...input,
             starts_controlled_period: input.starts_controlled_period ?? true
         }
+        
         const data = await client.post<BalanceAdjustment>('/api/balance-adjustments', payload)
+        
         revalidatePath('/caixa/accounts')
         return data
-    } catch (error) {
+
+    } catch (error: any) {
         console.error('Error creating balance adjustment:', error)
+        // Pass through specific validation errors
+        if (error.message === "Não é possível ajustar o saldo em data anterior à última movimentação da conta.") {
+            throw error
+        }
         throw new Error('Failed to create balance adjustment')
     }
 }
