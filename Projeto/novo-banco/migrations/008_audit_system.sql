@@ -36,8 +36,8 @@ CREATE TABLE audit_log (
     -- Metadados
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     
-    -- Constraints
-    CONSTRAINT audit_log_operation_check CHECK (
+    -- Constraint de validação (sem nome explícito para evitar conflitos)
+    CHECK (
         (operation = 'INSERT' AND old_values IS NULL) OR
         (operation = 'DELETE' AND new_values IS NULL) OR
         (operation = 'UPDATE' AND old_values IS NOT NULL AND new_values IS NOT NULL)
