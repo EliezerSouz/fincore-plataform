@@ -46,6 +46,18 @@ func (h *BalanceAdjustmentHandler) Create(c *gin.Context) {
 		return
 	}
 
+	// Validate: Check if there are any transactions after the adjustment date
+	// This prevents retroactive adjustments that would invalidate the transaction history
+	hasTransactions, err := h.repo.HasTransactionsAfterDate(c.Request.Context(), input.AccountID, input.AdjustmentDate)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to validate adjustment date"})
+		return
+	}
+	if hasTransactions {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Não é possível realizar ajuste de saldo com data retroativa em contas que já possuem movimentações"})
+		return
+	}
+
 	adjustment := &entity.BalanceAdjustment{
 		ID:                     uuid.New().String(),
 		UserID:                 userID,

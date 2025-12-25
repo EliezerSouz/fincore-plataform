@@ -21,6 +21,18 @@ func LoggerMiddleware() gin.HandlerFunc {
 		c.Set("RequestID", reqID)
 		c.Header("X-Request-ID", reqID)
 
+		// DEBUG: Log ALL POST requests to see what's coming
+		if c.Request.Method == "POST" {
+			log.Printf("🟡 DEBUG: POST request to: %s", c.Request.URL.Path)
+		}
+
+		// DEBUG: Log incoming request details
+		if c.Request.Method == "POST" && c.Request.URL.Path == "/api/invoices/transactions" {
+			log.Printf("🟢 DEBUG MIDDLEWARE: POST /api/invoices/transactions detected!")
+			log.Printf("🟢 DEBUG MIDDLEWARE: Content-Type: %s", c.GetHeader("Content-Type"))
+			log.Printf("🟢 DEBUG MIDDLEWARE: Content-Length: %d", c.Request.ContentLength)
+		}
+
 		// Process request
 		c.Next()
 
@@ -36,5 +48,10 @@ func LoggerMiddleware() gin.HandlerFunc {
 			c.Request.Method,
 			c.Request.URL.Path,
 		)
+
+		// DEBUG: Log response status for our endpoint
+		if c.Request.Method == "POST" && c.Request.URL.Path == "/api/invoices/transactions" {
+			log.Printf("🔴 DEBUG MIDDLEWARE: Response status: %d", status)
+		}
 	}
 }

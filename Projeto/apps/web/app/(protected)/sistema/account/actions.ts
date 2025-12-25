@@ -2,6 +2,8 @@
 import { createClient } from "@/utils/supabase/server"
 import { revalidatePath } from "next/cache"
 
+import { ApiClient } from "@/lib/api-client"
+
 export async function updateProfile(data: { full_name?: string, phone?: string, avatar_url?: string }) {
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -26,9 +28,22 @@ export async function updateProfile(data: { full_name?: string, phone?: string, 
         return { error: "Falha ao atualizar dados no banco de dados." }
     }
 
-    // Opcional: Atualizar metadados do Auth User se necessário
-    // await supabase.auth.updateUser({ data: { full_name: data.full_name } })
-
     revalidatePath('/', 'layout')
     return { success: true }
+}
+
+export async function redeemPromoCodeAction(code: string) {
+    const supabase = await createClient()
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return { error: "Não autenticado" }
+
+    const client = new ApiClient(undefined, session.access_token)
+    try {
+        await client.post('/api/users/promo-code', { code })
+        revalidatePath('/', 'layout')
+        return { success: true }
+    } catch (e: any) {
+        console.error("Redeem promo error:", e)
+        return { error: e.message || "Erro ao ativar código" }
+    }
 }

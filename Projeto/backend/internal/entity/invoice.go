@@ -72,3 +72,25 @@ type UpdateCreditCardTransactionInput struct {
 	SubcategoryID   *string   `json:"subcategory_id"`
 	Notes           *string   `json:"notes"`
 }
+
+// ========================================
+// NOVA ESTRUTURA DE INVOICE (Sistema Completo)
+// ========================================
+
+type Invoice struct {
+	ID              string    `json:"id"`
+	UserID          string    `json:"user_id"`
+	CreditCardID    string    `json:"credit_card_id"`
+	ReferenceMonth  int       `json:"reference_month"`
+	ReferenceYear   int       `json:"reference_year"`
+	ClosingDate     time.Time `json:"closing_date"`
+	DueDate         time.Time `json:"due_date"`
+	Status          string    `json:"status"` // ABERTA, FECHADA, QUITADA, VENCIDA, ESTORNADA
+	TotalAmount     float64   `json:"total_amount"`
+	PaidAmount      float64   `json:"paid_amount"`
+	RemainingAmount float64   `json:"remaining_amount"`
+	InheritedCredit float64   `json:"inherited_credit"`
+	GeneratedCredit float64   `json:"generated_credit"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
+}

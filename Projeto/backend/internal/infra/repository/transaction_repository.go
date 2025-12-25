@@ -276,13 +276,25 @@ func (r *TransactionRepository) createWithTx(ctx context.Context, tx pgx.Tx, use
 		// If transaction date is before last adjustment, it's historical
 		// Compare only the date part (ignore time)
 		// Force UTC for comparison to avoid timezone issues
-		transactionDate := time.Date(input.Date.Year(), input.Date.Month(), input.Date.Day(), 0, 0, 0, 0, time.UTC)
-		adjustmentDate := time.Date(lastAdjustmentDate.Year(), lastAdjustmentDate.Month(), lastAdjustmentDate.Day(), 0, 0, 0, 0, time.UTC)
+		// We want to compare the "Calendar Date", effectively ignoring time.
+		// Using the location of the input/db dates to determine their Calendar Day.
 
-		fmt.Printf("DEBUG: Transaction Date: %v, Adjustment Date: %v\n", transactionDate, adjustmentDate)
+		tYear, tMonth, tDay := input.Date.Date()
+		aYear, aMonth, aDay := lastAdjustmentDate.Date()
+
+		transactionDate := time.Date(tYear, tMonth, tDay, 0, 0, 0, 0, time.UTC)
+		adjustmentDate := time.Date(aYear, aMonth, aDay, 0, 0, 0, 0, time.UTC)
+
+		fmt.Printf("DEBUG: Tx Date: %v (Orig: %v), Adj Date: %v (Orig: %v)\n", transactionDate, input.Date, adjustmentDate, lastAdjustmentDate)
 
 		if transactionDate.Before(adjustmentDate) {
 			isHistorical = true
+		}
+
+		// Explicitly ensure same-day is NOT historical (matches user expectation)
+		if transactionDate.Equal(adjustmentDate) {
+			isHistorical = false
+			fmt.Println("DEBUG: Transaction is on Adjustment Day -> Forcing Active (Not Historical)")
 		}
 	}
 	fmt.Printf("DEBUG: Is Historical: %v\n", isHistorical)

@@ -7,13 +7,14 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, Check, Zap, Lock, Sparkles, XCircle, ArrowRight, CalendarDays, RefreshCw, CreditCard, Rocket, User } from "lucide-react"
-import { updateProfile } from "./actions"
+import { Loader2, Check, Zap, Lock, Sparkles, XCircle, ArrowRight, CalendarDays, RefreshCw, CreditCard, Rocket, User, Ticket } from "lucide-react"
+import { updateProfile, redeemPromoCodeAction } from "./actions"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { cn } from "@/lib/utils"
 import { AvatarUpload } from "@/components/ui/avatar-upload"
 import { PageLayout } from "@/components/layout/page-layout"
+import { toast } from "sonner"
 
 // Feature constants definitions
 const PLAN_FEATURES = {
@@ -71,6 +72,8 @@ const UPSELL_FEATURES = {
 export default function AccountPage() {
     const { user, isLoading, refreshUser } = useUser()
     const [isSaving, setIsSaving] = useState(false)
+    const [isRedeeming, setIsRedeeming] = useState(false)
+    const [promoCode, setPromoCode] = useState("")
     const [formData, setFormData] = useState({
         full_name: "",
         phone: ""
@@ -105,6 +108,25 @@ export default function AccountPage() {
         }
     }
 
+    const handleRedeem = async () => {
+        if (!promoCode) return
+        setIsRedeeming(true)
+        try {
+            const result = await redeemPromoCodeAction(promoCode)
+            if (result.error) {
+                toast.error(result.error)
+            } else {
+                toast.success("Código promocional ativado com sucesso!")
+                setPromoCode("")
+                await refreshUser()
+            }
+        } catch (error) {
+            toast.error("Erro inesperado.")
+        } finally {
+            setIsRedeeming(false)
+        }
+    }
+
     if (isLoading) {
         return (
             <div className="flex items-center justify-center p-8">
@@ -120,78 +142,104 @@ export default function AccountPage() {
             icon={User}
         >
             <div className="grid gap-6 md:grid-cols-2">
-                {/* Dados do Perfil */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Perfil</CardTitle>
-                        <CardDescription>
-                            Gerencie suas informações pessoais.
-                        </CardDescription>
-                    </CardHeader>
-                    <div className="flex justify-center pb-2">
-                        <AvatarUpload
-                            avatarUrl={user?.avatarUrl || null}
-                            initials={user?.initials || "U"}
-                            onAvatarUpdate={async (url) => {
-                                await updateProfile({ avatar_url: url })
-                                await refreshUser()
-                            }}
-                        />
-                    </div>
-                    <form onSubmit={handleSubmit}>
-                        <CardContent className="space-y-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="email">Email</Label>
-                                <Input
-                                    id="email"
-                                    value={user?.email || ""}
-                                    disabled
-                                    className="bg-muted text-muted-foreground h-11"
-                                />
-                                <p className="text-[0.8rem] text-muted-foreground">
-                                    O email não pode ser alterado.
-                                </p>
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label htmlFor="name">Nome Completo</Label>
-                                <Input
-                                    id="name"
-                                    value={formData.full_name}
-                                    onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                                    required
-                                    className="h-11"
-                                />
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label htmlFor="phone">Celular / WhatsApp</Label>
-                                <Input
-                                    id="phone"
-                                    value={formData.phone}
-                                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                                    className="h-11"
-                                />
-                            </div>
-
-                            <div className="flex justify-between items-end pt-4">
-                                <div className="text-xs text-muted-foreground space-y-1">
-                                    <p className="flex items-center gap-1.5">
-                                        <Rocket className="w-3 h-3 text-indigo-500" />
-                                        Você organiza sua vida financeira no FINCORE desde
-                                    </p>
-                                    <p className="font-medium text-slate-700 dark:text-slate-300 pl-5">
-                                        {user?.createdAt ? format(new Date(user.createdAt), "dd 'de' MMMM 'de' yyyy", { locale: ptBR }) : '...'}
+                <div className="space-y-6">
+                    {/* Dados do Perfil */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Perfil</CardTitle>
+                            <CardDescription>
+                                Gerencie suas informações pessoais.
+                            </CardDescription>
+                        </CardHeader>
+                        <div className="flex justify-center pb-2">
+                            <AvatarUpload
+                                avatarUrl={user?.avatarUrl || null}
+                                initials={user?.initials || "U"}
+                                onAvatarUpdate={async (url) => {
+                                    await updateProfile({ avatar_url: url })
+                                    await refreshUser()
+                                }}
+                            />
+                        </div>
+                        <form onSubmit={handleSubmit}>
+                            <CardContent className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="email">Email</Label>
+                                    <Input
+                                        id="email"
+                                        value={user?.email || ""}
+                                        disabled
+                                        className="bg-muted text-muted-foreground h-11"
+                                    />
+                                    <p className="text-[0.8rem] text-muted-foreground">
+                                        O email não pode ser alterado.
                                     </p>
                                 </div>
-                                <Button type="submit" disabled={isSaving} className="h-11">
-                                    {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                    Salvar Alterações
-                                </Button>
-                            </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="name">Nome Completo</Label>
+                                    <Input
+                                        id="name"
+                                        value={formData.full_name}
+                                        onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                                        required
+                                        className="h-11"
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="phone">Celular / WhatsApp</Label>
+                                    <Input
+                                        id="phone"
+                                        value={formData.phone}
+                                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                                        className="h-11"
+                                    />
+                                </div>
+
+                                <div className="flex justify-between items-end pt-4">
+                                    <div className="text-xs text-muted-foreground space-y-1">
+                                        <p className="flex items-center gap-1.5">
+                                            <Rocket className="w-3 h-3 text-indigo-500" />
+                                            Você organiza sua vida financeira no FINCORE desde
+                                        </p>
+                                        <p className="font-medium text-slate-700 dark:text-slate-300 pl-5">
+                                            {user?.createdAt ? format(new Date(user.createdAt), "dd 'de' MMMM 'de' yyyy", { locale: ptBR }) : '...'}
+                                        </p>
+                                    </div>
+                                    <Button type="submit" disabled={isSaving} className="h-11">
+                                        {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                        Salvar Alterações
+                                    </Button>
+                                </div>
+                            </CardContent>
+                        </form>
+                    </Card>
+
+                    {/* Código Promocional */}
+                    <Card>
+                        <CardHeader className="pb-3">
+                            <CardTitle className="flex items-center gap-2 text-base">
+                                <Ticket className="w-4 h-4 text-purple-500" />
+                                Código Promocional
+                            </CardTitle>
+                            <CardDescription>
+                                Possui um código de parceiro ou cupom?
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="flex gap-3">
+                            <Input
+                                placeholder="EX: PREMIUM14"
+                                value={promoCode}
+                                onChange={e => setPromoCode(e.target.value.toUpperCase())}
+                                className="uppercase h-10 font-medium tracking-wide"
+                            />
+                            <Button onClick={handleRedeem} disabled={isRedeeming || !promoCode} className="h-10 min-w-[100px]">
+                                {isRedeeming ? <Loader2 className="h-4 w-4 animate-spin" /> : "Ativar"}
+                            </Button>
                         </CardContent>
-                    </form>
-                </Card>
+                    </Card>
+                </div>
 
                 {/* Dados da Assinatura */}
                 <Card>

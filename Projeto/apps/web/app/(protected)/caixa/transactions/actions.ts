@@ -221,21 +221,31 @@ export async function createTransfer(formData: FormData) {
     // Buscar/Criar Categoria "Transferência"
     const getTransferCategory = async (type: 'receita' | 'despesa') => {
         try {
-            // Fetch all categories of type
+            // 1. Tentar buscar primeiro
             const categories = await client.get<any[]>(`/api/categories?type=${type}`)
             const found = categories?.find((c: any) => c.name === 'Transferência')
-            
+
             if (found) return found.id
 
-            // Create if not found
-            const newCat = await client.post<any>('/api/categories', {
-                name: 'Transferência',
-                type,
-                icon: 'arrow-right-left',
-                color: '#3b82f6',
-                is_active: true
-            })
-            return newCat.id
+            // 2. Se não encontrou, criar
+            try {
+                const newCat = await client.post<any>('/api/categories', {
+                    name: 'Transferência',
+                    type,
+                    icon: 'arrow-right-left',
+                    color: '#3b82f6',
+                    is_active: true
+                })
+                return newCat.id
+            } catch (createError: any) {
+                // 3. Se deu erro 409 (Conflict), é porque correu uma race condition ou a busca anterior falhou, tentamos buscar de novo
+                if (createError.status === 409 || createError.message?.includes('409') || createError.message?.includes('já existe')) {
+                    const retryCategories = await client.get<any[]>(`/api/categories?type=${type}`)
+                    const retryFound = retryCategories?.find((c: any) => c.name === 'Transferência')
+                    if (retryFound) return retryFound.id
+                }
+                throw createError
+            }
         } catch (e) {
             console.error('Erro ao buscar/criar categoria de transferência:', e)
             throw new Error('Erro ao configurar categoria de transferência')
@@ -341,7 +351,7 @@ export async function deleteTransaction(id: string) {
  */
 export async function duplicateTransaction(id: string) {
     const client = await getApiClient()
-    
+
     // 1. Fetch original
     const original = await client.get<any>(`/api/transactions/${id}`)
     if (!original) throw new Error('Transação não encontrada')
@@ -371,9 +381,9 @@ export async function getCategories(type?: 'receita' | 'despesa', activeOnly = f
         const params = new URLSearchParams()
         if (type) params.append('type', type)
         params.append('active', activeOnly ? 'true' : 'false')
-        
+
         url += `?${params.toString()}`
-        
+
         return await client.get<any[]>(url)
     } catch (e) {
         console.error('Error fetching categories:', e)
@@ -386,11 +396,11 @@ export async function getSubcategories(catId: string, activeOnly = false) {
         const client = await getApiClient()
         // Fetch all categories (including subs) and filter.
         // Less efficient but works without new endpoint.
-        const categories = await client.get<any[]>('/api/categories?active=false') 
+        const categories = await client.get<any[]>('/api/categories?active=false')
         const category = categories.find((c: any) => c.id === catId)
-        
+
         if (!category || !category.subcategories) return []
-        
+
         let subs = category.subcategories
         if (activeOnly) {
             subs = subs.filter((s: any) => s.is_active)

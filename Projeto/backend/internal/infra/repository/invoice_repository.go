@@ -56,9 +56,9 @@ func (r *InvoiceRepository) FindByID(ctx context.Context, id string) (*entity.Cr
 	`
 	var i entity.CreditCardInvoice
 	i.CreditCard = &entity.CreditCard{}
-	
+
 	err := r.db.QueryRow(ctx, query, id).Scan(
-		&i.ID, &i.CreditCardID, &i.ReferenceMonth, &i.ReferenceYear, &i.ClosingDate, &i.DueDate, 
+		&i.ID, &i.CreditCardID, &i.ReferenceMonth, &i.ReferenceYear, &i.ClosingDate, &i.DueDate,
 		&i.TotalAmount, &i.PaidAmount, &i.Status, &i.CreatedAt, &i.UpdatedAt,
 		&i.CreditCard.ID, &i.CreditCard.Name, &i.CreditCard.Brand, &i.CreditCard.Last4Digits, &i.CreditCard.Color,
 	)
@@ -214,11 +214,11 @@ func (r *InvoiceRepository) GetOrCreateInvoice(ctx context.Context, tx pgx.Tx, u
 
 	queryInsert := `
 		INSERT INTO credit_card_invoices (
-			id, credit_card_id, reference_month, reference_year, closing_date, due_date, status, total_amount, created_at, updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, 'open', 0, NOW(), NOW())
+			id, user_id, credit_card_id, reference_month, reference_year, closing_date, due_date, status, total_amount, created_at, updated_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, 'open', 0, NOW(), NOW())
 		RETURNING id
 	`
-	err = tx.QueryRow(ctx, queryInsert, newID, cardID, refMonth, refYear, closingDate, dueDate).Scan(&invoiceID)
+	err = tx.QueryRow(ctx, queryInsert, newID, userID, cardID, refMonth, refYear, closingDate, dueDate).Scan(&invoiceID)
 	if err != nil {
 		return "", fmt.Errorf("failed to create invoice: %w", err)
 	}
@@ -294,9 +294,22 @@ func (r *InvoiceRepository) CreateTransaction(ctx context.Context, input entity.
 				is_installment, installment_number, total_installments, category_id, subcategory_id, notes, group_id, transaction_type, created_at, updated_at
 			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW(), NOW())
 		`
+
+		var currentGroupID *string
+		var currentInstallmentNumber *int
+		var currentTotalInstallments *int
+
+		if installments > 1 {
+			currentGroupID = &groupID
+			valI := i
+			valTotal := installments
+			currentInstallmentNumber = &valI
+			currentTotalInstallments = &valTotal
+		}
+
 		_, err = tx.Exec(ctx, queryInsert,
 			txID, userID, input.CreditCardID, invoiceID, desc, perInstallmentAmount, installmentDate,
-			installments > 1, i, installments, input.CategoryID, input.SubcategoryID, input.Notes, groupID, "purchase",
+			installments > 1, currentInstallmentNumber, currentTotalInstallments, input.CategoryID, input.SubcategoryID, input.Notes, currentGroupID, "purchase",
 		)
 		if err != nil {
 			return fmt.Errorf("failed to insert transaction: %w", err)

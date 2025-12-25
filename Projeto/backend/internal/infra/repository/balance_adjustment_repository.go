@@ -4,6 +4,7 @@ import (
 	"context"
 	"financeiro-api/internal/entity"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -35,7 +36,10 @@ func (r *BalanceAdjustmentRepository) Create(ctx context.Context, adjustment *en
 		adjustment.CreatedAt,
 		adjustment.UpdatedAt,
 	)
-	return err
+	if err != nil {
+		return err
+	}
+	return r.updateAccountBalance(ctx, adjustment.AccountID)
 }
 
 func (r *BalanceAdjustmentRepository) Update(ctx context.Context, adjustment *entity.BalanceAdjustment) error {
@@ -54,13 +58,22 @@ func (r *BalanceAdjustmentRepository) Update(ctx context.Context, adjustment *en
 		adjustment.ID,
 		adjustment.UserID,
 	)
-	return err
+	if err != nil {
+		return err
+	}
+	return r.updateAccountBalance(ctx, adjustment.AccountID)
 }
 
 func (r *BalanceAdjustmentRepository) Delete(ctx context.Context, id, userID string) error {
-	query := `DELETE FROM account_balance_adjustments WHERE id = $1 AND user_id = $2`
-	_, err := r.db.Exec(ctx, query, id, userID)
-	return err
+	// Need accountID to update balance. Fetch it first or use RETURNING?
+	// RETURNING is better.
+	query := `DELETE FROM account_balance_adjustments WHERE id = $1 AND user_id = $2 RETURNING account_id`
+	var accountID string
+	err := r.db.QueryRow(ctx, query, id, userID).Scan(&accountID)
+	if err != nil {
+		return err
+	}
+	return r.updateAccountBalance(ctx, accountID)
 }
 
 func (r *BalanceAdjustmentRepository) FindByID(ctx context.Context, id string) (*entity.BalanceAdjustment, error) {
@@ -102,4 +115,86 @@ func (r *BalanceAdjustmentRepository) FindAllByAccount(ctx context.Context, acco
 		adjustments = append(adjustments, ba)
 	}
 	return adjustments, nil
+}
+
+// HasTransactionsAfterDate checks if there are any transactions after the given date
+func (r *BalanceAdjustmentRepository) HasTransactionsAfterDate(ctx context.Context, accountID string, date time.Time) (bool, error) {
+	var count int
+	query := `
+		SELECT COUNT(*)
+		FROM transactions
+		WHERE account_id = $1
+			AND date >= $2
+			AND deleted_at IS NULL
+	`
+	err := r.db.QueryRow(ctx, query, accountID, date).Scan(&count)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
+// Helper to recalculate and update account balance
+func (r *BalanceAdjustmentRepository) updateAccountBalance(ctx context.Context, accountID string) error {
+	// 1. Get the latest adjustment
+	queryAdj := `
+		SELECT balance, adjustment_date
+		FROM account_balance_adjustments
+		WHERE account_id = $1
+		ORDER BY adjustment_date DESC
+		LIMIT 1
+	`
+	var lastBalance float64
+	var lastDate time.Time
+	hasAdjustment := true
+
+	err := r.db.QueryRow(ctx, queryAdj, accountID).Scan(&lastBalance, &lastDate)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			hasAdjustment = false
+		} else {
+			return fmt.Errorf("failed to get last adjustment: %w", err)
+		}
+	}
+
+	// 2. Sum transactions after that date (or all if no adjustment)
+	queryTx := `
+		SELECT COALESCE(SUM(
+			CASE 
+				WHEN type = 'receita' THEN amount 
+				WHEN type = 'despesa' THEN -amount 
+				ELSE 0 
+			END
+		), 0)
+		FROM transactions
+		WHERE account_id = $1
+		  AND deleted_at IS NULL
+	`
+	args := []interface{}{accountID}
+
+	if hasAdjustment {
+		queryTx += " AND date >= $2"
+		args = append(args, lastDate)
+	}
+
+	var txSum float64
+	err = r.db.QueryRow(ctx, queryTx, args...).Scan(&txSum)
+	if err != nil {
+		return fmt.Errorf("failed to sum transactions: %w", err)
+	}
+
+	// 3. New Balance
+	newBalance := txSum
+	if hasAdjustment {
+		newBalance += lastBalance
+	}
+
+	// 4. Update Account
+	queryUpdate := `UPDATE accounts SET balance = $1, updated_at = NOW() WHERE id = $2`
+	_, err = r.db.Exec(ctx, queryUpdate, newBalance, accountID)
+	if err != nil {
+		return fmt.Errorf("failed to update account balance: %w", err)
+	}
+
+	return nil
 }

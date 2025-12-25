@@ -36,6 +36,7 @@ type User struct {
 	TempAccessExpiresAt   *time.Time         `json:"temp_access_expires_at,omitempty" db:"temp_access_expires_at"`
 	TempAccessOrigin      *string            `json:"temp_access_origin,omitempty" db:"temp_access_origin"`
 	UsedPromoCode         *string            `json:"used_promo_code,omitempty" db:"used_promo_code"`
+	RedeemedPromoCodes    []string           `json:"redeemed_promo_codes" db:"redeemed_promo_codes"` // Supports multiple codes
 	PrimaryCreditCardID   *string            `json:"primary_credit_card_id,omitempty" db:"primary_credit_card_id"`
 	PrimaryCardLocked     bool               `json:"primary_card_locked" db:"primary_card_locked"`
 	BillingCycle          BillingCycle       `json:"billing_cycle" db:"billing_cycle"`

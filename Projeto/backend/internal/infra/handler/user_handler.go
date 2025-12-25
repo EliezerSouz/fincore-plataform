@@ -103,3 +103,37 @@ func (h *UserHandler) SetPrimaryCard(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"status": "success"})
 }
+
+type RedeemPromoCodeRequest struct {
+	Code string `json:"code" binding:"required"`
+}
+
+func (h *UserHandler) RedeemPromoCode(c *gin.Context) {
+	userIDStr, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	userID, err := uuid.Parse(userIDStr.(string))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+		return
+	}
+
+	var req RedeemPromoCodeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "código inválido ou ausente"})
+		return
+	}
+
+	if err := h.Service.RedeemPromoCode(c.Request.Context(), userID, req.Code); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status":  "success",
+		"message": "Código promocional ativado com sucesso!",
+	})
+}

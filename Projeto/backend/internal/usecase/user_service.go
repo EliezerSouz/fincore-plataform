@@ -133,3 +133,10 @@ func (s *UserService) SetPrimaryCard(ctx context.Context, userID uuid.UUID, card
 
 	return s.Repo.UpdatePrimaryCard(ctx, userID, cardID, locked)
 }
+
+func (s *UserService) RedeemPromoCode(ctx context.Context, userID uuid.UUID, code string) error {
+	if code == "" {
+		return fmt.Errorf("código promocional não pode ser vazio")
+	}
+	return s.Repo.RedeemPromoCode(ctx, userID, code)
+}

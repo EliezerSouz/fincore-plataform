@@ -56,6 +56,10 @@ func (h *CategoryHandler) Create(c *gin.Context) {
 
 	category, err := h.repo.Create(c.Request.Context(), userID, input)
 	if err != nil {
+		if err.Error() == "category already exists" {
+			c.JSON(http.StatusConflict, gin.H{"error": "Categoria já existe"})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

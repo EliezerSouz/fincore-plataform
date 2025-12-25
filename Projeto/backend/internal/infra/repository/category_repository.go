@@ -2,11 +2,13 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"financeiro-api/internal/entity"
 	"fmt"
 
 	"strings"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -114,6 +116,10 @@ func (r *CategoryRepository) Create(ctx context.Context, userID string, input en
 		&cat.Icon, &cat.Color, &cat.IsActive, &cat.IsSystem, &cat.IsPremium, &cat.CreatedAt, &cat.UpdatedAt,
 	)
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return nil, fmt.Errorf("category already exists")
+		}
 		return nil, fmt.Errorf("failed to create category: %w", err)
 	}
 	return &cat, nil
@@ -162,14 +168,46 @@ func (r *CategoryRepository) Update(ctx context.Context, id, userID string, inpu
 }
 
 func (r *CategoryRepository) Delete(ctx context.Context, id, userID string) error {
-	// HOTFIX: Allow deleting system categories for testing
+	// 1. Verificar se há subcategorias vinculadas
+	var subCount int
+	checkSubQuery := `
+		SELECT COUNT(*)
+		FROM subcategories
+		WHERE category_id = $1 AND user_id = $2::uuid
+	`
+	err := r.db.QueryRow(ctx, checkSubQuery, id, userID).Scan(&subCount)
+	if err != nil {
+		return fmt.Errorf("failed to check subcategories: %w", err)
+	}
+
+	if subCount > 0 {
+		return fmt.Errorf("não é possível excluir categoria com %d subcategoria(s) vinculada(s). Exclua as subcategorias primeiro", subCount)
+	}
+
+	// 2. Verificar se há transações usando esta categoria
+	var txCount int
+	txCheckQuery := `
+		SELECT COUNT(*)
+		FROM transactions
+		WHERE category_id = $1 AND deleted_at IS NULL
+	`
+	err = r.db.QueryRow(ctx, txCheckQuery, id).Scan(&txCount)
+	if err != nil {
+		return fmt.Errorf("failed to check transactions: %w", err)
+	}
+
+	if txCount > 0 {
+		return fmt.Errorf("não é possível excluir categoria com %d transação(ões) vinculada(s)", txCount)
+	}
+
+	// 3. Prosseguir com exclusão
 	query := `DELETE FROM categories WHERE id = $1 AND user_id = $2::uuid`
 	cmdTag, err := r.db.Exec(ctx, query, id, userID)
 	if err != nil {
 		return fmt.Errorf("failed to delete category: %w", err)
 	}
 	if cmdTag.RowsAffected() == 0 {
-		return fmt.Errorf("category not found, unauthorized")
+		return fmt.Errorf("category not found or unauthorized")
 	}
 	return nil
 }

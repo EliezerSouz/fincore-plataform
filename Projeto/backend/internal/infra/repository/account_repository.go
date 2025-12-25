@@ -122,6 +122,84 @@ func (r *AccountRepository) applyYield(ctx context.Context, acc *entity.Account)
 	return totalYielded, lastDailyYield, nil
 }
 
+// calculateBalanceWithAdjustments calculates account balance considering balance adjustments
+func (r *AccountRepository) calculateBalanceWithAdjustments(ctx context.Context, accountID string, targetDate time.Time) (float64, error) {
+	// Find the last adjustment before or on the target date
+	var lastAdjustment struct {
+		Balance        float64
+		AdjustmentDate time.Time
+	}
+
+	adjustmentQuery := `
+		SELECT balance, adjustment_date
+		FROM account_balance_adjustments
+		WHERE account_id = $1
+			AND adjustment_date <= $2
+			AND deleted_at IS NULL
+		ORDER BY adjustment_date DESC, created_at DESC
+		LIMIT 1
+	`
+
+	err := r.db.QueryRow(ctx, adjustmentQuery, accountID, targetDate).Scan(&lastAdjustment.Balance, &lastAdjustment.AdjustmentDate)
+
+	// If no adjustment found, calculate from all transactions
+	if err != nil {
+		var transactionsSum float64
+		transactionsQuery := `
+			SELECT COALESCE(
+				SUM(
+					CASE 
+						WHEN type = 'receita' THEN amount
+						WHEN type = 'despesa' THEN -amount
+						ELSE 0
+					END
+				), 0
+			)
+			FROM transactions
+			WHERE account_id = $1
+				AND date <= $2
+				AND is_paid = true
+				AND is_historical = false
+				AND deleted_at IS NULL
+		`
+		err = r.db.QueryRow(ctx, transactionsQuery, accountID, targetDate).Scan(&transactionsSum)
+		if err != nil {
+			return 0, fmt.Errorf("failed to calculate balance from transactions: %w", err)
+		}
+		return transactionsSum, nil
+	}
+
+	// If adjustment found, sum transactions after the adjustment date
+	// FIX: Use >= to include transactions on the same day if they are NOT historical
+	// The transaction_repository now explicitly sets is_historical=false for same-day transactions.
+	var transactionsSum float64
+	transactionsQuery := `
+		SELECT COALESCE(
+			SUM(
+				CASE 
+					WHEN type = 'receita' THEN amount
+					WHEN type = 'despesa' THEN -amount
+					ELSE 0
+				END
+			), 0
+		)
+		FROM transactions
+		WHERE account_id = $1
+			AND date >= $2
+			AND date <= $3
+			AND is_paid = true
+			AND is_historical = false
+			AND deleted_at IS NULL
+	`
+
+	err = r.db.QueryRow(ctx, transactionsQuery, accountID, lastAdjustment.AdjustmentDate, targetDate).Scan(&transactionsSum)
+	if err != nil {
+		return 0, fmt.Errorf("failed to calculate balance from transactions: %w", err)
+	}
+
+	return lastAdjustment.Balance + transactionsSum, nil
+}
+
 func (r *AccountRepository) FindAll(ctx context.Context, userID string, includeInactive bool) ([]entity.Account, error) {
 	// Query includes subqueries for Yield Display
 	// yield_today: fetches the very last yield record (most recent)
@@ -174,6 +252,12 @@ func (r *AccountRepository) FindAll(ctx context.Context, userID string, includeI
 			}
 		}
 
+		// Calculate balance with adjustments
+		calculatedBalance, err := r.calculateBalanceWithAdjustments(ctx, acc.ID, time.Now())
+		if err == nil {
+			acc.Balance = calculatedBalance
+		}
+
 		accounts = append(accounts, acc)
 	}
 
@@ -213,6 +297,12 @@ func (r *AccountRepository) FindByID(ctx context.Context, id, userID string) (*e
 		}
 	}
 
+	// Calculate balance with adjustments
+	calculatedBalance, err := r.calculateBalanceWithAdjustments(ctx, acc.ID, time.Now())
+	if err == nil {
+		acc.Balance = calculatedBalance
+	}
+
 	return &acc, nil
 }
 
@@ -241,9 +331,10 @@ func (r *AccountRepository) Create(ctx context.Context, userID string, input ent
 	}
 
 	// 2. Register initial balance in account_balance_adjustments
-	// This creates a "starting point" for retroactive transactions
+	// 2. Register initial balance in account_balance_adjustments
+	// RESTORED: This is required for the initial balance to be respected by the dynamic calculation logic
 	adjustmentQuery := `
-		INSERT INTO account_balance_adjustments 
+		INSERT INTO account_balance_adjustments
 		(account_id, user_id, adjustment_date, balance, type, starts_controlled_period, notes)
 		VALUES ($1, $2::uuid, CURRENT_DATE, $3, 'initial', true, 'Saldo inicial da conta')
 	`
@@ -306,6 +397,23 @@ func (r *AccountRepository) Update(ctx context.Context, id, userID string, input
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update account: %w", err)
+	}
+
+	// Se o saldo foi atualizado, atualizar também o ajuste inicial
+	// APENAS ATUALIZA O VALOR, PRESERVANDO A DATA JÁ DEFINIDA
+	if input.Balance != nil {
+		updateAdjustmentQuery := `
+			UPDATE account_balance_adjustments 
+			SET balance = $1 
+			WHERE account_id = $2 AND type = 'initial'
+		`
+		// Nota: Não falhamos se não encontrar (pode ser conta antiga sem ajuste), mas tentamos atualizar
+		_, err = r.db.Exec(ctx, updateAdjustmentQuery, *input.Balance, id)
+		if err != nil {
+			// Log error but generally continue? Or fail? Let's log for now as it's cleaner
+			// In production could use a logger here
+			fmt.Printf("Warning: failed to update initial balance adjustment: %v\n", err)
+		}
 	}
 
 	return &acc, nil
