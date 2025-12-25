@@ -769,3 +769,145 @@ func (h *SimpleInvoiceHandler) GetInvoicesByCard(c *gin.Context) {
 
 	c.JSON(http.StatusOK, invoices)
 }
+
+// GetInvoiceDetails busca detalhes completos de uma fatura
+func (h *SimpleInvoiceHandler) GetInvoiceDetails(c *gin.Context) {
+	userID := c.GetString("user_id")
+	invoiceID := c.Param("id")
+
+	// Buscar fatura
+	var invoice struct {
+		ID             string
+		CreditCardID   string
+		ReferenceMonth int
+		ReferenceYear  int
+		ClosingDate    time.Time
+		DueDate        time.Time
+		TotalAmount    float64
+		PaidAmount     float64
+		Status         string
+		CreatedAt      time.Time
+		UpdatedAt      time.Time
+	}
+
+	err := h.db.QueryRow(c.Request.Context(), `
+		SELECT 
+			id, credit_card_id, reference_month, reference_year,
+			closing_date, due_date, total_amount, paid_amount, status,
+			created_at, updated_at
+		FROM credit_card_invoices
+		WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL
+	`, invoiceID, userID).Scan(
+		&invoice.ID, &invoice.CreditCardID, &invoice.ReferenceMonth, &invoice.ReferenceYear,
+		&invoice.ClosingDate, &invoice.DueDate, &invoice.TotalAmount, &invoice.PaidAmount,
+		&invoice.Status, &invoice.CreatedAt, &invoice.UpdatedAt,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "invoice not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch invoice"})
+		}
+		return
+	}
+
+	// Buscar transações da fatura
+	transactionsRows, err := h.db.Query(c.Request.Context(), `
+		SELECT 
+			id, amount, created_at
+		FROM financial_events
+		WHERE invoice_id = $1 
+		AND type = 'LANCAMENTO_CARTAO'
+		AND reverted_at IS NULL
+		ORDER BY created_at DESC
+	`, invoiceID)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch transactions"})
+		return
+	}
+	defer transactionsRows.Close()
+
+	var transactions []map[string]interface{}
+	for transactionsRows.Next() {
+		var id string
+		var amount float64
+		var createdAt time.Time
+
+		if err := transactionsRows.Scan(&id, &amount, &createdAt); err != nil {
+			continue
+		}
+
+		transactions = append(transactions, map[string]interface{}{
+			"id":         id,
+			"amount":     amount,
+			"created_at": createdAt,
+		})
+	}
+
+	// Buscar pagamentos da fatura
+	paymentsRows, err := h.db.Query(c.Request.Context(), `
+		SELECT 
+			id, amount, account_id, created_at
+		FROM financial_events
+		WHERE invoice_id = $1 
+		AND type = 'PAGAMENTO_FATURA'
+		AND reverted_at IS NULL
+		ORDER BY created_at DESC
+	`, invoiceID)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch payments"})
+		return
+	}
+	defer paymentsRows.Close()
+
+	var payments []map[string]interface{}
+	for paymentsRows.Next() {
+		var id string
+		var amount float64
+		var accountID *string
+		var createdAt time.Time
+
+		if err := paymentsRows.Scan(&id, &amount, &accountID, &createdAt); err != nil {
+			continue
+		}
+
+		payment := map[string]interface{}{
+			"id":         id,
+			"amount":     amount,
+			"created_at": createdAt,
+		}
+		if accountID != nil {
+			payment["account_id"] = *accountID
+		}
+
+		payments = append(payments, payment)
+	}
+
+	if transactions == nil {
+		transactions = []map[string]interface{}{}
+	}
+	if payments == nil {
+		payments = []map[string]interface{}{}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"invoice": map[string]interface{}{
+			"id":              invoice.ID,
+			"credit_card_id":  invoice.CreditCardID,
+			"reference_month": invoice.ReferenceMonth,
+			"reference_year":  invoice.ReferenceYear,
+			"closing_date":    invoice.ClosingDate.Format("2006-01-02"),
+			"due_date":        invoice.DueDate.Format("2006-01-02"),
+			"total_amount":    invoice.TotalAmount,
+			"paid_amount":     invoice.PaidAmount,
+			"status":          invoice.Status,
+			"created_at":      invoice.CreatedAt,
+			"updated_at":      invoice.UpdatedAt,
+		},
+		"transactions": transactions,
+		"payments":     payments,
+	})
+}
