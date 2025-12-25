@@ -207,17 +207,7 @@ export async function createTransfer(formData: FormData) {
         throw new Error('A conta de origem e destino devem ser diferentes')
     }
 
-    // Obter nomes das contas
-    const accounts = await getAccounts()
-    const sourceAccount = accounts.find(a => a.id === sourceAccountId)
-    const targetAccount = accounts.find(a => a.id === targetAccountId)
-
-    if (!sourceAccount || !targetAccount) throw new Error("Conta não encontrada")
-
-    // Ajustar Data
-    const [y, m, d] = date.split('-').map(Number)
-    const fixedDate = new Date(Date.UTC(y, m - 1, d, 12, 0, 0)).toISOString()
-
+    // Verificação de Permissão - Paralelizar chamadas externas para performance
     // Buscar/Criar Categoria "Transferência"
     const getTransferCategory = async (type: 'receita' | 'despesa') => {
         try {
@@ -252,8 +242,21 @@ export async function createTransfer(formData: FormData) {
         }
     }
 
-    const expenseCategoryId = await getTransferCategory('despesa')
-    const incomeCategoryId = await getTransferCategory('receita')
+    const [accounts, expenseCategoryId, incomeCategoryId] = await Promise.all([
+        getAccounts(),
+        getTransferCategory('despesa'),
+        getTransferCategory('receita')
+    ]);
+
+    // Obter nomes das contas
+    const sourceAccount = accounts.find(a => a.id === sourceAccountId)
+    const targetAccount = accounts.find(a => a.id === targetAccountId)
+
+    if (!sourceAccount || !targetAccount) throw new Error("Conta não encontrada")
+
+    // Ajustar Data
+    const [y, m, d] = date.split('-').map(Number)
+    const fixedDate = new Date(Date.UTC(y, m - 1, d, 12, 0, 0)).toISOString()
 
     try {
         const payload = {
