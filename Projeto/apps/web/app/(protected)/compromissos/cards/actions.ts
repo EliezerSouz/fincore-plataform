@@ -288,9 +288,7 @@ export async function createTransaction(formData: FormData) {
     console.log('🔵 DEBUG Frontend: Sending payload:', JSON.stringify(payload, null, 2))
 
     try {
-        // SOLUÇÃO TEMPORÁRIA: Usando endpoint alternativo que funciona
-        // TODO: Investigar por que /api/invoices/transactions retorna erro 400
-        await client.post('/api/card-transaction-test', payload)
+        await client.post('/api/invoices/transactions', payload)
         console.log('✅ DEBUG Frontend: Transaction created successfully')
     } catch (error) {
         console.error('❌ DEBUG Frontend: Error creating transaction:', error)

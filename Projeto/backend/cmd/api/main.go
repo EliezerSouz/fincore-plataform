@@ -187,6 +187,7 @@ func main() {
 		// api.GET("/invoices/:id", invoiceHandler.GetInvoiceDetails)
 
 		// Novas rotas simples de faturas
+		api.GET("/cards/:id/invoices", simpleInvoiceHandler.GetInvoicesByCard)
 		api.POST("/invoices/transactions", simpleInvoiceHandler.CreateTransaction)
 		api.PUT("/invoices/transactions/:id", simpleInvoiceHandler.UpdateTransaction)
 		api.DELETE("/invoices/transactions/:id", simpleInvoiceHandler.DeleteTransaction)

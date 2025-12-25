@@ -706,3 +706,66 @@ func (h *SimpleInvoiceHandler) getOrCreateNextInvoice(ctx context.Context, userI
 
 	return nextInvoiceID, nil
 }
+
+// GetInvoicesByCard busca todas as faturas de um cartão
+func (h *SimpleInvoiceHandler) GetInvoicesByCard(c *gin.Context) {
+	userID := c.GetString("user_id")
+	cardID := c.Param("id")
+
+	rows, err := h.db.Query(c.Request.Context(), `
+		SELECT 
+			id, reference_month, reference_year, closing_date, due_date,
+			total_amount, paid_amount, status, created_at, updated_at
+		FROM credit_card_invoices
+		WHERE user_id = $1 
+		AND credit_card_id = $2
+		AND deleted_at IS NULL
+		ORDER BY reference_year DESC, reference_month DESC
+	`, userID, cardID)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch invoices"})
+		return
+	}
+	defer rows.Close()
+
+	var invoices []map[string]interface{}
+	for rows.Next() {
+		var id string
+		var month, year int
+		var closingDate, dueDate, createdAt, updatedAt time.Time
+		var totalAmount, paidAmount float64
+		var status string
+
+		err := rows.Scan(&id, &month, &year, &closingDate, &dueDate, &totalAmount, &paidAmount, &status, &createdAt, &updatedAt)
+		if err != nil {
+			continue
+		}
+
+		// Calcular dias restantes
+		now := time.Now()
+		daysRemaining := int(dueDate.Sub(now).Hours() / 24)
+
+		invoice := map[string]interface{}{
+			"id":              id,
+			"reference_month": month,
+			"reference_year":  year,
+			"closing_date":    closingDate.Format("2006-01-02"),
+			"due_date":        dueDate.Format("2006-01-02"),
+			"total_amount":    totalAmount,
+			"paid_amount":     paidAmount,
+			"status":          status,
+			"days_remaining":  daysRemaining,
+			"created_at":      createdAt,
+			"updated_at":      updatedAt,
+		}
+
+		invoices = append(invoices, invoice)
+	}
+
+	if invoices == nil {
+		invoices = []map[string]interface{}{}
+	}
+
+	c.JSON(http.StatusOK, invoices)
+}
