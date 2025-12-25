@@ -8,6 +8,7 @@ import { toTransactionFormData } from "@/features/transactions/utils/form-data"
 import { useRouter } from "next/navigation"
 import { FileText } from "lucide-react"
 import { toast } from "sonner"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 interface EditPayableDialogProps {
     payable: Payable
@@ -18,6 +19,8 @@ interface EditPayableDialogProps {
 export function EditPayableDialog({ payable, open, onOpenChange }: EditPayableDialogProps) {
     const router = useRouter()
     const [loading, setLoading] = useState(false)
+    const isRecurring = !!payable.recurrence_id
+    const [editMode, setEditMode] = useState("single")
 
     // Preparar dados iniciais do form
     const initialData: Partial<FinancialTransactionFormData> = {
@@ -34,6 +37,11 @@ export function EditPayableDialog({ payable, open, onOpenChange }: EditPayableDi
         setLoading(true)
         try {
             const formData = toTransactionFormData(data)
+
+            if (isRecurring && editMode === 'series') {
+                formData.append('update_mode', 'series')
+            }
+
             await updatePayable(payable.id, formData)
 
             onOpenChange(false)
@@ -69,6 +77,21 @@ export function EditPayableDialog({ payable, open, onOpenChange }: EditPayableDi
                 onClick: () => onOpenChange(false)
             }}
         >
+            {isRecurring && (
+                <div className="mb-6 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
+                    <span className="text-sm font-medium block mb-2 text-slate-700 dark:text-slate-300">Aplicar alterações em:</span>
+                    <Tabs value={editMode} onValueChange={setEditMode} className="w-full">
+                        <TabsList className="grid w-full grid-cols-2">
+                            <TabsTrigger value="single">Apenas esta</TabsTrigger>
+                            <TabsTrigger value="series">Todas pendentes</TabsTrigger>
+                        </TabsList>
+                    </Tabs>
+                    <p className="text-xs text-slate-500 mt-2">
+                        {editMode === 'single' ? "Altera apenas este registro." : "Altera este e todos os futuros lançamentos desta série (Descrição, Valor, Categoria)."}
+                    </p>
+                </div>
+            )}
+
             <FinancialTransactionForm
                 mode="edit"
                 initialData={initialData}

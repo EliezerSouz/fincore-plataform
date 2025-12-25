@@ -107,12 +107,15 @@ func (r *DashboardRepository) GetSummary(ctx context.Context, userID string) (*F
 
 	queryFlow := `
 		SELECT 
-			COALESCE(SUM(CASE WHEN type = 'receita' THEN amount ELSE 0 END), 0) as receita,
-			COALESCE(SUM(CASE WHEN type = 'despesa' THEN amount ELSE 0 END), 0) as despesa
-		FROM transactions
-		WHERE user_id = $1::uuid 
-		  AND date >= $2 AND date <= $3
-		  AND type != 'transferencia'
+			COALESCE(SUM(CASE WHEN t.type = 'receita' THEN t.amount ELSE 0 END), 0) as receita,
+			COALESCE(SUM(CASE WHEN t.type = 'despesa' THEN t.amount ELSE 0 END), 0) as despesa
+		FROM transactions t
+		LEFT JOIN categories c ON t.category_id = c.id
+		WHERE t.user_id = $1::uuid 
+		  AND t.date >= $2 AND t.date <= $3
+		  AND t.type != 'transferencia'
+		  AND t.related_transaction_id IS NULL
+		  AND (c.name IS NULL OR c.name NOT ILIKE 'Transferência%')
 	`
 	err = r.db.QueryRow(ctx, queryFlow, userID, startOfMonthStr, endOfMonthStr).Scan(&summary.ReceitaMensal, &summary.DespesaMensal)
 	if err != nil {
@@ -207,14 +210,17 @@ func (r *DashboardRepository) GetSummary(ctx context.Context, userID string) (*F
 
 	queryHistory := `
 		SELECT 
-			EXTRACT(MONTH FROM date) as month,
-			EXTRACT(YEAR FROM date) as year,
-			COALESCE(SUM(CASE WHEN type = 'receita' THEN amount ELSE 0 END), 0) as receita,
-			COALESCE(SUM(CASE WHEN type = 'despesa' THEN amount ELSE 0 END), 0) as despesa
-		FROM transactions
-		WHERE user_id = $1::uuid 
-		  AND date >= $2 AND date <= $3
-		  AND type != 'transferencia'
+			EXTRACT(MONTH FROM t.date) as month,
+			EXTRACT(YEAR FROM t.date) as year,
+			COALESCE(SUM(CASE WHEN t.type = 'receita' THEN t.amount ELSE 0 END), 0) as receita,
+			COALESCE(SUM(CASE WHEN t.type = 'despesa' THEN t.amount ELSE 0 END), 0) as despesa
+		FROM transactions t
+		LEFT JOIN categories c ON t.category_id = c.id
+		WHERE t.user_id = $1::uuid 
+		  AND t.date >= $2 AND t.date <= $3
+		  AND t.type != 'transferencia'
+		  AND t.related_transaction_id IS NULL
+		  AND (c.name IS NULL OR c.name NOT ILIKE 'Transferência%')
 		GROUP BY 1, 2
 		ORDER BY 2 ASC, 1 ASC
 	`
@@ -253,6 +259,8 @@ func (r *DashboardRepository) GetSummary(ctx context.Context, userID string) (*F
 		WHERE t.user_id = $1::uuid 
 		  AND t.date >= $2 AND t.date <= $3
 		  AND t.type = 'despesa'
+		  AND t.related_transaction_id IS NULL
+		  AND (c.name IS NULL OR c.name NOT ILIKE 'Transferência%')
 		GROUP BY c.name, c.color, c.icon
 		ORDER BY SUM(t.amount) DESC
 		LIMIT 3

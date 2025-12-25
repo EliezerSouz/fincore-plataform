@@ -143,6 +143,7 @@ func (h *PayableHandler) Revert(c *gin.Context) {
 func (h *PayableHandler) Update(c *gin.Context) {
 	userID := c.GetString("user_id")
 	id := c.Param("id")
+	mode := c.Query("mode")
 
 	var input entity.UpdatePayableInput
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -150,7 +151,7 @@ func (h *PayableHandler) Update(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.Update(c.Request.Context(), userID, id, input); err != nil {
+	if err := h.service.Update(c.Request.Context(), userID, id, mode, input); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -169,8 +170,9 @@ func (h *PayableHandler) Update(c *gin.Context) {
 func (h *PayableHandler) Delete(c *gin.Context) {
 	userID := c.GetString("user_id")
 	id := c.Param("id")
+	mode := c.Query("mode")
 
-	if err := h.service.Delete(c.Request.Context(), userID, id); err != nil {
+	if err := h.service.Delete(c.Request.Context(), userID, id, mode); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

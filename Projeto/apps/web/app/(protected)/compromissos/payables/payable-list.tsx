@@ -11,10 +11,10 @@ import {
     Trash2,
     AlertCircle,
     ArrowRight,
-    SearchX,
     Pencil,
     Undo2
 } from "lucide-react"
+import { toast } from "sonner"
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -336,14 +336,30 @@ function PayableRow({ payable, accounts, paymentMethods }: { payable: Payable, a
                     <AlertDialogHeader>
                         <AlertDialogTitle>Excluir Conta a Pagar</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Tem certeza que deseja excluir esta conta ({payable.description})? Esta ação não pode ser desfeita.
+                            {payable.recurrence_id ?
+                                "Esta conta faz parte de uma série recorrente (parcelada ou fixa). Como deseja prosseguir?" :
+                                `Tem certeza que deseja excluir esta conta (${payable.description})? Esta ação não pode ser desfeita.`
+                            }
                         </AlertDialogDescription>
                     </AlertDialogHeader>
-                    <AlertDialogFooter>
+                    <AlertDialogFooter className={payable.recurrence_id ? "sm:justify-between" : ""}>
                         <AlertDialogCancel disabled={loading}>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={(e) => { e.preventDefault(); handleConfirmDelete() }} disabled={loading} className="bg-red-600 hover:bg-red-700">
-                            {loading ? "Excluindo..." : "Excluir"}
-                        </AlertDialogAction>
+                        <div className="flex gap-2">
+                            {payable.recurrence_id ? (
+                                <>
+                                    <AlertDialogAction onClick={(e) => { e.preventDefault(); handleConfirmDelete('single') }} disabled={loading} className="bg-red-100 text-red-700 hover:bg-red-200 border-red-200 border">
+                                        Apenas Esta
+                                    </AlertDialogAction>
+                                    <AlertDialogAction onClick={(e) => { e.preventDefault(); handleConfirmDelete('series') }} disabled={loading} className="bg-red-600 hover:bg-red-700">
+                                        Toda a Série
+                                    </AlertDialogAction>
+                                </>
+                            ) : (
+                                <AlertDialogAction onClick={(e) => { e.preventDefault(); handleConfirmDelete('single') }} disabled={loading} className="bg-red-600 hover:bg-red-700">
+                                    {loading ? "Excluindo..." : "Excluir"}
+                                </AlertDialogAction>
+                            )}
+                        </div>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>

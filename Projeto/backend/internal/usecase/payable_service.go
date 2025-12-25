@@ -48,6 +48,9 @@ func (s *PayableService) Create(ctx context.Context, userID string, input entity
 		strategy = entity.RecurrenceInstallment
 	}
 
+	// Generate a Recurrence ID for this series
+	recurrenceID := uuid.New().String()
+
 	for i := 1; i <= input.Installments; i++ {
 		desc := fmt.Sprintf("%s (%d/%d)", input.Description, i, input.Installments)
 		amount := amountPerInstallment
@@ -65,6 +68,7 @@ func (s *PayableService) Create(ctx context.Context, userID string, input entity
 			DueDate:            currentDate,
 			Status:             entity.PayableStatusPending,
 			RecurrenceStrategy: strategy,
+			RecurrenceID:       &recurrenceID,
 			InstallmentNumber:  &i,
 			TotalInstallments:  &input.Installments,
 			CategoryID:         input.CategoryID,
@@ -158,7 +162,7 @@ func (s *PayableService) RevertPayment(ctx context.Context, userID, payableID st
 	return s.payableRepo.Update(ctx, payable)
 }
 
-func (s *PayableService) Update(ctx context.Context, userID, id string, input entity.UpdatePayableInput) error {
+func (s *PayableService) Update(ctx context.Context, userID, id, updateMode string, input entity.UpdatePayableInput) error {
 	payable, err := s.payableRepo.FindByID(ctx, id)
 	if err != nil {
 		return err
@@ -176,18 +180,25 @@ func (s *PayableService) Update(ctx context.Context, userID, id string, input en
 	if !input.DueDate.IsZero() {
 		payable.DueDate = input.DueDate
 	}
-	
+
 	// Fields that can be set to null or changed
 	payable.CategoryID = input.CategoryID
 	payable.SubcategoryID = input.SubcategoryID
 	payable.PaymentMethodID = input.PaymentMethodID
-	
+
 	payable.UpdatedAt = time.Now()
+
+	// Logic to update series (all pending)
+	if updateMode == "series" && payable.RecurrenceID != nil {
+		// This updates Description, Amount, Category, Subcategory, PaymentMethod for all pending
+		// It intentionally does NOT update DueDate to preserve the schedule
+		return s.payableRepo.UpdateSeries(ctx, payable)
+	}
 
 	return s.payableRepo.Update(ctx, payable)
 }
 
-func (s *PayableService) Delete(ctx context.Context, userID, id string) error {
+func (s *PayableService) Delete(ctx context.Context, userID, id, deleteMode string) error {
 	payable, err := s.payableRepo.FindByID(ctx, id)
 	if err != nil {
 		return err
@@ -195,16 +206,12 @@ func (s *PayableService) Delete(ctx context.Context, userID, id string) error {
 	if payable.UserID != userID {
 		return fmt.Errorf("unauthorized")
 	}
-	
-	// Optional: check if it's paid and if we should delete the transaction too?
-	// For now, let's assume we can delete only if not paid, or cascading?
-	// Frontend logic was simple delete.
-	// If it is paid, we should probably warn or revert first.
-	// Let's stick to simple delete for now to match frontend, but safer to block if paid?
-	// Frontend deletePayable just deletes. Database foreign key constraints might block if transaction exists?
-	// The transaction usually points to payable (payable_id), but payable points to transaction (transaction_id).
-	// If transaction exists, we should probably handle it.
-	// Let's allow delete.
-	
+
+	// Logic to delete series (all pending)
+	if deleteMode == "series" && payable.RecurrenceID != nil {
+		return s.payableRepo.DeleteSeries(ctx, *payable.RecurrenceID, userID)
+	}
+
+	// Default: delete single
 	return s.payableRepo.Delete(ctx, id)
 }

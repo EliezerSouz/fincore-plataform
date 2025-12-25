@@ -494,7 +494,7 @@ export function DashboardClient({ userData }: DashboardClientProps) {
                                                 <p className="text-xs text-muted-foreground mb-1 uppercase tracking-wide">Receitas</p>
                                                 <p className="font-bold text-wealth">{formatCurrency(receitaMensal)}</p>
                                             </div>
-                                            <div className="p-2 rounded-lg hover:bg-muted/50 transition-colors">
+                                            <div className="p-2 rounded-lg hover:bg-muted/50 transition-colors text-right">
                                                 <p className="text-xs text-muted-foreground mb-1 uppercase tracking-wide">Despesas</p>
                                                 <p className="font-bold text-danger">{formatCurrency(despesaMensal)}</p>
                                             </div>

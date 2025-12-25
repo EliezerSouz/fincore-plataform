@@ -58,7 +58,7 @@ export async function getPayables(month?: number, year?: number, range?: { from:
         }
 
         const payables = await client.get<Payable[]>(`/api/payables?from=${startDate}&to=${endDate}`)
-        return payables
+        return payables || []
     } catch (error) {
         console.error("Error fetching payables:", error)
         return []
@@ -70,7 +70,14 @@ export async function createPayable(formData: FormData) {
 
     const description = formData.get('description') as string
     const amountStr = formData.get('amount') as string
-    const amount = parseFloat(amountStr.replace('R$', '').replace(/\./g, '').replace(',', '.'))
+    let amount = 0
+    // Fix: Handle both "184,62" (BR) and "184.62" (EN/Code) formats
+    if (amountStr.includes(',')) {
+        amount = parseFloat(amountStr.replace('R$', '').replace(/\./g, '').replace(',', '.'))
+    } else {
+        amount = parseFloat(amountStr)
+    }
+
     const firstDate = (formData.get('transaction_date') as string) || (formData.get('date') as string)
     const categoryId = formData.get('categoryId') as string || formData.get('category_id') as string || null
     const subcategoryId = formData.get('subcategoryId') as string || formData.get('subcategory_id') as string || null
@@ -107,7 +114,13 @@ export async function updatePayable(id: string, formData: FormData) {
 
     const description = formData.get('description') as string
     const amountStr = formData.get('amount') as string
-    const amount = parseFloat(amountStr.replace('R$', '').replace(/\./g, '').replace(',', '.'))
+    let amount = 0
+    if (amountStr.includes(',')) {
+        amount = parseFloat(amountStr.replace('R$', '').replace(/\./g, '').replace(',', '.'))
+    } else {
+        amount = parseFloat(amountStr)
+    }
+
     const dueDateStr = (formData.get('transaction_date') as string) || (formData.get('date') as string)
     const categoryId = formData.get('categoryId') as string || formData.get('category_id') as string || null
     const subcategoryId = formData.get('subcategoryId') as string || formData.get('subcategory_id') as string || null
@@ -130,7 +143,9 @@ export async function updatePayable(id: string, formData: FormData) {
         payment_method_id: paymentMethodId
     }
 
-    await client.put(`/api/payables/${id}`, payload)
+    const updateMode = formData.get('update_mode') as string | null
+
+    await client.put(`/api/payables/${id}${updateMode ? `?mode=${updateMode}` : ''}`, payload)
     revalidatePath('/compromissos/payables')
     revalidatePath('/', 'layout')
 }
@@ -138,7 +153,7 @@ export async function updatePayable(id: string, formData: FormData) {
 export async function markAsPaid(id: string, accountId: string, customDate?: string, paidAmount?: number, paymentMethod?: string) {
     console.log(`[markAsPaid] Iniciando para payable ${id}, conta ${accountId}`)
     const client = await getApiClient()
-    
+
     const dateStr = customDate || new Date().toISOString().split('T')[0]
     // Fix timezone issue (noon UTC)
     const [y, m, d] = dateStr.split('-').map(Number)
@@ -170,7 +185,7 @@ export async function markAsPaid(id: string, accountId: string, customDate?: str
 export async function revertPayment(id: string) {
     console.log(`[revertPayment] Iniciando para payable ${id}`)
     const client = await getApiClient()
-    
+
     try {
         await client.post(`/api/payables/${id}/revert`, {})
         console.log("[revertPayment] Sucesso.")
@@ -185,9 +200,10 @@ export async function revertPayment(id: string) {
     return { success: true }
 }
 
-export async function deletePayable(id: string) {
+export async function deletePayable(id: string, mode?: "single" | "series") {
     const client = await getApiClient()
-    await client.delete(`/api/payables/${id}`)
+    const url = mode ? `/api/payables/${id}?mode=${mode}` : `/api/payables/${id}`
+    await client.delete(url)
 
     revalidatePath('/compromissos/payables')
     revalidatePath('/', 'layout')

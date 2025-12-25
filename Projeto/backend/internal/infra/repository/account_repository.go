@@ -151,12 +151,14 @@ func (r *AccountRepository) calculateBalanceWithAdjustments(ctx context.Context,
 					CASE 
 						WHEN type = 'receita' THEN amount
 						WHEN type = 'despesa' THEN -amount
+						WHEN type = 'transferencia' AND account_id = $1 THEN -amount
+						WHEN type = 'transferencia' AND target_account_id = $1 THEN amount
 						ELSE 0
 					END
 				), 0
 			)
 			FROM transactions
-			WHERE account_id = $1
+			WHERE (account_id = $1 OR target_account_id = $1)
 				AND date <= $2
 				AND is_paid = true
 				AND is_historical = false
@@ -179,12 +181,14 @@ func (r *AccountRepository) calculateBalanceWithAdjustments(ctx context.Context,
 				CASE 
 					WHEN type = 'receita' THEN amount
 					WHEN type = 'despesa' THEN -amount
+					WHEN type = 'transferencia' AND account_id = $1 THEN -amount
+					WHEN type = 'transferencia' AND target_account_id = $1 THEN amount
 					ELSE 0
 				END
 			), 0
 		)
 		FROM transactions
-		WHERE account_id = $1
+		WHERE (account_id = $1 OR target_account_id = $1)
 			AND date >= $2
 			AND date <= $3
 			AND is_paid = true

@@ -25,6 +25,7 @@ type Payable struct {
 	DueDate            time.Time          `json:"due_date" db:"due_date"`
 	Status             PayableStatus      `json:"status" db:"status"`
 	RecurrenceStrategy RecurrenceStrategy `json:"recurrence_strategy" db:"recurrence_strategy"`
+	RecurrenceID       *string            `json:"recurrence_id" db:"recurrence_id"`
 	InstallmentNumber  *int               `json:"installment_number" db:"installment_number"`
 	TotalInstallments  *int               `json:"total_installments" db:"total_installments"`
 	CategoryID         *string            `json:"category_id" db:"category_id"`

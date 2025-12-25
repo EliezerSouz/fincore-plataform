@@ -50,7 +50,7 @@ export function TransactionsView({ accounts, categories, initialInsights, lastUp
 
     // Alert State for Filters
     const [showFilterAlert, setShowFilterAlert] = useState(false)
-    
+
     useEffect(() => {
         if (searchParams.get('type') === 'despesa') {
             setShowFilterAlert(true)
@@ -174,8 +174,8 @@ export function TransactionsView({ accounts, categories, initialInsights, lastUp
         </th>
     )
 
-    const income = useMemo(() => chartTransactions.filter(t => t.type === 'receita').reduce((acc, t) => acc + Number(t.amount), 0), [chartTransactions])
-    const expense = useMemo(() => chartTransactions.filter(t => t.type === 'despesa').reduce((acc, t) => acc + Number(t.amount), 0), [chartTransactions])
+    const income = useMemo(() => chartTransactions.filter(t => t.type === 'receita' && !t.related_transaction_id && t.category?.name !== 'Transferência').reduce((acc, t) => acc + Number(t.amount), 0), [chartTransactions])
+    const expense = useMemo(() => chartTransactions.filter(t => t.type === 'despesa' && !t.related_transaction_id && t.category?.name !== 'Transferência').reduce((acc, t) => acc + Number(t.amount), 0), [chartTransactions])
     const balance = income - expense
 
     return (
@@ -206,9 +206,9 @@ export function TransactionsView({ accounts, categories, initialInsights, lastUp
                             Exibindo apenas suas despesas conforme solicitado via Dashboard.
                         </p>
                     </div>
-                    <Button 
-                        variant="ghost" 
-                        size="sm" 
+                    <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => {
                             setShowFilterAlert(false)
                             const params = new URLSearchParams(searchParams.toString())
@@ -231,7 +231,7 @@ export function TransactionsView({ accounts, categories, initialInsights, lastUp
                     <CardContent>
                         <div className="text-2xl font-bold text-emerald-600">{formatCurrency(income)}</div>
                         <p className="text-xs text-muted-foreground mt-1">
-                           Receitas do período selecionado
+                            Receitas do período selecionado
                         </p>
                     </CardContent>
                 </Card>
@@ -243,11 +243,11 @@ export function TransactionsView({ accounts, categories, initialInsights, lastUp
                     <CardContent>
                         <div className="text-2xl font-bold text-rose-600">{formatCurrency(expense)}</div>
                         <p className="text-xs text-muted-foreground mt-1">
-                           Despesas do período selecionado
+                            Despesas do período selecionado
                         </p>
                     </CardContent>
                 </Card>
-                 <Card>
+                <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Resultado</CardTitle>
                         <Wallet className="h-4 w-4 text-slate-500" />
@@ -255,7 +255,7 @@ export function TransactionsView({ accounts, categories, initialInsights, lastUp
                     <CardContent>
                         <div className={`text-2xl font-bold ${balance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatCurrency(balance)}</div>
                         <p className="text-xs text-muted-foreground mt-1">
-                           Balanço final (Receitas - Despesas)
+                            Balanço final (Receitas - Despesas)
                         </p>
                     </CardContent>
                 </Card>
@@ -270,7 +270,7 @@ export function TransactionsView({ accounts, categories, initialInsights, lastUp
                         </div>
                     </div>
                     <div className="mt-4">
-                         <TransactionsFilters accounts={activeAccounts} categories={categories} />
+                        <TransactionsFilters accounts={activeAccounts} categories={categories} />
                     </div>
                 </CardHeader>
                 <CardContent className="p-0 md:p-6 pt-0">

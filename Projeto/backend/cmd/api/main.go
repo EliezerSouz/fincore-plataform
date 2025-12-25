@@ -56,13 +56,17 @@ func main() {
 	dashboardRepo := repository.NewDashboardRepository(dbPool)
 	cardRepo := repository.NewCardRepository(dbPool)
 	payableRepo := repository.NewPayableRepository(dbPool)
-	invoiceRepo := repository.NewInvoiceRepository(dbPool)
+	// invoiceRepo := repository.NewInvoiceRepository(dbPool) // TEMPORARIAMENTE COMENTADO
 	balanceAdjustmentRepo := repository.NewBalanceAdjustmentRepository(dbPool)
 	paymentMethodRepo := repository.NewPaymentMethodRepository(dbPool)
 
+	// Novos repositórios para faturas
+	eventRepo := repository.NewFinancialEventRepository(dbPool)
+	creditRepo := repository.NewCreditRepository(dbPool)
+
 	// Initialize use cases/services
 	userService := usecase.NewUserService(userRepo)
-	invoiceService := usecase.NewInvoiceService(invoiceRepo, transactionRepo)
+	// invoiceService := usecase.NewInvoiceService(invoiceRepo, transactionRepo) // TEMPORARIAMENTE COMENTADO
 	payableService := usecase.NewPayableService(payableRepo, transactionRepo)
 
 	// Initialize handlers
@@ -73,7 +77,9 @@ func main() {
 	dashboardHandler := handler.NewDashboardHandler(dashboardRepo)
 	cardHandler := handler.NewCardHandler(cardRepo)
 	payableHandler := handler.NewPayableHandler(payableRepo, payableService)
-	invoiceHandler := handler.NewInvoiceHandler(invoiceService)
+	// invoiceHandler := handler.NewInvoiceHandler(invoiceService) // TEMPORARIAMENTE COMENTADO
+	// invoiceHandlerV2 := handler.NewInvoiceHandlerV2(invoiceService) // TEMPORARIAMENTE COMENTADO
+	simpleInvoiceHandler := handler.NewSimpleInvoiceHandler(dbPool, eventRepo, creditRepo, cardRepo, accountRepo)
 	balanceAdjustmentHandler := handler.NewBalanceAdjustmentHandler(balanceAdjustmentRepo)
 	paymentMethodHandler := handler.NewPaymentMethodHandler(paymentMethodRepo)
 	aiHandler := handler.NewAIHandler()
@@ -102,14 +108,18 @@ func main() {
 
 	// Protected API routes
 	api := r.Group("/api")
-	// TEMPORÁRIO: Bypass de autenticação para testes
-	// TODO: REMOVER ANTES DE PRODUÇÃO!
-	api.Use(middleware.AuthBypass())
-	// api.Use(middleware.AuthMiddleware()) // Comentado temporariamente
+
+	// ✅ AUTENTICAÇÃO REAL ATIVADA - Pega user_id do token JWT do Supabase
+	// api.Use(middleware.AuthBypass()) // DESATIVADO - Estava usando ID hardcoded antigo
+	api.Use(middleware.AuthMiddleware())
+
+	// Ensure authenticated users exist in the database
+	api.Use(middleware.EnsureUserExists(dbPool))
 	{
 		// User routes
 		api.GET("/users/me", userHandler.GetMe)
 		api.POST("/users/setup", userHandler.Setup)
+		api.POST("/users/promo-code", userHandler.RedeemPromoCode)
 		api.PUT("/users/primary-card", userHandler.SetPrimaryCard)
 
 		// Account routes
@@ -172,14 +182,22 @@ func main() {
 		// Payment Method routes
 		api.GET("/payment-methods", paymentMethodHandler.List)
 
-		// Invoice routes
-		api.GET("/cards/:id/invoices", invoiceHandler.GetInvoicesByCard)
-		api.GET("/invoices/:id", invoiceHandler.GetInvoiceDetails)
-		api.POST("/invoices/transactions", invoiceHandler.CreateTransaction)
-		api.PUT("/invoices/transactions/:id", invoiceHandler.UpdateTransaction)
-		api.DELETE("/invoices/transactions/:id", invoiceHandler.DeleteTransaction)
-		api.POST("/invoices/:id/pay", invoiceHandler.PayInvoice)
-		api.POST("/invoices/:id/revert", invoiceHandler.RevertPayment)
+		// Invoice routes - Usando SimpleInvoiceHandler
+		// api.GET("/cards/:id/invoices", invoiceHandler.GetInvoicesByCard)
+		// api.GET("/invoices/:id", invoiceHandler.GetInvoiceDetails)
+
+		// Novas rotas simples de faturas
+		api.POST("/invoices/transactions", simpleInvoiceHandler.CreateTransaction)
+		api.PUT("/invoices/transactions/:id", simpleInvoiceHandler.UpdateTransaction)
+		api.DELETE("/invoices/transactions/:id", simpleInvoiceHandler.DeleteTransaction)
+		api.POST("/invoices/:id/pay", simpleInvoiceHandler.PayInvoice)
+		api.POST("/invoices/:id/revert", simpleInvoiceHandler.RevertPayment)
+
+		// TEST ENDPOINT - Simple echo to verify routing works
+		api.POST("/invoices/test", func(c *gin.Context) {
+			log.Println("✅ TEST ENDPOINT HIT!")
+			c.JSON(200, gin.H{"status": "test endpoint works"})
+		})
 
 		// TODO: Add more routes
 		// - Invoices

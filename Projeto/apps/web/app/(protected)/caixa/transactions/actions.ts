@@ -53,6 +53,8 @@ export interface Transaction {
     subcategory?: Subcategory
     payment_method?: { name: string }
     notes?: string
+    related_transaction_id?: string
+    category?: Category
 }
 
 /**

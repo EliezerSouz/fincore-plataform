@@ -32,10 +32,13 @@ export async function getBalanceAdjustments(accountId: string): Promise<BalanceA
     try {
         const client = await getApiClient()
         return await client.get<BalanceAdjustment[]>(`/api/balance-adjustments?account_id=${accountId}`)
-    } catch (error) {
-        console.error('Error fetching balance adjustments:', error)
+    } catch (error: any) {
+        console.error('SERVER ACTION ERROR: getBalanceAdjustments')
+        console.error('Message:', error.message)
+        console.error('Stack:', error.stack)
+        console.error('Cause:', error.cause)
         // Fallback or rethrow? For now rethrow to match behavior
-        throw new Error('Failed to fetch balance adjustments')
+        throw new Error(`Failed to fetch balance adjustments: ${error.message}`)
     }
 }
 

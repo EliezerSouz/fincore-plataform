@@ -18,6 +18,7 @@ import { DatePicker } from "@/components/ui/date-picker"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { format } from "date-fns"
 import { toast } from "sonner"
+import { useFormData } from "@/hooks/use-form-data"
 
 export interface FinancialTransactionFormData {
     type: 'receita' | 'despesa' | 'transferencia' | 'compra'
@@ -98,14 +99,20 @@ export function FinancialTransactionForm({
     const [startInstallment, setStartInstallment] = useState(1)
     const [endInstallment, setEndInstallment] = useState(12)
 
-    // Listas
+    // Listas - AGORA COM CACHE
     const [accounts, setAccounts] = useState<Account[]>([])
-    const [categories, setCategories] = useState<Category[]>([])
-    const [subcategories, setSubcategories] = useState<Subcategory[]>([])
-    const [methods, setMethods] = useState<any[]>([])
     const [creditCards, setCreditCards] = useState<any[]>([])
 
-    // Carregar dados iniciais
+    // Hook com cache para categorias, subcategorias e métodos de pagamento
+    // Passa o tipo de transação para filtrar categorias corretas
+    const formDataCache = useFormData({ transactionType: type })
+
+    // Usar dados do cache
+    const categories = formDataCache.categories
+    const subcategories = formDataCache.subcategories
+    const methods = formDataCache.paymentMethods
+
+    // Carregar dados iniciais (apenas contas e cartões, o resto vem do cache)
     useEffect(() => {
         loadInitialData()
     }, [])
@@ -117,30 +124,9 @@ export function FinancialTransactionForm({
         }
     }, [type])
 
-    // Carregar categorias quando tipo mudar
+    // Atualizar categoria selecionada no cache quando mudar
     useEffect(() => {
-        if (type !== 'transferencia') {
-            const categoryType = (type === 'receita') ? 'receita' : 'despesa'
-            getCategories(categoryType).then(setCategories)
-            if (mode === 'create' && !initialData?.categoryId) {
-                setCategoryId("")
-                setSubcategoryId("")
-            }
-        }
-    }, [type, mode, initialData])
-
-    // Carregar métodos de pagamento quando tipo mudar
-    useEffect(() => {
-        getPaymentMethods(type).then(setMethods)
-    }, [type])
-
-    // Carregar subcategorias quando categoria mudar
-    useEffect(() => {
-        if (categoryId) {
-            getSubcategories(categoryId).then(setSubcategories)
-        } else {
-            setSubcategories([])
-        }
+        formDataCache.setSelectedCategory(categoryId)
     }, [categoryId])
 
     // Sincronizar dados iniciais quando mudarem (importante para diálogos de edição)
@@ -465,16 +451,16 @@ export function FinancialTransactionForm({
                                     {categories
                                         .filter(c => (!c.is_premium || can('manage_categories')) && (c.is_active || c.id === categoryId))
                                         .map(cat => (
-                                        <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-                                    ))}
+                                            <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                                        ))}
                                 </SelectContent>
                             </Select>
                         </div>
                         <div className="space-y-2">
                             <div className="flex items-center justify-between">
                                 <Label className="text-xs font-semibold uppercase text-slate-500">Subcategoria (Opcional)</Label>
-                                <button 
-                                    type="button" 
+                                <button
+                                    type="button"
                                     onClick={() => categoryId && getSubcategories(categoryId).then(setSubcategories)}
                                     disabled={!categoryId}
                                     className="text-slate-400 hover:text-blue-600 transition-colors disabled:opacity-30"
@@ -483,8 +469,8 @@ export function FinancialTransactionForm({
                                     <RefreshCw className="w-3 h-3" />
                                 </button>
                             </div>
-                            <Select 
-                                value={subcategoryId || "default"} 
+                            <Select
+                                value={subcategoryId || "default"}
                                 onValueChange={(val) => setSubcategoryId(val === "default" ? "" : val)}
                                 disabled={!categoryId}
                             >
@@ -496,8 +482,8 @@ export function FinancialTransactionForm({
                                     {subcategories
                                         .filter(s => s.is_active || s.id === subcategoryId)
                                         .map(sub => (
-                                        <SelectItem key={sub.id} value={sub.id}>{sub.name}</SelectItem>
-                                    ))}
+                                            <SelectItem key={sub.id} value={sub.id}>{sub.name}</SelectItem>
+                                        ))}
                                 </SelectContent>
                             </Select>
                         </div>
@@ -543,8 +529,8 @@ export function FinancialTransactionForm({
                             ) : showPaymentMethodSelector ? (
                                 <>
                                     <Label className="text-xs font-semibold uppercase text-slate-500">Forma de Pagamento</Label>
-                                    <Select 
-                                        value={paymentMethodId || "default"} 
+                                    <Select
+                                        value={paymentMethodId || "default"}
                                         onValueChange={(val) => setPaymentMethodId(val === "default" ? "" : val)}
                                     >
                                         <SelectTrigger className="h-11 w-full">
@@ -581,8 +567,8 @@ export function FinancialTransactionForm({
                     {type === 'transferencia' ? (
                         <div className="space-y-2">
                             <Label className="text-xs font-semibold uppercase text-slate-500">Método (Opcional)</Label>
-                            <Select 
-                                value={paymentMethodId || "default"} 
+                            <Select
+                                value={paymentMethodId || "default"}
                                 onValueChange={(val) => setPaymentMethodId(val === "default" ? "" : val)}
                             >
                                 <SelectTrigger className="h-11 w-full">

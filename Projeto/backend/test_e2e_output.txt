@@ -1,0 +1,23 @@
+﻿
+=======================================================
+  TESTE E2E COMPLETO - FINCORE
+=======================================================
+
+
+[ETAPA] ETAPA 1: Criacao de Usuario
+[INFO] Criando usuario de teste...
+[INFO] UserID simulado: e2e-test-user-1305914232
+[OK] Usuario criado (simulado via AuthBypass)
+
+[ETAPA] ETAPA 2: Criacao de Conta Financeira
+[INFO] Criando conta 'Conta Corrente' em 22/12...
+[OK] Conta criada com sucesso
+[INFO] Account ID: db2bf61d-476a-4746-ba46-fae78947c405
+[OK] Saldo inicial da conta e 0,00
+
+[ETAPA] ETAPA 3: Ajuste de Saldo Inicial (01/12)
+[INFO] Criando ajuste de saldo inicial: R$ 71,17 em 01/12...
+[OK] Ajuste de saldo inicial criado
+[INFO] Adjustment ID: c5d379aa-1af3-4690-9050-f55d38b264d7
+[ERRO] Saldo atualizado para R$ 71,17 | Esperado: 71.17 | Obtido: 0
+[ERRO] Falha ao criar ajuste inicial: Assertion failed

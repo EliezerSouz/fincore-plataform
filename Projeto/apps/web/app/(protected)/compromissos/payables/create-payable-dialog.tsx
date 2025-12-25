@@ -22,6 +22,7 @@ export function CreatePayableDialog({ activeCount = 0 }: { activeCount?: number 
     const [subcategories, setSubcategories] = useState<any[]>([])
     const [selectedCategory, setSelectedCategory] = useState<string>("")
     const [mode, setMode] = useState("single")
+    const [installments, setInstallments] = useState<number>(12)
 
     // Permission States
     const { can } = usePermission()
@@ -51,6 +52,8 @@ export function CreatePayableDialog({ activeCount = 0 }: { activeCount?: number 
             return
         }
         setMode(value)
+        if (value === 'single') setInstallments(1)
+        else setInstallments(12)
     }
 
     async function handleFormSubmit(data: FinancialTransactionFormData) {
@@ -59,7 +62,7 @@ export function CreatePayableDialog({ activeCount = 0 }: { activeCount?: number 
             const formData = toTransactionFormData(data)
             // Campos específicos de Payables que o helper pode não cobrir ou que precisam de override
             formData.append('mode', mode)
-            formData.append('installments', data.installments || "1")
+            formData.set('installments', String(installments))  // Usar state local controlado e SOBRESCREVER o do form interno (que vem como 1)
 
             await createPayable(formData)
             setOpen(false)
@@ -127,6 +130,40 @@ export function CreatePayableDialog({ activeCount = 0 }: { activeCount?: number 
                         </TabsList>
                     </Tabs>
 
+                    {/* INPUTS DE RECORRÊNCIA */}
+                    {mode !== 'single' && (
+                        <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-lg border border-slate-200 dark:border-slate-800 animate-in slide-in-from-top-2">
+                            <div className="flex gap-4">
+                                <div className="flex-1">
+                                    <label className="text-xs font-semibold uppercase text-slate-500 mb-1.5 block">
+                                        {mode === 'fixed' ? 'Duração (Meses)' : 'Número de Parcelas'}
+                                    </label>
+                                    <div className="relative">
+                                        <input
+                                            type="number"
+                                            min="2"
+                                            max="999"
+                                            value={installments}
+                                            onChange={(e) => setInstallments(Number(e.target.value))}
+                                            className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-800 dark:bg-slate-950 dark:ring-offset-slate-950 dark:placeholder:text-slate-400 dark:focus-visible:ring-blue-600"
+                                        />
+                                        <div className="absolute right-3 top-2.5 text-xs text-slate-400 font-medium pointer-events-none">
+                                            {mode === 'fixed' ? 'meses' : 'x'}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex-[2] flex items-center">
+                                    <p className="text-xs text-slate-500 leading-relaxed">
+                                        {mode === 'fixed'
+                                            ? "O valor será repetido mensalmente pela duração definida."
+                                            : "O valor total informado abaixo será dividido pelo número de parcelas."
+                                        }
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     <FinancialTransactionForm
                         mode="create"
                         onSubmit={handleFormSubmit}
@@ -137,9 +174,9 @@ export function CreatePayableDialog({ activeCount = 0 }: { activeCount?: number 
                         showPaymentMethodSelector={false} // Regra 2: Sem forma de pagamento
                         initialData={{
                             type: 'despesa',
-                            installments: mode === 'single' ? "1" : "12"
+                            // O form interno não precisa saber das parcelas se estamos controlando fora/sobrescrevendo
                         }}
-                        dateLabel="Vencimento"
+                        dateLabel="Vencimento (1ª Parcela)"
                         formId="create-payable-form"
                         hideFooter={true}
                     />
