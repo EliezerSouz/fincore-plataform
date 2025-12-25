@@ -223,7 +223,7 @@ export async function createTransfer(formData: FormData) {
         try {
             // 1. Tentar buscar primeiro
             const categories = await client.get<any[]>(`/api/categories?type=${type}`)
-            const found = categories?.find((c: any) => c.name === 'Transferência')
+            const found = categories?.find((c: any) => c.name.toUpperCase() === 'TRANSFERÊNCIA' || c.name === 'Transferência')
 
             if (found) return found.id
 
@@ -241,7 +241,7 @@ export async function createTransfer(formData: FormData) {
                 // 3. Se deu erro 409 (Conflict), é porque correu uma race condition ou a busca anterior falhou, tentamos buscar de novo
                 if (createError.status === 409 || createError.message?.includes('409') || createError.message?.includes('já existe')) {
                     const retryCategories = await client.get<any[]>(`/api/categories?type=${type}`)
-                    const retryFound = retryCategories?.find((c: any) => c.name === 'Transferência')
+                    const retryFound = retryCategories?.find((c: any) => c.name.toUpperCase() === 'TRANSFERÊNCIA' || c.name === 'Transferência')
                     if (retryFound) return retryFound.id
                 }
                 throw createError
