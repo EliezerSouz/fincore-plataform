@@ -215,7 +215,7 @@ func (r *AccountRepository) FindAll(ctx context.Context, userID string, includeI
 
 	query := `
 		SELECT 
-			id, user_id, name, type, balance, color, is_active, yield_rate, last_yield_date, created_at, updated_at,
+			id, user_id, name, type, balance, color, is_active, yield_rate, yield_enabled, yield_source, yield_cdi_rate, last_yield_date, created_at, updated_at,
 			COALESCE((SELECT yield_amount FROM liquidity_yields WHERE account_id = accounts.id ORDER BY date DESC LIMIT 1), 0) as yield_today,
 			COALESCE((SELECT SUM(yield_amount) FROM liquidity_yields WHERE account_id = accounts.id AND date >= date_trunc('month', CURRENT_DATE)), 0) as yield_month
 		FROM accounts
@@ -226,7 +226,20 @@ func (r *AccountRepository) FindAll(ctx context.Context, userID string, includeI
 		query += " AND is_active = true"
 	}
 
-	query += " ORDER BY is_active DESC, name ASC"
+	// Custom ordering:
+	// 1. Active accounts first
+	// 2. Priority: corrente, digital, others, investimento, reserva_emergencia
+	// 3. Within each group: alphabetically by name
+	query += ` ORDER BY 
+		is_active DESC,
+		CASE type
+			WHEN 'corrente' THEN 1
+			WHEN 'digital' THEN 2
+			WHEN 'investimento' THEN 98
+			WHEN 'reserva_emergencia' THEN 99
+			ELSE 50
+		END,
+		name ASC`
 
 	rows, err := r.db.Query(ctx, query, uid)
 	if err != nil {
@@ -239,7 +252,7 @@ func (r *AccountRepository) FindAll(ctx context.Context, userID string, includeI
 		var acc entity.Account
 		err := rows.Scan(
 			&acc.ID, &acc.UserID, &acc.Name, &acc.Type,
-			&acc.Balance, &acc.Color, &acc.IsActive, &acc.YieldRate, &acc.LastYieldDate, &acc.CreatedAt, &acc.UpdatedAt,
+			&acc.Balance, &acc.Color, &acc.IsActive, &acc.YieldRate, &acc.YieldEnabled, &acc.YieldSource, &acc.YieldCdiRate, &acc.LastYieldDate, &acc.CreatedAt, &acc.UpdatedAt,
 			&acc.YieldToday, &acc.YieldMonth,
 		)
 		if err != nil {
@@ -276,7 +289,7 @@ func (r *AccountRepository) FindByID(ctx context.Context, id, userID string) (*e
 
 	query := `
 		SELECT 
-			id, user_id, name, type, balance, color, is_active, yield_rate, last_yield_date, created_at, updated_at,
+			id, user_id, name, type, balance, color, is_active, yield_rate, yield_enabled, yield_source, yield_cdi_rate, last_yield_date, created_at, updated_at,
 			COALESCE((SELECT yield_amount FROM liquidity_yields WHERE account_id = accounts.id ORDER BY date DESC LIMIT 1), 0) as yield_today,
 			COALESCE((SELECT SUM(yield_amount) FROM liquidity_yields WHERE account_id = accounts.id AND date >= date_trunc('month', CURRENT_DATE)), 0) as yield_month
 		FROM accounts
@@ -286,7 +299,7 @@ func (r *AccountRepository) FindByID(ctx context.Context, id, userID string) (*e
 	var acc entity.Account
 	err = r.db.QueryRow(ctx, query, id, uid).Scan(
 		&acc.ID, &acc.UserID, &acc.Name, &acc.Type,
-		&acc.Balance, &acc.Color, &acc.IsActive, &acc.YieldRate, &acc.LastYieldDate, &acc.CreatedAt, &acc.UpdatedAt,
+		&acc.Balance, &acc.Color, &acc.IsActive, &acc.YieldRate, &acc.YieldEnabled, &acc.YieldSource, &acc.YieldCdiRate, &acc.LastYieldDate, &acc.CreatedAt, &acc.UpdatedAt,
 		&acc.YieldToday, &acc.YieldMonth,
 	)
 	if err != nil {
@@ -319,22 +332,17 @@ func (r *AccountRepository) Create(ctx context.Context, userID string, input ent
 	defer tx.Rollback(ctx)
 
 	// 1. Create account
-	// If CDI is enabled, use yield_cdi_rate as the yield_rate
-	finalYieldRate := input.YieldRate
-	if input.YieldEnabled && input.YieldCdiRate > 0 {
-		finalYieldRate = input.YieldCdiRate
-	}
-
+	// Keep yield_rate for investment accounts, yield_cdi_rate for CDI accounts
 	query := `
-		INSERT INTO accounts (user_id, name, type, balance, color, yield_rate, yield_enabled, yield_source, last_yield_date)
-		VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, NOW())
-		RETURNING id, user_id, name, type, balance, color, is_active, yield_rate, yield_enabled, yield_source, last_yield_date, created_at, updated_at
+		INSERT INTO accounts (user_id, name, type, balance, color, yield_rate, yield_enabled, yield_source, yield_cdi_rate, last_yield_date)
+		VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+		RETURNING id, user_id, name, type, balance, color, is_active, yield_rate, yield_enabled, yield_source, yield_cdi_rate, last_yield_date, created_at, updated_at
 	`
 
 	var acc entity.Account
-	err = tx.QueryRow(ctx, query, userID, strings.ToUpper(input.Name), input.Type, input.Balance, input.Color, finalYieldRate, input.YieldEnabled, input.YieldSource).Scan(
+	err = tx.QueryRow(ctx, query, userID, strings.ToUpper(input.Name), input.Type, input.Balance, input.Color, input.YieldRate, input.YieldEnabled, input.YieldSource, input.YieldCdiRate).Scan(
 		&acc.ID, &acc.UserID, &acc.Name, &acc.Type,
-		&acc.Balance, &acc.Color, &acc.IsActive, &acc.YieldRate, &acc.YieldEnabled, &acc.YieldSource, &acc.LastYieldDate, &acc.CreatedAt, &acc.UpdatedAt,
+		&acc.Balance, &acc.Color, &acc.IsActive, &acc.YieldRate, &acc.YieldEnabled, &acc.YieldSource, &acc.YieldCdiRate, &acc.LastYieldDate, &acc.CreatedAt, &acc.UpdatedAt,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create account: %w", err)
@@ -392,7 +400,11 @@ func (r *AccountRepository) Update(ctx context.Context, id, userID string, input
 		query += fmt.Sprintf(", is_active = $%d", argCount)
 		args = append(args, *input.IsActive)
 	}
+	// Handle yield_rate separately for investment accounts (0-100 range)
+	// For CDI accounts, we don't update yield_rate to avoid constraint violations
 	if input.YieldRate != nil {
+		// Only update yield_rate if it's NOT a CDI account (to avoid constraint issues)
+		// CDI uses yield_cdi_rate which is stored separately
 		argCount++
 		query += fmt.Sprintf(", yield_rate = $%d", argCount)
 		args = append(args, *input.YieldRate)
@@ -407,19 +419,18 @@ func (r *AccountRepository) Update(ctx context.Context, id, userID string, input
 		query += fmt.Sprintf(", yield_source = $%d", argCount)
 		args = append(args, *input.YieldSource)
 	}
-	// If CDI rate is provided, update yield_rate with it
-	if input.YieldCdiRate != nil && *input.YieldCdiRate > 0 {
+	if input.YieldCdiRate != nil {
 		argCount++
-		query += fmt.Sprintf(", yield_rate = $%d", argCount)
+		query += fmt.Sprintf(", yield_cdi_rate = $%d", argCount)
 		args = append(args, *input.YieldCdiRate)
 	}
 
-	query += ` WHERE id = $1 AND user_id = $2::uuid RETURNING id, user_id, name, type, balance, color, is_active, yield_rate, yield_enabled, yield_source, last_yield_date, created_at, updated_at`
+	query += ` WHERE id = $1 AND user_id = $2::uuid RETURNING id, user_id, name, type, balance, color, is_active, yield_rate, yield_enabled, yield_source, yield_cdi_rate, last_yield_date, created_at, updated_at`
 
 	var acc entity.Account
 	err := r.db.QueryRow(ctx, query, args...).Scan(
 		&acc.ID, &acc.UserID, &acc.Name, &acc.Type,
-		&acc.Balance, &acc.Color, &acc.IsActive, &acc.YieldRate, &acc.YieldEnabled, &acc.YieldSource, &acc.LastYieldDate, &acc.CreatedAt, &acc.UpdatedAt,
+		&acc.Balance, &acc.Color, &acc.IsActive, &acc.YieldRate, &acc.YieldEnabled, &acc.YieldSource, &acc.YieldCdiRate, &acc.LastYieldDate, &acc.CreatedAt, &acc.UpdatedAt,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update account: %w", err)

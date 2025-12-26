@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -21,6 +21,16 @@ export function EditAccountDialog({ account, open, onOpenChange }: { account: an
     const [selectedColor, setSelectedColor] = useState(account.color || COLOR_PRESETS[0].hex)
     const [yieldEnabled, setYieldEnabled] = useState(account.yield_enabled || false)
     const isSubmittingRef = useRef(false)
+
+    // Sync state with account data when modal opens or account changes
+    useEffect(() => {
+        if (open) {
+            setYieldEnabled(account.yield_enabled || false)
+            setSelectedType(account.type || "corrente")
+            setSelectedColor(account.color || COLOR_PRESETS[0].hex)
+            setBalanceLocked(true)
+        }
+    }, [open, account])
 
     async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault()
@@ -175,7 +185,7 @@ export function EditAccountDialog({ account, open, onOpenChange }: { account: an
                                     name="yield_cdi_rate"
                                     type="number"
                                     placeholder="100"
-                                    defaultValue={account.yield_rate || 100}
+                                    defaultValue={account.yield_cdi_rate || 100}
                                     min="0"
                                     max="200"
                                     step="0.1"

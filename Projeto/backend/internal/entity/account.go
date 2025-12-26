@@ -13,6 +13,7 @@ type Account struct {
 	YieldRate     float64    `json:"yield_rate" db:"yield_rate"`
 	YieldEnabled  bool       `json:"yield_enabled" db:"yield_enabled"`
 	YieldSource   *string    `json:"yield_source" db:"yield_source"`
+	YieldCdiRate  float64    `json:"yield_cdi_rate" db:"yield_cdi_rate"`
 	LastYieldDate *time.Time `json:"last_yield_date" db:"last_yield_date"`
 	CreatedAt     time.Time  `json:"created_at" db:"created_at"`
 	UpdatedAt     time.Time  `json:"updated_at" db:"updated_at"`

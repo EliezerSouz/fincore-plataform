@@ -53,8 +53,8 @@ func (s *LiquidityYieldService) CalculateDailyYields(ctx context.Context, target
 			continue
 		}
 
-		if account.YieldRate <= 0 {
-			fmt.Printf("⚠️  Account %s has yield enabled but rate is 0\n", account.ID)
+		if account.YieldCdiRate <= 0 {
+			fmt.Printf("⚠️  Account %s has yield enabled but CDI rate is 0\n", account.ID)
 			skippedCount++
 			continue
 		}
@@ -81,10 +81,10 @@ func (s *LiquidityYieldService) CalculateDailyYields(ctx context.Context, target
 			continue
 		}
 
-		// Calculate yield: yield_amount = base_amount × CDI_day × (yield_percentage / 100)
+		// Calculate yield: yield_amount = base_amount × CDI_day × (yield_cdi_rate / 100)
 		// CDI is annual, so we divide by 252 (business days) to get daily rate
 		dailyCDI := cdiRate / 252.0
-		yieldPercentage := account.YieldRate // This should come from account.yield_percentage
+		yieldPercentage := account.YieldCdiRate // Percentage of CDI (e.g., 100, 105, 120)
 		yieldAmount := baseAmount * (dailyCDI / 100.0) * (yieldPercentage / 100.0)
 
 		// Create yield record
@@ -148,8 +148,8 @@ func (s *LiquidityYieldService) GetAccountYieldSummary(ctx context.Context, acco
 		"total_yields":        totalYields,
 		"total_balance":       totalBalance,
 		"recent_yields":       recentYields,
-		"yield_enabled":       account.YieldRate > 0,
-		"yield_rate":          account.YieldRate,
+		"yield_enabled":       account.YieldEnabled,
+		"yield_rate":          account.YieldCdiRate,
 	}, nil
 }
 
@@ -173,8 +173,8 @@ func (s *LiquidityYieldService) ReprocessYield(ctx context.Context, accountID, u
 		return fmt.Errorf("account does not have CDI yield enabled")
 	}
 
-	if account.YieldRate <= 0 {
-		return fmt.Errorf("account yield rate is not configured")
+	if account.YieldCdiRate <= 0 {
+		return fmt.Errorf("account CDI rate is not configured")
 	}
 
 	baseAmount, err := s.yieldRepo.GetBaseAmount(ctx, accountID, date)
@@ -183,7 +183,7 @@ func (s *LiquidityYieldService) ReprocessYield(ctx context.Context, accountID, u
 	}
 
 	dailyCDI := cdiRate / 252.0
-	yieldPercentage := account.YieldRate
+	yieldPercentage := account.YieldCdiRate
 	yieldAmount := baseAmount * (dailyCDI / 100.0) * (yieldPercentage / 100.0)
 
 	yield := &entity.LiquidityYield{
