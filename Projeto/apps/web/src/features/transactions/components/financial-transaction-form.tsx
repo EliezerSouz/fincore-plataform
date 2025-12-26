@@ -183,12 +183,17 @@ export function FinancialTransactionForm({
         }
     }
 
-    async function handleSubmit(e: React.FormEvent) {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-        if (isSubmittingRef.current) return
+        console.log('🔵 Form submitted!', { type, amount, description, categoryId, selectedCardId })
 
+        if (isSubmittingRef.current) {
+            console.log('⚠️ Already submitting, skipping...')
+            return
+        }
         // Validação básica
-        if (!amount || amount <= 0) {
+        const valueToCheck = isRetroactive ? installmentAmount : amount
+        if (!valueToCheck || valueToCheck <= 0) {
             toast.warning("Informe um valor maior que zero.")
             return
         }

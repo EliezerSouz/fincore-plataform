@@ -6,30 +6,21 @@ import { ApiClient } from "@/lib/api-client"
 
 export async function updateProfile(data: { full_name?: string, phone?: string, avatar_url?: string }) {
     const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    const { data: { session }, error: authError } = await supabase.auth.getSession()
 
-    if (authError || !user) return { error: "Não autenticado" }
+    if (authError || !session) return { error: "Não autenticado" }
 
-    // Atualiza tabela users (perfil público)
-    const updates: any = {
-        updated_at: new Date().toISOString()
+    // Use backend API instead of direct Supabase call
+    const client = new ApiClient(undefined, session.access_token)
+
+    try {
+        await client.put('/api/users/me', data)
+        revalidatePath('/', 'layout')
+        return { success: true }
+    } catch (e: any) {
+        console.error("Update profile error:", e)
+        return { error: e.message || "Falha ao atualizar perfil" }
     }
-    if (data.full_name !== undefined) updates.full_name = data.full_name
-    if (data.phone !== undefined) updates.phone = data.phone
-    if (data.avatar_url !== undefined) updates.avatar_url = data.avatar_url
-
-    const { error } = await supabase
-        .from('users')
-        .update(updates)
-        .eq('id', user.id)
-
-    if (error) {
-        console.error("Update profile error:", error)
-        return { error: "Falha ao atualizar dados no banco de dados." }
-    }
-
-    revalidatePath('/', 'layout')
-    return { success: true }
 }
 
 export async function redeemPromoCodeAction(code: string) {

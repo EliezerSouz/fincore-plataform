@@ -236,3 +236,17 @@ func (r *UserRepository) RedeemPromoCode(ctx context.Context, userID uuid.UUID, 
 
 	return tx.Commit(ctx)
 }
+
+func (r *UserRepository) UpdateProfile(ctx context.Context, userID uuid.UUID, fullName, phone, avatarURL *string) error {
+	query := `
+		UPDATE public.users 
+		SET 
+			full_name = COALESCE($1, full_name),
+			phone = COALESCE($2, phone),
+			avatar_url = COALESCE($3, avatar_url),
+			updated_at = NOW()
+		WHERE id = $4
+	`
+	_, err := r.DB.Exec(ctx, query, fullName, phone, avatarURL, userID)
+	return err
+}

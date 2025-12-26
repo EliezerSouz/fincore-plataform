@@ -98,7 +98,7 @@ export function BaseModal({
     if (isDesktop) {
         return (
             <Dialog open={open} onOpenChange={onOpenChange}>
-                <DialogContent className={cn(maxWidth, "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800", className)}>
+                <DialogContent className={cn(maxWidth, "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 max-h-[90vh] flex flex-col", className)}>
                     <DialogHeader>
                         <DialogTitle className="text-xl font-bold flex items-center gap-2">
                             {title}
@@ -110,7 +110,7 @@ export function BaseModal({
                         )}
                     </DialogHeader>
 
-                    <div className="py-2">
+                    <div className="py-2 overflow-y-auto flex-1">
                         {children}
                     </div>
 

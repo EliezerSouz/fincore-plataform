@@ -59,7 +59,7 @@ export async function createBalanceAdjustment(
             .select('balance')
             .eq('id', input.account_id)
             .single()
-        
+
         const currentBalance = account?.balance || 0
 
         // 2. Get Last Transaction Date
@@ -69,7 +69,7 @@ export async function createBalanceAdjustment(
             .eq('account_id', input.account_id)
             .order('date', { ascending: false })
             .limit(1)
-        
+
         const lastTxDate = transactions?.[0]?.date ? new Date(transactions[0].date) : null
         const inputDate = new Date(input.adjustment_date)
 
@@ -79,14 +79,9 @@ export async function createBalanceAdjustment(
                 ...input,
                 starts_controlled_period: input.starts_controlled_period ?? true
             }
-            // Create checkpoint
+            // Create checkpoint - backend will update account balance automatically
             const data = await client.post<BalanceAdjustment>('/api/balance-adjustments', payload)
-            
-            // Force update account balance (Scenario 1 Requirement)
-            if (currentBalance !== input.balance) {
-                await supabase.from('accounts').update({ balance: input.balance }).eq('id', input.account_id)
-            }
-            
+
             revalidatePath('/caixa/accounts')
             return data
         }
@@ -103,7 +98,7 @@ export async function createBalanceAdjustment(
         if (Math.abs(diff) > 0.009) {
             const type = diff > 0 ? 'receita' : 'despesa'
             const amount = Math.abs(diff)
-            
+
             // Helper to get/create category
             const getAdjustmentCategory = async (type: 'receita' | 'despesa') => {
                 try {
@@ -144,9 +139,9 @@ export async function createBalanceAdjustment(
             ...input,
             starts_controlled_period: input.starts_controlled_period ?? true
         }
-        
+
         const data = await client.post<BalanceAdjustment>('/api/balance-adjustments', payload)
-        
+
         revalidatePath('/caixa/accounts')
         return data
 
@@ -361,6 +356,8 @@ export async function convertHistoricalPeriod(
         : 0
 
     // 5. Convert transactions to non-historical
+    // TODO: Migrate to backend API - this should be a POST /api/transactions/convert-historical
+    // For now, keeping the direct Supabase calls but they should be moved to backend
     const { error: updateError } = await supabase
         .from('transactions')
         .update({ is_historical: false })
@@ -375,6 +372,7 @@ export async function convertHistoricalPeriod(
     let adjustmentTransactionId: string | undefined
 
     if (input.mode === 'auto-adjust' && Math.abs(difference) > 0.01) {
+        // TODO: Migrate to backend API - this should be a POST /api/transactions
         const { data: adjustmentTx, error: txError } = await supabase
             .from('transactions')
             .insert({

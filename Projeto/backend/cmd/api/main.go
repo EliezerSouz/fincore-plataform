@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"financeiro-api/internal/infra/database"
+	"financeiro-api/internal/infra/scheduler"
 
 	"financeiro-api/internal/infra/handler"
 	"financeiro-api/internal/infra/handler/middleware"
@@ -83,6 +84,7 @@ func main() {
 	balanceAdjustmentHandler := handler.NewBalanceAdjustmentHandler(balanceAdjustmentRepo)
 	paymentMethodHandler := handler.NewPaymentMethodHandler(paymentMethodRepo)
 	aiHandler := handler.NewAIHandler()
+	liquidityYieldHandler := handler.NewLiquidityYieldHandler(dbPool)
 
 	// Setup Gin
 	r := gin.Default()
@@ -118,6 +120,7 @@ func main() {
 	{
 		// User routes
 		api.GET("/users/me", userHandler.GetMe)
+		api.PUT("/users/me", userHandler.UpdateProfile)
 		api.POST("/users/setup", userHandler.Setup)
 		api.POST("/users/promo-code", userHandler.RedeemPromoCode)
 		api.PUT("/users/primary-card", userHandler.SetPrimaryCard)
@@ -201,6 +204,14 @@ func main() {
 			c.JSON(200, gin.H{"status": "test endpoint works"})
 		})
 
+		// Liquidity Yield routes
+		yields := api.Group("/yields")
+		{
+			yields.POST("/calculate", liquidityYieldHandler.CalculateDailyYields)
+			yields.GET("/account/:id", liquidityYieldHandler.GetAccountYieldSummary)
+			yields.POST("/reprocess", liquidityYieldHandler.ReprocessYield)
+		}
+
 		// TODO: Add more routes
 		// - Invoices
 		// - Payables
@@ -213,9 +224,15 @@ func main() {
 		port = "8080"
 	}
 
+	// Initialize and start yield scheduler
+	yieldScheduler := scheduler.NewYieldScheduler(dbPool)
+	yieldScheduler.Start()
+	defer yieldScheduler.Stop()
+
 	log.Printf("🚀 Server starting on port %s", port)
 	log.Printf("📊 API available at http://localhost:%s/api", port)
 	log.Printf("💚 Health check at http://localhost:%s/health", port)
+	log.Printf("⏰ Yield scheduler running - daily calculations at 10:00 AM")
 
 	if err := r.Run(":" + port); err != nil {
 		log.Fatal("Failed to start server:", err)

@@ -137,3 +137,39 @@ func (h *UserHandler) RedeemPromoCode(c *gin.Context) {
 		"message": "Código promocional ativado com sucesso!",
 	})
 }
+
+type UpdateProfileRequest struct {
+	FullName  *string `json:"full_name"`
+	Phone     *string `json:"phone"`
+	AvatarURL *string `json:"avatar_url"`
+}
+
+func (h *UserHandler) UpdateProfile(c *gin.Context) {
+	userIDStr, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	userID, err := uuid.Parse(userIDStr.(string))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+		return
+	}
+
+	var req UpdateProfileRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+
+	if err := h.Service.UpdateProfile(c.Request.Context(), userID, req.FullName, req.Phone, req.AvatarURL); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status":  "success",
+		"message": "Perfil atualizado com sucesso",
+	})
+}

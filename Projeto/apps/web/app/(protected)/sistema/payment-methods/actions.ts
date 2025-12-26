@@ -1,5 +1,10 @@
 'use server'
 
+// TODO: MIGRATE TO BACKEND API
+// This file currently uses direct Supabase calls for payment methods.
+// Should be migrated to use /api/payment-methods endpoint (needs to be created in backend)
+// Priority: Medium - Payment methods are not frequently modified
+
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 

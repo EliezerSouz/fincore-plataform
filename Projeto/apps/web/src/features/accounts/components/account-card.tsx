@@ -17,6 +17,7 @@ import { deleteAccount } from "@/app/(protected)/caixa/accounts/actions"
 import { EditAccountDialog } from "./edit-account-dialog"
 import { PayInvoiceDialog } from "@/features/accounts/components/pay-invoice-dialog"
 import { BalanceAdjustmentHistory } from "./balance-adjustment-history"
+import { YieldHistoryDialog } from "./yield-history-dialog"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
@@ -76,6 +77,7 @@ export function AccountCard({ account, allAccounts = [], paymentMethods = [], on
     const [showPayInvoice, setShowPayInvoice] = useState(false)
     const [showDelete, setShowDelete] = useState(false)
     const [showHistory, setShowHistory] = useState(false)
+    const [showYieldHistory, setShowYieldHistory] = useState(false)
     const [isDeleting, setIsDeleting] = useState(false)
 
     const Icon = getAccountIcon(account.type)
@@ -186,6 +188,18 @@ export function AccountCard({ account, allAccounts = [], paymentMethods = [], on
                                 <History className="mr-2 h-4 w-4" />
                                 Histórico e Ajustes
                             </DropdownMenuItem>
+                            {account.yield_enabled && (
+                                <DropdownMenuItem
+                                    onSelect={(e) => {
+                                        e.preventDefault()
+                                        setShowYieldHistory(true)
+                                    }}
+                                    className="cursor-pointer text-emerald-600 focus:text-emerald-600"
+                                >
+                                    <TrendingUp className="mr-2 h-4 w-4" />
+                                    Rendimentos CDI
+                                </DropdownMenuItem>
+                            )}
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                                 className="text-red-600 focus:text-red-600 cursor-pointer"
@@ -204,6 +218,16 @@ export function AccountCard({ account, allAccounts = [], paymentMethods = [], on
                     <div className={`text-xl sm:text-2xl font-bold mt-3 sm:mt-4 tracking-tight ${account.balance < 0 ? 'text-red-600 dark:text-red-400' : 'text-slate-900 dark:text-white'}`}>
                         {formatCurrency(account.balance)}
                     </div>
+
+                    {/* Show CDI yields total if enabled */}
+                    {account.yield_enabled && account.yield_cdi_rate > 0 && (
+                        <div className="mt-2 flex items-center gap-2 text-xs">
+                            <span className="text-slate-500">+ Rendimentos CDI:</span>
+                            <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                                {formatCurrency(account.yield_month || 0)}
+                            </span>
+                        </div>
+                    )}
 
                     {/* Badge para saldo negativo */}
                     {account.balance < 0 && (
@@ -292,6 +316,13 @@ export function AccountCard({ account, allAccounts = [], paymentMethods = [], on
                     />
                 </DialogContent>
             </Dialog>
+
+            <YieldHistoryDialog
+                accountId={account.id}
+                accountName={account.name}
+                open={showYieldHistory}
+                onOpenChange={setShowYieldHistory}
+            />
 
             <DeleteDialog
                 open={showDelete}

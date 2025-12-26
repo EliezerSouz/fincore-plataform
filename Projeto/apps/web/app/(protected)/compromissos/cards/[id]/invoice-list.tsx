@@ -30,16 +30,16 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { 
-    CheckCircle2, 
-    ShoppingBag, 
-    Trash2, 
-    Edit2, 
-    RotateCcw, 
-    CreditCard as CreditCardIcon, 
-    Calendar, 
-    ArrowDownCircle, 
-    ArrowUpCircle, 
+import {
+    CheckCircle2,
+    ShoppingBag,
+    Trash2,
+    Edit2,
+    RotateCcw,
+    CreditCard as CreditCardIcon,
+    Calendar,
+    ArrowDownCircle,
+    ArrowUpCircle,
     AlertCircle,
     MoreVertical,
     Wallet
@@ -114,11 +114,11 @@ export function InvoiceList({ invoices, cardId, accounts = [], cardName = 'Cart√
     useEffect(() => {
         if (invoices.length > 0 && !selectedInvoiceId) {
             // Tenta achar a fatura do m√™s atual
-            const currentInvoice = invoices.find(inv => 
-                inv.reference_month === currentMonth && 
+            const currentInvoice = invoices.find(inv =>
+                inv.reference_month === currentMonth &&
                 inv.reference_year === currentYear
             )
-            
+
             if (currentInvoice) {
                 setSelectedInvoiceId(currentInvoice.id)
             } else {
@@ -172,7 +172,7 @@ export function InvoiceList({ invoices, cardId, accounts = [], cardName = 'Cart√
     // C√°lculos
     // Soma de transa√ß√µes do m√™s
     const transactionsTotal = transactions.reduce((acc, t) => acc + t.amount, 0)
-    
+
     // Total de pagamentos realizados
     const paymentTotal = payments.reduce((acc, p) => acc + p.amount, 0)
 
@@ -194,7 +194,7 @@ export function InvoiceList({ invoices, cardId, accounts = [], cardName = 'Cart√
     }
 
     const remainingAmount = safeTotalAmount - effectivePaidAmount
-    
+
     // Handler para deletar transa√ß√£o
     const handleDeleteTransaction = async () => {
         if (!transactionToDelete) return
@@ -205,8 +205,8 @@ export function InvoiceList({ invoices, cardId, accounts = [], cardName = 'Cart√
             setTransactions(data.transactions)
             setTransactionToDelete(null)
             toast.success("Transa√ß√£o exclu√≠da com sucesso!")
-        } catch (e: any) { 
-            toast.error("Erro ao excluir: " + e.message) 
+        } catch (e: any) {
+            toast.error("Erro ao excluir: " + e.message)
         }
     }
 
@@ -250,7 +250,7 @@ export function InvoiceList({ invoices, cardId, accounts = [], cardName = 'Cart√
         <div className="space-y-8 animate-in fade-in duration-500">
             {/* 1. TOP NAVIGATION: CAROUSEL */}
             <div className="relative">
-                 <div 
+                <div
                     ref={scrollContainerRef}
                     className="flex overflow-x-auto pb-4 gap-3 px-1 hide-scrollbar snap-x snap-mandatory scroll-smooth -mx-1"
                 >
@@ -258,7 +258,7 @@ export function InvoiceList({ invoices, cardId, accounts = [], cardName = 'Cart√
                         const isSelected = inv.id === selectedInvoiceId
                         const monthName = monthNames[inv.reference_month - 1]
                         const statusColor = getStatusColor(inv.status)
-                        
+
                         return (
                             <button
                                 key={inv.id}
@@ -266,8 +266,8 @@ export function InvoiceList({ invoices, cardId, accounts = [], cardName = 'Cart√
                                 onClick={() => setSelectedInvoiceId(inv.id)}
                                 className={cn(
                                     "flex flex-col items-center justify-center min-w-[100px] h-[70px] rounded-xl border transition-all snap-center",
-                                    isSelected 
-                                        ? "bg-slate-900 text-white border-slate-900 dark:bg-white dark:text-slate-900 shadow-md ring-2 ring-offset-2 ring-slate-900 dark:ring-white z-10" 
+                                    isSelected
+                                        ? "bg-slate-900 text-white border-slate-900 dark:bg-white dark:text-slate-900 shadow-md ring-2 ring-offset-2 ring-slate-900 dark:ring-white z-10"
                                         : "bg-white dark:bg-slate-950 hover:bg-slate-50 dark:hover:bg-slate-900 border-slate-200 dark:border-slate-800 opacity-70 hover:opacity-100"
                                 )}
                             >
@@ -284,10 +284,10 @@ export function InvoiceList({ invoices, cardId, accounts = [], cardName = 'Cart√
 
             {/* 2. MAIN SPLIT: SUMMARY LEFT, DETAILS RIGHT */}
             <div className="grid gap-8 lg:grid-cols-12">
-                
+
                 {/* LEFT COLUMN: INVOICE CARD & STATUS (4/12) */}
                 <div className="lg:col-span-4 space-y-6">
-                    <Card 
+                    <Card
                         className="overflow-hidden border-0 shadow-xl relative transition-all group"
                         style={{
                             backgroundColor: cardColor,
@@ -301,8 +301,8 @@ export function InvoiceList({ invoices, cardId, accounts = [], cardName = 'Cart√
                                 backgroundImage: 'radial-gradient(circle at 100% 100%, rgba(255,255,255,0.2) 0%, transparent 50%), radial-gradient(circle at 0% 0%, rgba(255,255,255,0.2) 0%, transparent 50%)',
                                 backgroundSize: '100% 100%'
                             }}></div>
-                        
-                        <div 
+
+                        <div
                             className="absolute -right-16 bottom-24 transform rotate-[15deg] pointer-events-none transition-transform group-hover:scale-110 duration-700"
                             style={{
                                 color: isLight ? 'black' : 'white',
@@ -321,7 +321,7 @@ export function InvoiceList({ invoices, cardId, accounts = [], cardName = 'Cart√
                                         {monthNames[selectedInvoice.reference_month - 1]} / {selectedInvoice.reference_year}
                                     </p>
                                 </div>
-                                <div className={cn("px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider backdrop-blur-md", 
+                                <div className={cn("px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider backdrop-blur-md",
                                     isLight ? "bg-black/10 text-black" : "bg-white/20 text-white"
                                 )}>
                                     {translateStatus(selectedInvoice.status)}
@@ -339,14 +339,24 @@ export function InvoiceList({ invoices, cardId, accounts = [], cardName = 'Cart√
                             {/* Mini Statement */}
                             <div className={cn("rounded-lg p-4 backdrop-blur-md", isLight ? "bg-black/5" : "bg-white/10")}>
                                 <div className="space-y-2 text-sm">
-                                    <div className="flex justify-between opacity-80">
-                                        <span>Saldo Anterior</span>
+                                    <div className={cn("flex justify-between font-medium",
+                                        rolloverAmount < 0 ? "text-emerald-600 dark:text-emerald-400" : "opacity-80"
+                                    )}>
+                                        <span>{rolloverAmount < 0 ? "Pagamento Antecipado" : "Saldo Anterior"}</span>
                                         <span>{formatCurrency(rolloverAmount)}</span>
                                     </div>
                                     <div className="flex justify-between opacity-80">
                                         <span>Compras do M√™s</span>
                                         <span>{formatCurrency(transactionsTotal)}</span>
                                     </div>
+
+                                    {(effectivePaidAmount - safeTotalAmount) > 0.01 && (
+                                        <div className="flex justify-between opacity-80 text-emerald-600 dark:text-emerald-400">
+                                            <span>Antecipa√ß√£o de Fatura</span>
+                                            <span>{formatCurrency(effectivePaidAmount - safeTotalAmount)}</span>
+                                        </div>
+                                    )}
+
                                     <div className="h-px bg-current opacity-20 my-2"></div>
                                     <div className="flex justify-between font-bold">
                                         <span>Total Pago</span>
@@ -380,10 +390,10 @@ export function InvoiceList({ invoices, cardId, accounts = [], cardName = 'Cart√
                                     </Button>
                                 </PayCardInvoiceDialog>
                             )}
-                            
+
                             {selectedInvoice.status === 'paid' && (
-                                <Button 
-                                    variant="outline" 
+                                <Button
+                                    variant="outline"
                                     className="w-full bg-transparent border-current opacity-80 hover:opacity-100 hover:bg-white/10"
                                     onClick={handleRevertPayment}
                                 >
@@ -442,14 +452,14 @@ export function InvoiceList({ invoices, cardId, accounts = [], cardName = 'Cart√
                                         </div>
                                         <div>
                                             {groupedTransactions[date].map((transaction) => (
-                                                <div 
-                                                    key={transaction.id} 
+                                                <div
+                                                    key={transaction.id}
                                                     className="px-6 py-4 flex items-center gap-4 hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors group/item"
                                                 >
                                                     <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
                                                         <BrandIcon brand={transaction.description} className="w-5 h-5 text-slate-500" />
                                                     </div>
-                                                    
+
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex items-center gap-2">
                                                             <p className="font-medium truncate">{transaction.description}</p>
@@ -475,10 +485,10 @@ export function InvoiceList({ invoices, cardId, accounts = [], cardName = 'Cart√
                                                             {formatCurrency(transaction.amount)}
                                                         </p>
                                                         <div className="flex items-center justify-end gap-1 opacity-0 group-hover/item:opacity-100 transition-opacity">
-                                                            <Button 
-                                                                variant="ghost" 
-                                                                size="icon" 
-                                                                className="h-6 w-6" 
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-6 w-6"
                                                                 onClick={() => setEditingTransaction(transaction)}
                                                             >
                                                                 <Edit2 className="w-3 h-3" />
@@ -490,17 +500,17 @@ export function InvoiceList({ invoices, cardId, accounts = [], cardName = 'Cart√
                                                                     </Button>
                                                                 </DropdownMenuTrigger>
                                                                 <DropdownMenuContent align="end">
-                                                                    <DropdownMenuItem 
+                                                                    <DropdownMenuItem
                                                                         className="text-red-600"
                                                                         onClick={() => setTransactionToDelete(transaction.id)}
                                                                     >
                                                                         Excluir esta transa√ß√£o
                                                                     </DropdownMenuItem>
                                                                     {transaction.installments > 1 && (
-                                                                        <DropdownMenuItem 
+                                                                        <DropdownMenuItem
                                                                             className="text-red-600"
                                                                             onClick={async () => {
-                                                                                if(confirm("Excluir todas as parcelas?")) {
+                                                                                if (confirm("Excluir todas as parcelas?")) {
                                                                                     await deleteInstallmentSeries(transaction.id)
                                                                                     // refresh logic
                                                                                     const data = await getInvoiceDetails(selectedInvoice.id)
