@@ -144,6 +144,55 @@ export function EditAccountDialog({ account, open, onOpenChange }: { account: an
                     </div>
                 )}
 
+                {/* Rendimento CDI - Disponível para todos os tipos de conta */}
+                <div className="bg-emerald-50/50 dark:bg-emerald-900/10 p-4 rounded-xl border border-emerald-100 dark:border-emerald-900/20 space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div className="space-y-1">
+                            <Label htmlFor="edit-yield-enabled" className="cursor-pointer text-emerald-700 dark:text-emerald-400 font-medium">
+                                Rendimento CDI
+                            </Label>
+                            <p className="text-[10px] text-slate-500">
+                                Ative para contas que rendem CDI (Nubank, Mercado Pago, etc)
+                            </p>
+                        </div>
+                        <Switch
+                            id="edit-yield-enabled"
+                            name="yield_enabled"
+                            defaultChecked={account.yield_enabled || false}
+                        />
+                    </div>
+
+                    <div className="space-y-2 pt-2 border-t border-emerald-100 dark:border-emerald-900/20">
+                        <Label htmlFor="edit-yield-percentage" className="text-emerald-700 dark:text-emerald-400">
+                            Percentual do CDI
+                        </Label>
+                        <div className="flex gap-2 items-center">
+                            <Input
+                                id="edit-yield-percentage"
+                                name="yield_cdi_rate"
+                                type="number"
+                                placeholder="100"
+                                defaultValue={account.yield_rate || 100}
+                                min="0"
+                                max="200"
+                                step="0.1"
+                                className="bg-white dark:bg-slate-950"
+                            />
+                            <span className="text-sm text-slate-500 font-medium whitespace-nowrap">% do CDI</span>
+                        </div>
+                        <div className="bg-white dark:bg-slate-950 p-3 rounded-lg border border-emerald-200 dark:border-emerald-900/30">
+                            <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+                                <strong className="text-emerald-600 dark:text-emerald-400">Exemplos:</strong><br />
+                                • <strong>Inter:</strong> 100% do CDI<br />
+                                • <strong>Nubank:</strong> 105% do CDI<br />
+                                • <strong>Mercado Pago:</strong> 120% do CDI
+                            </p>
+                        </div>
+                        <input type="hidden" name="yield_source" value="CDI" />
+                    </div>
+                </div>
+
+
                 <div className="flex items-center space-x-3 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
                     <Switch id="is_active" name="is_active" defaultChecked={account.is_active !== false} />
                     <div className="flex flex-col">

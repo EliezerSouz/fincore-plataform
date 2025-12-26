@@ -31,8 +31,8 @@ func (s *LiquidityYieldService) CalculateDailyYields(ctx context.Context, target
 	// Normalize date to midnight
 	targetDate = time.Date(targetDate.Year(), targetDate.Month(), targetDate.Day(), 0, 0, 0, 0, targetDate.Location())
 
-	// Get all accounts with yield enabled
-	accounts, err := s.accountRepo.FindAll(ctx, "", true) // Assuming this returns all active accounts
+	// Get all accounts with yield enabled (across all users)
+	accounts, err := s.accountRepo.FindAllWithYieldEnabled(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to fetch accounts: %w", err)
 	}

@@ -72,9 +72,15 @@ export async function createAccount(formData: FormData) {
     const type = formData.get('type') as string
     const color = formData.get('color') as string
 
-    // Yield Rate parsing
+    // Yield Rate parsing (for investment accounts)
     const yieldRateStr = formData.get('yield_rate') as string
     const yield_rate = yieldRateStr ? parseFloat(yieldRateStr.replace(',', '.')) : 0
+
+    // CDI Yield parsing
+    const yield_enabled = formData.get('yield_enabled') === 'on'
+    const yield_source = formData.get('yield_source') as string || null
+    const yieldCdiRateStr = formData.get('yield_cdi_rate') as string
+    const yield_cdi_rate = yieldCdiRateStr ? parseFloat(yieldCdiRateStr.replace(',', '.')) : 0
 
     if (!name || isNaN(balance)) {
         throw new Error('Dados inválidos')
@@ -85,7 +91,10 @@ export async function createAccount(formData: FormData) {
         type,
         balance,
         color,
-        yield_rate
+        yield_rate,
+        yield_enabled,
+        yield_source,
+        yield_cdi_rate: yield_enabled ? yield_cdi_rate : 0
     })
 
     // Create Credit Card if requested
@@ -101,11 +110,11 @@ export async function createAccount(formData: FormData) {
             const cardLastDigits = formData.get('card_last_digits') as string
 
             if (!isNaN(cardLimit) && cardLimit > 0) {
-                 // Check primary card status
-                 const primaryInfo = await getPrimaryCard()
-                 const hasPrimary = !!primaryInfo?.primaryCardId
+                // Check primary card status
+                const primaryInfo = await getPrimaryCard()
+                const hasPrimary = !!primaryInfo?.primaryCardId
 
-                 const newCard = await client.post<{id: string}>('/api/cards', {
+                const newCard = await client.post<{ id: string }>('/api/cards', {
                     name: `${name} Crédito`,
                     account_id: newAccount.id,
                     brand: cardBrand,
@@ -159,6 +168,12 @@ export async function updateAccount(id: string, formData: FormData) {
     const yieldRateStr = formData.get('yield_rate') as string
     const yield_rate = yieldRateStr ? parseFloat(yieldRateStr.replace(',', '.')) : 0
 
+    // CDI Yield parsing
+    const yield_enabled = formData.get('yield_enabled') === 'on'
+    const yield_source = formData.get('yield_source') as string || null
+    const yieldCdiRateStr = formData.get('yield_cdi_rate') as string
+    const yield_cdi_rate = yieldCdiRateStr ? parseFloat(yieldCdiRateStr.replace(',', '.')) : 0
+
     if (!name || isNaN(balance)) {
         throw new Error('Dados inválidos')
     }
@@ -169,7 +184,10 @@ export async function updateAccount(id: string, formData: FormData) {
         balance,
         color,
         is_active,
-        yield_rate
+        yield_rate,
+        yield_enabled,
+        yield_source,
+        yield_cdi_rate: yield_enabled ? yield_cdi_rate : 0
     })
 
     revalidatePath('/', 'layout')
