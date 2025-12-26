@@ -1,9 +1,10 @@
 "use client"
 
+import { useState } from "react"
 import { Pocket } from "@/types/pockets"
 import { formatCurrency } from "@/lib/utils"
 import { PocketTypeBadge } from "./pocket-type-badge"
-import { MoreHorizontal, Edit2, Trash2, RefreshCw, ArrowRightLeft } from "lucide-react"
+import { MoreHorizontal, Edit2, Trash2, ArrowRightLeft, TrendingUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
     DropdownMenu,
@@ -11,25 +12,41 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { useState } from "react"
 import { toast } from "sonner"
-import { recalculatePocketBalance } from "../actions"
+import { recalculatePocketBalance, deletePocket } from "../actions"
 
 import { MovePocketModal } from "./move-pocket-modal"
+import { ManagePocketModal } from "./manage-pocket-modal"
+import { useRouter } from "next/navigation"
 
 export function PocketRow({ pocket }: { pocket: Pocket }) {
     const [isRecalculating, setIsRecalculating] = useState(false)
     const [showMoveModal, setShowMoveModal] = useState(false)
+    const [showEditModal, setShowEditModal] = useState(false)
+    const router = useRouter()
 
     const handleRecalculate = async () => {
         setIsRecalculating(true)
         try {
             await recalculatePocketBalance(pocket.id)
             toast.success("Saldo recalculado com sucesso")
+            router.refresh()
         } catch (error) {
             toast.error("Erro ao recalcular saldo")
         } finally {
             setIsRecalculating(false)
+        }
+    }
+
+    const handleDelete = async () => {
+        if (confirm(`Tem certeza que deseja excluir o pocket "${pocket.name}"?`)) {
+            try {
+                await deletePocket(pocket.id)
+                toast.success("Pocket excluído")
+                router.refresh()
+            } catch (error) {
+                toast.error("Erro ao excluir pocket")
+            }
         }
     }
 
@@ -39,6 +56,12 @@ export function PocketRow({ pocket }: { pocket: Pocket }) {
                 pocket={pocket}
                 open={showMoveModal}
                 onOpenChange={setShowMoveModal}
+            />
+
+            <ManagePocketModal
+                open={showEditModal}
+                onOpenChange={setShowEditModal}
+                pocket={pocket}
             />
 
             <div className="flex items-center justify-between p-3 border-b border-slate-100 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
@@ -56,9 +79,26 @@ export function PocketRow({ pocket }: { pocket: Pocket }) {
                             <PocketTypeBadge type={pocket.pocket_type} />
                         </div>
 
+                        {/* Yield Info */}
                         {pocket.yield_enabled && (
-                            <span className="text-[10px] text-emerald-600 font-medium">
-                                render {pocket.yield_cdi_rate}% CDI
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium bg-emerald-50 dark:bg-emerald-900/20 px-1.5 py-0.5 rounded">
+                                    {pocket.yield_cdi_rate}% CDI
+                                </span>
+                                {/* Futuro: Adicionar Rendimento Acumulado aqui se disponível no backend */}
+                            </div>
+                        )}
+
+                        {/* Descrição ou Aviso de Reserva */}
+                        {pocket.pocket_type === 'RESERVA_CDI' ? (
+                            <div className="flex items-center gap-1 mt-0.5">
+                                <span className="text-[10px] text-amber-600 dark:text-amber-500 font-medium">
+                                    Use apenas em emergências
+                                </span>
+                            </div>
+                        ) : pocket.description && (
+                            <span className="text-[10px] text-slate-400 truncate max-w-[200px] mt-0.5">
+                                {pocket.description}
                             </span>
                         )}
                     </div>
@@ -69,11 +109,6 @@ export function PocketRow({ pocket }: { pocket: Pocket }) {
                         <div className="font-semibold text-slate-800 dark:text-slate-100">
                             {formatCurrency(pocket.balance)}
                         </div>
-                        {pocket.yield_today ? (
-                            <div className="text-[10px] text-emerald-600 font-medium">
-                                +{formatCurrency(pocket.yield_today)} hoje
-                            </div>
-                        ) : null}
                     </div>
 
                     <DropdownMenu>
@@ -83,19 +118,21 @@ export function PocketRow({ pocket }: { pocket: Pocket }) {
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={handleRecalculate} disabled={isRecalculating}>
-                                <RefreshCw className={`w-4 h-4 mr-2 ${isRecalculating ? 'animate-spin' : ''}`} />
-                                Recalcular Saldo
-                            </DropdownMenuItem>
+                            {pocket.yield_enabled && (
+                                <DropdownMenuItem onClick={handleRecalculate} disabled={isRecalculating}>
+                                    <TrendingUp className={`w-4 h-4 mr-2 ${isRecalculating ? 'animate-spin' : ''}`} />
+                                    Atualizar Rendimento
+                                </DropdownMenuItem>
+                            )}
                             <DropdownMenuItem onClick={() => setShowMoveModal(true)}>
                                 <ArrowRightLeft className="w-4 h-4 mr-2" />
                                 Mover para outra Inst.
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setShowEditModal(true)}>
                                 <Edit2 className="w-4 h-4 mr-2" />
                                 Editar
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="text-red-600">
+                            <DropdownMenuItem onClick={handleDelete} className="text-red-600">
                                 <Trash2 className="w-4 h-4 mr-2" />
                                 Excluir
                             </DropdownMenuItem>

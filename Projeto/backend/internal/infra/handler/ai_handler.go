@@ -210,8 +210,13 @@ Dados:
 %s
 `, summary)
 
+	// DEBUG: Print the summary/prompt being sent to AI
+	fmt.Println("------------- [AI PROMPT START] -------------")
+	fmt.Println(prompt)
+	fmt.Println("------------- [AI PROMPT END] -------------")
+
 	groqReq := GroqRequest{
-		Model: "llama-3.3-70b-versatile",
+		Model: "mixtral-8x7b-32768", // Changed from llama-3.3-70b-versatile
 		Messages: []GroqMessage{
 			{Role: "user", Content: prompt},
 		},
@@ -236,6 +241,11 @@ Dados:
 	defer resp.Body.Close()
 
 	body, _ := io.ReadAll(resp.Body)
+
+	// DEBUG: Print raw response
+	fmt.Println("------------- [AI RESPONSE RAW] -------------")
+	fmt.Println(string(body))
+	fmt.Println("------------- [AI RESPONSE END] -------------")
 
 	if resp.StatusCode != 200 {
 		fmt.Printf("Groq Error: %s\n", string(body))
