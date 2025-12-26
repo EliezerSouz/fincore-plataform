@@ -74,7 +74,7 @@ func (h *PocketHandler) GetByParentAccount(c *gin.Context) {
 		return
 	}
 
-	parentID := c.Param("parent_id")
+	parentID := c.Param("id")
 	pockets, err := h.repo.FindByParentAccount(c.Request.Context(), parentID, userID.(string))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch pockets: " + err.Error()})

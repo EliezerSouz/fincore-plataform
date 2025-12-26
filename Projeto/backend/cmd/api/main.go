@@ -231,7 +231,8 @@ func main() {
 			parentAccounts.DELETE("/:id", parentAccountHandler.Delete)
 
 			// Pockets de uma Parent Account específica
-			parentAccounts.GET("/:parent_id/pockets", pocketHandler.GetByParentAccount)
+			// Usando :id para evitar conflito com a rota .GET("/:id")
+			parentAccounts.GET("/:id/pockets", pocketHandler.GetByParentAccount)
 		}
 
 		// Pocket routes (Subcontas)
