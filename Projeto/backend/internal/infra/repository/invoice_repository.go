@@ -273,12 +273,14 @@ func (r *InvoiceRepository) CreateTransaction(ctx context.Context, input entity.
 
 		// Check Invoice Status
 		var status string
-		err = tx.QueryRow(ctx, "SELECT status FROM credit_card_invoices WHERE id = $1", invoiceID).Scan(&status)
+		var refMonth, refYear int
+		err = tx.QueryRow(ctx, "SELECT status, reference_month, reference_year FROM credit_card_invoices WHERE id = $1", invoiceID).Scan(&status, &refMonth, &refYear)
 		if err != nil {
 			return fmt.Errorf("failed to check invoice status: %w", err)
 		}
 		if status == "paid" {
-			return fmt.Errorf("cannot add transaction to paid invoice (month %d)", i)
+			monthNames := []string{"", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"}
+			return fmt.Errorf("não é possível adicionar transações na fatura de %s/%d pois ela já foi paga. Para adicionar despesas retroativas, escolha uma fatura em aberto", monthNames[refMonth], refYear)
 		}
 
 		// Insert Transaction
@@ -306,6 +308,9 @@ func (r *InvoiceRepository) CreateTransaction(ctx context.Context, input entity.
 			currentInstallmentNumber = &valI
 			currentTotalInstallments = &valTotal
 		}
+
+		// DEBUG: Log do valor que será inserido
+		fmt.Printf("🟢 Repository inserting: desc=%s, amount=%.2f, perInstallmentAmount=%.2f\n", desc, input.Amount, perInstallmentAmount)
 
 		_, err = tx.Exec(ctx, queryInsert,
 			txID, userID, input.CreditCardID, invoiceID, desc, perInstallmentAmount, installmentDate,

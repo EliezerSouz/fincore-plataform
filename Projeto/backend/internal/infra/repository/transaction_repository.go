@@ -60,7 +60,7 @@ func (r *TransactionRepository) FindAll(ctx context.Context, userID string, filt
 		LEFT JOIN accounts a ON t.account_id = a.id
 		LEFT JOIN subcategories s ON t.subcategory_id = s.id
 		LEFT JOIN payment_methods pm ON t.payment_method_id = pm.id
-		WHERE t.user_id = $1::uuid
+		WHERE t.user_id = $1::uuid AND t.deleted_at IS NULL
 	`
 
 	args := []interface{}{userID}

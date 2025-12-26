@@ -118,6 +118,7 @@ func main() {
 	{
 		// User routes
 		api.GET("/users/me", userHandler.GetMe)
+		api.PUT("/users/me", userHandler.UpdateProfile)
 		api.POST("/users/setup", userHandler.Setup)
 		api.POST("/users/promo-code", userHandler.RedeemPromoCode)
 		api.PUT("/users/primary-card", userHandler.SetPrimaryCard)

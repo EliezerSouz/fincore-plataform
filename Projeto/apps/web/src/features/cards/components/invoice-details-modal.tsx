@@ -66,7 +66,7 @@ export function InvoiceDetailsModal({ invoiceId, open, onOpenChange }: InvoiceDe
             try {
                 const { getAccounts } = await import("@/app/(protected)/caixa/accounts/actions")
                 const { getPaymentMethods } = await import("@/app/(protected)/caixa/transactions/actions")
-                
+
                 const [accs, methods] = await Promise.all([
                     getAccounts(true),
                     getPaymentMethods()
@@ -88,14 +88,14 @@ export function InvoiceDetailsModal({ invoiceId, open, onOpenChange }: InvoiceDe
         startTransition(async () => {
             try {
                 await revertInvoicePayment(invoiceId)
-                    setIsRevertDialogOpen(false)
-                    onOpenChange(false)
-                    router.refresh()
-                    toast.success("Pagamento estornado com sucesso!")
-                } catch (error: any) {
-                    console.error("Revert error:", error)
-                    toast.error(`Erro ao estornar: ${error.message || error}`)
-                }
+                setIsRevertDialogOpen(false)
+                onOpenChange(false)
+                router.refresh()
+                toast.success("Pagamento estornado com sucesso!")
+            } catch (error: any) {
+                console.error("Revert error:", error)
+                toast.error(`Erro ao estornar: ${error.message || error}`)
+            }
         })
     }
 
@@ -202,7 +202,7 @@ export function InvoiceDetailsModal({ invoiceId, open, onOpenChange }: InvoiceDe
                         {/* Resumo Financeiro */}
                         <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-200 dark:border-slate-800 space-y-3">
                             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Resumo Financeiro</h4>
-                            
+
                             <div className="space-y-2 text-sm">
                                 <div className="flex justify-between items-center">
                                     <span className="text-slate-600 dark:text-slate-300">Fatura Atual</span>
@@ -211,14 +211,13 @@ export function InvoiceDetailsModal({ invoiceId, open, onOpenChange }: InvoiceDe
 
                                 {(invoiceData?.rollover_amount !== 0) && (
                                     <div className="flex justify-between items-center">
-                                        <span className="text-slate-600 dark:text-slate-300 flex items-center gap-1">
-                                            Saldo Anterior
-                                            <span className="text-[10px] bg-slate-200 dark:bg-slate-800 px-1.5 py-0.5 rounded text-slate-500">
-                                                {invoiceData?.rollover_amount > 0 ? 'Débito' : 'Crédito'}
-                                            </span>
+                                        <span className={cn("flex items-center gap-1",
+                                            invoiceData?.rollover_amount < 0 ? "text-emerald-600 dark:text-emerald-400 font-medium" : "text-slate-600 dark:text-slate-300"
+                                        )}>
+                                            {invoiceData?.rollover_amount < 0 ? "Pagamento Antecipado" : "Saldo Anterior"}
                                         </span>
-                                        <span className={cn("font-medium", invoiceData?.rollover_amount > 0 ? "text-red-600" : "text-emerald-600")}>
-                                            {invoiceData?.rollover_amount > 0 ? '+' : ''}{formatCurrency(invoiceData?.rollover_amount || 0)}
+                                        <span className={cn("font-medium", invoiceData?.rollover_amount > 0 ? "text-red-600" : "text-emerald-600 dark:text-emerald-400")}>
+                                            {formatCurrency(invoiceData?.rollover_amount || 0)}
                                         </span>
                                     </div>
                                 )}
@@ -253,8 +252,9 @@ export function InvoiceDetailsModal({ invoiceId, open, onOpenChange }: InvoiceDe
                             const payments = invoiceData.payments || []
                             const rolloverAmount = invoiceData.rollover_amount || 0
                             const paymentTotal = payments.reduce((sum: number, p: any) => sum + Number(p.amount), 0)
-                            const fundsAvailable = paymentTotal + rolloverAmount
-                            const surplusNext = Math.max(0, fundsAvailable - (invoice.total_amount || 0))
+                            // Net Owed = Total (Gross) + Rollover (Credit is negative, so it reduces debt)
+                            const netOwed = (invoice.total_amount || 0) + rolloverAmount
+                            const surplusNext = Math.max(0, paymentTotal - netOwed)
 
                             // Show ONLY if there is a surplus carried over to NEXT month
                             if (surplusNext <= 0.01) return null
@@ -336,7 +336,7 @@ export function InvoiceDetailsModal({ invoiceId, open, onOpenChange }: InvoiceDe
                 {/* Footer com botão de pagar (NOVO) */}
                 {!isPaid && invoice && (
                     <DialogFooter className="border-t pt-4">
-                         <Button 
+                        <Button
                             className="w-full sm:w-auto shadow-lg bg-emerald-600 hover:bg-emerald-700 text-white"
                             onClick={handlePayClick}
                         >
@@ -354,8 +354,8 @@ export function InvoiceDetailsModal({ invoiceId, open, onOpenChange }: InvoiceDe
                     onOpenChange={(val) => {
                         setIsPayDialogOpen(val)
                         if (!val) {
-                             loadInvoiceDetails()
-                             router.refresh()
+                            loadInvoiceDetails()
+                            router.refresh()
                         }
                     }}
                     invoice={invoice}

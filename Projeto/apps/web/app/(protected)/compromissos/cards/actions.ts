@@ -253,7 +253,16 @@ export async function createTransaction(formData: FormData) {
     const client = await getApiClient()
     const cardId = formData.get('card_id') as string
     const description = formData.get('description') as string
-    const amount = parseFloat((formData.get('amount') as string).replace('R$', '').replace(/\./g, '').replace(',', '.').trim())
+
+    // DEBUG: Log do valor antes e depois do parsing
+    const amountRaw = formData.get('amount') as string
+    console.log('🔵 Amount RAW from FormData:', amountRaw)
+
+    // FIX: O FormData já contém o valor numérico como string (ex: "0.01")
+    // Não devemos remover pontos decimais! Apenas fazer parseFloat direto
+    const amount = parseFloat(amountRaw)
+    console.log('🔵 Amount PARSED:', amount)
+
     const rawDate = (formData.get('transaction_date') as string) || (formData.get('date') as string)
     // Fix date timezone to avoid errors and offsets
     const [y, m, d] = rawDate.split('-').map(Number)
@@ -267,7 +276,7 @@ export async function createTransaction(formData: FormData) {
     const startingInstallment = parseInt(formData.get('startingInstallment') as string || '1')
     const installmentValueStr = formData.get('installmentValue') as string
     const installmentValue = installmentValueStr
-        ? parseFloat(installmentValueStr.replace('R$', '').replace(/\./g, '').replace(',', '.').trim())
+        ? parseFloat(installmentValueStr)
         : undefined
 
     const payload: any = {

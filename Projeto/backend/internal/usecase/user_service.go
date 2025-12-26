@@ -140,3 +140,7 @@ func (s *UserService) RedeemPromoCode(ctx context.Context, userID uuid.UUID, cod
 	}
 	return s.Repo.RedeemPromoCode(ctx, userID, code)
 }
+
+func (s *UserService) UpdateProfile(ctx context.Context, userID uuid.UUID, fullName, phone, avatarURL *string) error {
+	return s.Repo.UpdateProfile(ctx, userID, fullName, phone, avatarURL)
+}

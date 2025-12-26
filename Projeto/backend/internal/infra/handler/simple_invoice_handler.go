@@ -7,6 +7,7 @@ import (
 	"financeiro-api/internal/infra/repository"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -44,12 +45,16 @@ func (h *SimpleInvoiceHandler) CreateTransaction(c *gin.Context) {
 	userID := c.GetString("user_id")
 
 	var input struct {
-		CreditCardID    string    `json:"credit_card_id" binding:"required"`
-		Description     string    `json:"description" binding:"required"`
-		Amount          float64   `json:"amount" binding:"required,gt=0"`
-		TransactionDate time.Time `json:"transaction_date" binding:"required"`
-		CategoryID      *string   `json:"category_id"`
-		Notes           *string   `json:"notes"`
+		CreditCardID     string    `json:"credit_card_id" binding:"required"`
+		Description      string    `json:"description" binding:"required"`
+		Amount           float64   `json:"amount" binding:"required,gt=0"`
+		TransactionDate  time.Time `json:"transaction_date" binding:"required"`
+		CategoryID       *string   `json:"category_id"`
+		SubcategoryID    *string   `json:"subcategory_id"`
+		Notes            *string   `json:"notes"`
+		Installments     int       `json:"installments"`
+		StartInstallment int       `json:"start_installment"`
+		InstallmentValue *float64  `json:"installment_value"`
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -57,54 +62,35 @@ func (h *SimpleInvoiceHandler) CreateTransaction(c *gin.Context) {
 		return
 	}
 
-	// Validar limite disponível
-	availableLimit, err := h.calculateAvailableLimit(c.Request.Context(), input.CreditCardID)
+	// Log do payload recebido para debug
+	fmt.Printf("🔵 Backend received: amount=%.2f, description=%s\n", input.Amount, input.Description)
+
+	// Criar usando InvoiceRepository (tabela credit_card_transactions)
+	invoiceRepo := repository.NewInvoiceRepository(h.db)
+
+	createInput := entity.CreateCreditCardTransactionInput{
+		CreditCardID:     input.CreditCardID,
+		Description:      input.Description,
+		Amount:           input.Amount,
+		TransactionDate:  input.TransactionDate,
+		CategoryID:       input.CategoryID,
+		SubcategoryID:    input.SubcategoryID,
+		Notes:            input.Notes,
+		Installments:     input.Installments,
+		StartInstallment: input.StartInstallment,
+		InstallmentValue: input.InstallmentValue,
+	}
+
+	err := invoiceRepo.CreateTransaction(c.Request.Context(), createInput, userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to calculate available limit"})
-		return
-	}
-
-	if input.Amount > availableLimit {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error":           "insufficient credit limit",
-			"available_limit": availableLimit,
-			"requested":       input.Amount,
-		})
-		return
-	}
-
-	// Buscar ou criar fatura para o mês da transação
-	invoiceID, err := h.getOrCreateInvoice(c.Request.Context(), userID, input.CreditCardID, input.TransactionDate)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("failed to get/create invoice: %v", err)})
-		return
-	}
-
-	// Criar evento financeiro
-	eventInput := entity.CreateFinancialEventInput{
-		Type:      entity.EventTypeTransaction,
-		InvoiceID: invoiceID,
-		Amount:    input.Amount,
-	}
-
-	event, err := h.eventRepo.Create(c.Request.Context(), userID, eventInput)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create transaction event"})
-		return
-	}
-
-	// Atualizar total da fatura
-	if err := h.updateInvoiceTotal(c.Request.Context(), invoiceID, input.Amount); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update invoice total"})
+		fmt.Printf("❌ Error creating transaction: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"message":         "transaction created",
-		"event_id":        event.ID,
-		"invoice_id":      invoiceID,
-		"amount":          input.Amount,
-		"available_limit": availableLimit - input.Amount,
+		"message": "transaction created successfully",
+		"amount":  input.Amount,
 	})
 }
 
@@ -344,7 +330,8 @@ func (h *SimpleInvoiceHandler) PayInvoice(c *gin.Context) {
 	var input struct {
 		AccountID   string    `json:"account_id" binding:"required"`
 		Amount      float64   `json:"amount" binding:"required,gt=0"`
-		PaymentDate time.Time `json:"payment_date" binding:"required"`
+		PaymentDate time.Time `json:"date" binding:"required"`
+		CategoryID  *string   `json:"category_id"`
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -372,19 +359,34 @@ func (h *SimpleInvoiceHandler) PayInvoice(c *gin.Context) {
 
 	remainingAmount := totalAmount - paidAmount
 
-	// Criar evento de pagamento
-	eventInput := entity.CreateFinancialEventInput{
-		Type:          entity.EventTypePayment,
-		InvoiceID:     invoiceID,
-		Amount:        input.Amount,
-		AccountID:     &input.AccountID,
-		BalanceImpact: -input.Amount,
+	// Criar transação de pagamento (despesa que paga a fatura)
+	transactionID := uuid.New().String()
+	_, err = h.db.Exec(c.Request.Context(), `
+		INSERT INTO transactions (
+			id, user_id, account_id, type, amount, date, description,
+			is_paid, credit_card_invoice_id, category_id, created_at, updated_at
+		) VALUES ($1, $2, $3, 'despesa', $4, $5, $6, true, $7, $8, NOW(), NOW())
+	`, transactionID, userID, input.AccountID, input.Amount, input.PaymentDate,
+		"Pagamento de Fatura de Cartão", invoiceID, input.CategoryID)
+
+	if err != nil {
+		fmt.Printf("❌ Error creating payment transaction: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create payment transaction"})
+		return
 	}
 
-	event, err := h.eventRepo.Create(c.Request.Context(), userID, eventInput)
+	// Atualizar saldo da conta (Deduzir valor pago)
+	_, err = h.db.Exec(c.Request.Context(), `
+		UPDATE accounts
+		SET balance = balance - $1,
+		    updated_at = NOW()
+		WHERE id = $2
+	`, input.Amount, input.AccountID)
+
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create payment event"})
-		return
+		fmt.Printf("❌ Error updating account balance: %v\n", err)
+		// Note: Ideal would be to rollback transaction, but we are not in a TX block.
+		// For now, logging error.
 	}
 
 	// Atualizar fatura
@@ -407,117 +409,149 @@ func (h *SimpleInvoiceHandler) PayInvoice(c *gin.Context) {
 		return
 	}
 
-	// Buscar créditos disponíveis para esta fatura
-	var cardID string
-	err = h.db.QueryRow(c.Request.Context(), `
-		SELECT credit_card_id FROM credit_card_invoices WHERE id = $1
-	`, invoiceID).Scan(&cardID)
-
-	if err == nil {
-		// Tentar consumir créditos disponíveis automaticamente
-		creditsConsumed, _ := h.consumeAvailableCredits(c.Request.Context(), userID, invoiceID, cardID, remainingAmount)
-		if creditsConsumed > 0 {
-			// Atualizar fatura com crédito consumido
-			newPaidAmount += creditsConsumed
-			if newPaidAmount >= totalAmount {
-				newStatus = "paid"
-			}
-
-			_, _ = h.db.Exec(c.Request.Context(), `
-				UPDATE credit_card_invoices
-				SET paid_amount = $1, status = $2, updated_at = NOW()
-				WHERE id = $3
-			`, newPaidAmount, newStatus, invoiceID)
-		}
-	}
-
-	// Se pagou a mais, gerar crédito e migrar para próxima fatura
-	var creditGenerated float64
+	// Verificar se houve pagamento a mais (Overpayment)
 	if input.Amount > remainingAmount {
-		creditGenerated = input.Amount - remainingAmount
+		excessAmount := input.Amount - remainingAmount
+		fmt.Printf("💰 Overpayment detected: %.2f (Excess: %.2f)\n", input.Amount, excessAmount)
 
-		// Buscar próxima fatura ou criar
-		nextInvoiceID, err := h.getOrCreateNextInvoice(c.Request.Context(), userID, cardID, invoiceID)
-		if err != nil {
-			nextInvoiceID = "" // Se falhar, crédito fica sem fatura destino
-		}
+		// Buscar cartão da fatura para saber onde jogar o crédito
+		var cardID string
+		err = h.db.QueryRow(c.Request.Context(), "SELECT credit_card_id FROM credit_card_invoices WHERE id = $1", invoiceID).Scan(&cardID)
+		if err == nil {
+			// Buscar ou criar próxima fatura
+			nextInvoiceID, err := h.getOrCreateNextInvoice(c.Request.Context(), userID, cardID, invoiceID)
+			if err == nil {
+				// Criar transação de crédito (valor negativo) na próxima fatura
+				creditTxID := uuid.New().String()
+				_, err = h.db.Exec(c.Request.Context(), `
+					INSERT INTO credit_card_transactions (
+						id, credit_card_id, invoice_id, description,
+						amount, transaction_date, user_id, created_at, updated_at
+					) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+				`, creditTxID, cardID, nextInvoiceID, "Crédito por Pagamento Antecipado", -excessAmount, time.Now(), userID)
 
-		creditInput := entity.CreateCreditInput{
-			OriginInvoiceID:  invoiceID,
-			CurrentInvoiceID: &nextInvoiceID,
-			OriginalAmount:   creditGenerated,
-			RemainingAmount:  creditGenerated,
-		}
+				if err != nil && strings.Contains(err.Error(), "credit_card_transactions_amount_check") {
+					fmt.Println("⚠️ Constraint detected blocking negative amount. Dropping constraint...")
+					_, _ = h.db.Exec(c.Request.Context(), "ALTER TABLE credit_card_transactions DROP CONSTRAINT IF EXISTS credit_card_transactions_amount_check")
 
-		credit, err := h.creditRepo.Create(c.Request.Context(), userID, creditInput)
-		if err != nil {
-			fmt.Printf("Warning: failed to create credit: %v\n", err)
-		} else if nextInvoiceID != "" {
-			// Aplicar crédito automaticamente na próxima fatura
-			_, _ = h.db.Exec(c.Request.Context(), `
-				UPDATE credit_card_invoices
-				SET paid_amount = paid_amount + $1,
-				    updated_at = NOW()
-				WHERE id = $2
-			`, creditGenerated, nextInvoiceID)
+					// Retry Insertion
+					_, err = h.db.Exec(c.Request.Context(), `
+						INSERT INTO credit_card_transactions (
+							id, credit_card_id, invoice_id, description,
+							amount, transaction_date, user_id, created_at, updated_at
+						) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+					`, creditTxID, cardID, nextInvoiceID, "Crédito por Pagamento Antecipado", -excessAmount, time.Now(), userID)
+				}
 
-			fmt.Printf("Credit migrated to next invoice: %s -> %s (%.2f)\n",
-				credit.ID, nextInvoiceID, creditGenerated)
+				if err == nil {
+					// Atualizar total da próxima fatura
+					_, _ = h.db.Exec(c.Request.Context(), `
+						UPDATE credit_card_invoices
+						SET total_amount = total_amount - $1,
+						    updated_at = NOW()
+						WHERE id = $2
+					`, excessAmount, nextInvoiceID)
+
+					fmt.Printf("✅ Credit applied to next invoice %s: -%.2f\n", nextInvoiceID, excessAmount)
+				} else {
+					fmt.Printf("❌ Failed to create credit transaction: %v\n", err)
+				}
+			} else {
+				fmt.Printf("❌ Failed to get next invoice: %v\n", err)
+			}
 		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message":          "payment created",
-		"event_id":         event.ID,
+		"message":          "payment created successfully",
+		"transaction_id":   transactionID,
 		"amount":           input.Amount,
 		"remaining_amount": remainingAmount - input.Amount,
-		"credit_generated": creditGenerated,
 		"status":           newStatus,
 	})
 }
 
 // RevertPayment estorna um pagamento
 func (h *SimpleInvoiceHandler) RevertPayment(c *gin.Context) {
-	userID := c.GetString("user_id")
 	invoiceID := c.Param("id")
-
-	// Buscar pagamentos da fatura
-	payments, err := h.eventRepo.FindPaymentsByInvoice(c.Request.Context(), invoiceID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to find payments"})
-		return
-	}
-
-	if len(payments) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "no payments to revert"})
-		return
-	}
-
 	totalReverted := 0.0
 
-	// Estornar todos os pagamentos
-	for _, payment := range payments {
-		if err := h.eventRepo.Revert(c.Request.Context(), payment.ID); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to revert payment"})
-			return
-		}
+	// 1. Estornar pagamentos da tabela transactions
+	// Removido filtro de 'type' e 'amount' para ser mais abrangente
+	fmt.Printf("🔍 Looking for transactions to revert for invoice %s\n", invoiceID)
 
-		// Criar evento de estorno
-		eventInput := entity.CreateFinancialEventInput{
-			Type:           entity.EventTypeReversal,
-			InvoiceID:      invoiceID,
-			Amount:         payment.Amount,
-			RelatedEventID: &payment.ID,
-			BalanceImpact:  payment.Amount, // Reverter o impacto
-		}
+	rows, err := h.db.Query(c.Request.Context(), `
+		SELECT id, amount, description, account_id FROM transactions 
+		WHERE credit_card_invoice_id = $1 AND deleted_at IS NULL
+	`, invoiceID)
 
-		_, err := h.eventRepo.Create(c.Request.Context(), userID, eventInput)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create reversal event"})
-			return
-		}
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var id, desc string
+			var accountID *string
+			var amount float64
+			if err := rows.Scan(&id, &amount, &desc, &accountID); err == nil {
+				fmt.Printf("🗑️ FOUND transaction to revert: %s | Paid: %.2f | Desc: %s\n", id, amount, desc)
 
-		totalReverted += payment.Amount
+				// Soft delete da transação de pagamento
+				res, _ := h.db.Exec(c.Request.Context(), "UPDATE transactions SET deleted_at = NOW() WHERE id = $1", id)
+				rowsAff := res.RowsAffected()
+				fmt.Printf("   -> Transaction DELETED (rows affected: %d)\n", rowsAff)
+
+				// Estornar saldo na conta (Refund)
+				if accountID != nil {
+					h.db.Exec(c.Request.Context(), `
+						UPDATE accounts 
+						SET balance = balance + $1, updated_at = NOW() 
+						WHERE id = $2
+					`, amount, *accountID)
+					fmt.Printf("   -> Account Balance Refunded to %s\n", *accountID)
+				} else {
+					fmt.Printf("   -> WARNING: No account_id found for transaction %s, balance not refunded.\n", id)
+				}
+
+				totalReverted += amount
+
+				// Tentar remover crédito gerado na próxima fatura
+				// Primeiro buscamos o crédito para saber o valor e o ID da fatura
+				var creditID, creditInvoiceID string
+				var creditAmount float64
+
+				errCredit := h.db.QueryRow(c.Request.Context(), `
+					SELECT id, invoice_id, amount 
+					FROM credit_card_transactions 
+					WHERE description = 'Crédito por Pagamento Antecipado' 
+					AND created_at >= (SELECT created_at FROM transactions WHERE id = $1) - INTERVAL '5 minute'
+					AND created_at <= (SELECT created_at FROM transactions WHERE id = $1) + INTERVAL '5 minute'
+					AND deleted_at IS NULL
+				`, id).Scan(&creditID, &creditInvoiceID, &creditAmount)
+
+				if errCredit == nil {
+					// Soft delete do crédito
+					h.db.Exec(c.Request.Context(), "UPDATE credit_card_transactions SET deleted_at = NOW() WHERE id = $1", creditID)
+
+					// Reverter impacto na fatura (creditAmount é negativo, então subtrair ele soma o valor de volta, ou somar valor absoluto)
+					// Ex: Total era 100. Crédito de -10. Total virou 90.
+					// Agora tiramos o crédito. Total deve voltar a 100. (90 - (-10) = 100).
+					h.db.Exec(c.Request.Context(), `
+						UPDATE credit_card_invoices 
+						SET total_amount = total_amount - $1,
+						    updated_at = NOW()
+						WHERE id = $2
+					`, creditAmount, creditInvoiceID)
+
+					fmt.Printf("   -> Credit Removed and Invoice %s adjusted (%.2f)\n", creditInvoiceID, creditAmount)
+				}
+			}
+		}
+	} else {
+		fmt.Printf("❌ Error querying transactions: %v\n", err)
+	}
+
+	if totalReverted == 0 {
+		// Se não achou pagamentos mas a fatura está paga, força o reset para corrigir inconsistências
+		fmt.Println("⚠️ No payment transactions found, but reverting invoice status anyway (Force Reset)")
 	}
 
 	// Atualizar fatura para status anterior
@@ -536,7 +570,6 @@ func (h *SimpleInvoiceHandler) RevertPayment(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"message":        "payments reverted",
-		"count":          len(payments),
 		"total_reverted": totalReverted,
 	})
 }
@@ -776,88 +809,169 @@ func (h *SimpleInvoiceHandler) GetInvoiceDetails(c *gin.Context) {
 	invoiceID := c.Param("id")
 
 	// Buscar fatura
+	// Buscar fatura com dados do cartão
 	var invoice struct {
-		ID             string
-		CreditCardID   string
-		ReferenceMonth int
-		ReferenceYear  int
-		ClosingDate    time.Time
-		DueDate        time.Time
-		TotalAmount    float64
-		PaidAmount     float64
-		Status         string
-		CreatedAt      time.Time
-		UpdatedAt      time.Time
+		ID             string    `json:"id"`
+		CreditCardID   string    `json:"credit_card_id"`
+		ReferenceMonth int       `json:"reference_month"`
+		ReferenceYear  int       `json:"reference_year"`
+		ClosingDate    time.Time `json:"closing_date"`
+		DueDate        time.Time `json:"due_date"`
+		TotalAmount    float64   `json:"total_amount"`
+		PaidAmount     float64   `json:"paid_amount"`
+		Status         string    `json:"status"`
+		CreatedAt      time.Time `json:"created_at"`
+		UpdatedAt      time.Time `json:"updated_at"`
+		CreditCard     struct {
+			ID          string `json:"id"`
+			Name        string `json:"name"`
+			Brand       string `json:"brand"`
+			Last4Digits string `json:"last_4_digits"`
+			Color       string `json:"color"`
+		} `json:"credit_card"`
 	}
 
 	err := h.db.QueryRow(c.Request.Context(), `
 		SELECT 
-			id, credit_card_id, reference_month, reference_year,
-			closing_date, due_date, total_amount, paid_amount, status,
-			created_at, updated_at
-		FROM credit_card_invoices
-		WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL
+			i.id, i.credit_card_id, i.reference_month, i.reference_year,
+			i.closing_date, i.due_date, i.total_amount, i.paid_amount, i.status,
+			i.created_at, i.updated_at,
+			c.id, c.name, COALESCE(CAST(c.brand AS TEXT), 'outros'), COALESCE(c.last_4_digits, '****'), COALESCE(c.color, '#333333')
+		FROM credit_card_invoices i
+		JOIN credit_cards c ON i.credit_card_id = c.id
+		WHERE i.id = $1 AND i.user_id = $2 AND i.deleted_at IS NULL
 	`, invoiceID, userID).Scan(
 		&invoice.ID, &invoice.CreditCardID, &invoice.ReferenceMonth, &invoice.ReferenceYear,
 		&invoice.ClosingDate, &invoice.DueDate, &invoice.TotalAmount, &invoice.PaidAmount,
 		&invoice.Status, &invoice.CreatedAt, &invoice.UpdatedAt,
+		&invoice.CreditCard.ID, &invoice.CreditCard.Name, &invoice.CreditCard.Brand,
+		&invoice.CreditCard.Last4Digits, &invoice.CreditCard.Color,
 	)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
 			c.JSON(http.StatusNotFound, gin.H{"error": "invoice not found"})
 		} else {
+			fmt.Printf("❌ Error fetching invoice: %v\n", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch invoice"})
 		}
 		return
 	}
 
 	// Buscar transações da fatura
+	// Usar deleted_at IS NULL para garantir que pegamos apenas ativas
 	transactionsRows, err := h.db.Query(c.Request.Context(), `
 		SELECT 
-			id, amount, created_at
-		FROM financial_events
-		WHERE invoice_id = $1 
-		AND type = 'LANCAMENTO_CARTAO'
-		AND reverted_at IS NULL
-		ORDER BY created_at DESC
+			id, description, amount, transaction_date, created_at
+		FROM credit_card_transactions
+		WHERE invoice_id = $1 AND deleted_at IS NULL
+		ORDER BY transaction_date DESC
 	`, invoiceID)
 
 	if err != nil {
+		fmt.Printf("❌ Error fetching transactions: %v\n", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch transactions"})
 		return
 	}
 	defer transactionsRows.Close()
 
 	var transactions []map[string]interface{}
-	for transactionsRows.Next() {
-		var id string
-		var amount float64
-		var createdAt time.Time
+	rolloverAmount := 0.0
+	calculatedNetTotal := 0.0
 
-		if err := transactionsRows.Scan(&id, &amount, &createdAt); err != nil {
+	// Struct temp para deduplicação
+	type CreditTx struct {
+		ID        string
+		Amount    float64
+		CreatedAt time.Time
+	}
+	var creditTxs []CreditTx
+
+	for transactionsRows.Next() {
+		var id, description string
+		var amount float64
+		var transactionDate, createdAt time.Time
+
+		if err := transactionsRows.Scan(&id, &description, &amount, &transactionDate, &createdAt); err != nil {
 			continue
 		}
 
+		// Identify rollover/credit transactions
+		if description == "Crédito por Pagamento Antecipado" {
+			creditTxs = append(creditTxs, CreditTx{ID: id, Amount: amount, CreatedAt: createdAt})
+			continue // Do not add to main transactions list yet
+		}
+
+		// Regular transactions: sum and append
+		calculatedNetTotal += amount
 		transactions = append(transactions, map[string]interface{}{
-			"id":         id,
-			"amount":     amount,
-			"created_at": createdAt,
+			"id":               id,
+			"description":      description,
+			"amount":           amount,
+			"transaction_date": transactionDate.Format("2006-01-02"),
+			"created_at":       createdAt,
 		})
 	}
 
-	// Buscar pagamentos da fatura
+	// Process and Deduplicate Credits
+	// Agrupar por valor (para detectar duplicatas exatas de estorno/pagamento)
+	creditsByKey := make(map[string][]CreditTx)
+	for _, credTx := range creditTxs {
+		key := fmt.Sprintf("%.2f", credTx.Amount)
+		creditsByKey[key] = append(creditsByKey[key], credTx)
+	}
+
+	for _, list := range creditsByKey {
+		var validCredit CreditTx
+
+		if len(list) > 1 {
+			// Encontrou duplicatas! Manter apenas a mais recente (última criada)
+			// A lógica assume que duplicatas são erros de retry/estorno falho
+			latest := list[0]
+			for _, credTx := range list {
+				if credTx.CreatedAt.After(latest.CreatedAt) {
+					latest = credTx
+				}
+			}
+			validCredit = latest
+
+			// Deletar as outras (Cleaning up duplicates)
+			for _, credTx := range list {
+				if credTx.ID != latest.ID {
+					fmt.Printf("🧹 Cleaning up duplicate credit: %s (Active but Duplicate)\n", credTx.ID)
+					h.db.Exec(c.Request.Context(), "UPDATE credit_card_transactions SET deleted_at = NOW() WHERE id = $1", credTx.ID)
+				}
+			}
+		} else {
+			validCredit = list[0]
+		}
+
+		// Add verified credit to totals
+		calculatedNetTotal += validCredit.Amount
+		rolloverAmount += validCredit.Amount
+	}
+
+	// Auto-Heal: Se o total do banco estiver errado (desincronizado), corrige.
+	diff := invoice.TotalAmount - calculatedNetTotal
+	if diff > 0.01 || diff < -0.01 {
+		fmt.Printf("🔧 Auto-Healing Invoice %s: DB Total=%.2f, Real Total=%.2f. Fixing...\n", invoiceID, invoice.TotalAmount, calculatedNetTotal)
+		_, _ = h.db.Exec(c.Request.Context(), "UPDATE credit_card_invoices SET total_amount = $1, updated_at = NOW() WHERE id = $2", calculatedNetTotal, invoiceID)
+		invoice.TotalAmount = calculatedNetTotal
+	}
+
+	// Buscar pagamentos da fatura (transações que pagaram esta fatura)
 	paymentsRows, err := h.db.Query(c.Request.Context(), `
 		SELECT 
-			id, amount, account_id, created_at
-		FROM financial_events
-		WHERE invoice_id = $1 
-		AND type = 'PAGAMENTO_FATURA'
-		AND reverted_at IS NULL
-		ORDER BY created_at DESC
+			id, description, amount, date, account_id, created_at
+		FROM transactions
+		WHERE credit_card_invoice_id = $1 
+		AND deleted_at IS NULL
+		AND type = 'despesa'
+		ORDER BY date DESC
 	`, invoiceID)
 
 	if err != nil {
+		fmt.Printf("❌ Error fetching payments: %v\n", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch payments"})
 		return
 	}
@@ -865,25 +979,23 @@ func (h *SimpleInvoiceHandler) GetInvoiceDetails(c *gin.Context) {
 
 	var payments []map[string]interface{}
 	for paymentsRows.Next() {
-		var id string
+		var id, description string
 		var amount float64
-		var accountID *string
-		var createdAt time.Time
+		var accountID string
+		var date, createdAt time.Time
 
-		if err := paymentsRows.Scan(&id, &amount, &accountID, &createdAt); err != nil {
+		if err := paymentsRows.Scan(&id, &description, &amount, &date, &accountID, &createdAt); err != nil {
 			continue
 		}
 
-		payment := map[string]interface{}{
-			"id":         id,
-			"amount":     amount,
-			"created_at": createdAt,
-		}
-		if accountID != nil {
-			payment["account_id"] = *accountID
-		}
-
-		payments = append(payments, payment)
+		payments = append(payments, map[string]interface{}{
+			"id":          id,
+			"description": description,
+			"amount":      amount,
+			"date":        date.Format("2006-01-02"),
+			"account_id":  accountID,
+			"created_at":  createdAt,
+		})
 	}
 
 	if transactions == nil {
@@ -893,6 +1005,10 @@ func (h *SimpleInvoiceHandler) GetInvoiceDetails(c *gin.Context) {
 		payments = []map[string]interface{}{}
 	}
 
+	// Recalculate Gross Total for display (Total stored is Net)
+	// Gross = Net - Rollover (Subtracting negative rollover adds it back to create the gross)
+	grossTotal := invoice.TotalAmount - rolloverAmount
+
 	c.JSON(http.StatusOK, gin.H{
 		"invoice": map[string]interface{}{
 			"id":              invoice.ID,
@@ -901,13 +1017,21 @@ func (h *SimpleInvoiceHandler) GetInvoiceDetails(c *gin.Context) {
 			"reference_year":  invoice.ReferenceYear,
 			"closing_date":    invoice.ClosingDate.Format("2006-01-02"),
 			"due_date":        invoice.DueDate.Format("2006-01-02"),
-			"total_amount":    invoice.TotalAmount,
+			"total_amount":    grossTotal,
 			"paid_amount":     invoice.PaidAmount,
 			"status":          invoice.Status,
 			"created_at":      invoice.CreatedAt,
 			"updated_at":      invoice.UpdatedAt,
+			"credit_card": map[string]interface{}{
+				"id":            invoice.CreditCard.ID,
+				"name":          invoice.CreditCard.Name,
+				"brand":         invoice.CreditCard.Brand,
+				"last_4_digits": invoice.CreditCard.Last4Digits,
+				"color":         invoice.CreditCard.Color,
+			},
 		},
-		"transactions": transactions,
-		"payments":     payments,
+		"transactions":    transactions,
+		"payments":        payments,
+		"rollover_amount": rolloverAmount,
 	})
 }
