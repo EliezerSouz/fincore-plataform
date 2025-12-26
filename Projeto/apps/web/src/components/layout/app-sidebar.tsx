@@ -103,7 +103,7 @@ export function AppSidebar({ stats, ...props }: AppSidebarProps) {
             </SidebarHeader>
 
             <SidebarContent className="bg-zinc-50 dark:bg-[#09090b] px-2 py-4">
-                
+
                 {/* 1. VISÃO GERAL */}
                 <SidebarGroup>
                     <SidebarMenu>
@@ -133,7 +133,7 @@ export function AppSidebar({ stats, ...props }: AppSidebarProps) {
                     <SidebarMenu>
                         {[
                             { title: "Transações", url: "/caixa/transactions", icon: ArrowRightLeft },
-                            { title: "Minhas Contas", url: "/caixa/accounts", icon: Landmark },
+                            { title: "Minhas Contas", url: "/caixa/pockets", icon: Landmark },
                             { title: "Categorias", url: "/caixa/categories", icon: Tag },
                         ].map((item) => (
                             <SidebarMenuItem key={item.title}>
@@ -304,7 +304,7 @@ function UserNav() {
                         </Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator className="my-1 bg-slate-100 dark:bg-white/5" />
-                    <DropdownMenuItem 
+                    <DropdownMenuItem
                         className="flex items-center cursor-pointer text-red-600 dark:text-red-400 py-2 px-3 rounded-md transition-colors hover:bg-red-50 dark:hover:bg-red-900/10 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-900/10"
                         onClick={() => router.push('/logout')}
                     >

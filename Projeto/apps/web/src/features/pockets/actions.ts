@@ -129,6 +129,10 @@ export async function updatePocket(id: string, data: Partial<CreatePocketInput>)
     }
 }
 
+export async function movePocket(id: string, newParentId: string): Promise<Pocket> {
+    return updatePocket(id, { parent_account_id: newParentId })
+}
+
 export async function deletePocket(id: string): Promise<void> {
     try {
         const client = await getAuthenticatedClient()

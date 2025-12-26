@@ -174,6 +174,11 @@ func (r *PocketRepository) Update(ctx context.Context, id, userID string, input 
 	args := []interface{}{id, userID}
 	argCount := 2
 
+	if input.ParentAccountID != nil {
+		argCount++
+		query += fmt.Sprintf(", parent_account_id = $%d", argCount)
+		args = append(args, *input.ParentAccountID)
+	}
 	if input.Name != nil {
 		argCount++
 		query += fmt.Sprintf(", name = $%d", argCount)

@@ -98,15 +98,16 @@ type CreatePocketInput struct {
 
 // UpdatePocketInput representa os dados para atualizar um Pocket
 type UpdatePocketInput struct {
-	Name         *string  `json:"name"`
-	Description  *string  `json:"description"`
-	YieldEnabled *bool    `json:"yield_enabled"`
-	YieldSource  *string  `json:"yield_source"`
-	YieldCdiRate *float64 `json:"yield_cdi_rate"`
-	Color        *string  `json:"color"`
-	Icon         *string  `json:"icon"`
-	DisplayOrder *int     `json:"display_order"`
-	IsActive     *bool    `json:"is_active"`
+	ParentAccountID *string  `json:"parent_account_id"`
+	Name            *string  `json:"name"`
+	Description     *string  `json:"description"`
+	YieldEnabled    *bool    `json:"yield_enabled"`
+	YieldSource     *string  `json:"yield_source"`
+	YieldCdiRate    *float64 `json:"yield_cdi_rate"`
+	Color           *string  `json:"color"`
+	Icon            *string  `json:"icon"`
+	DisplayOrder    *int     `json:"display_order"`
+	IsActive        *bool    `json:"is_active"`
 }
 
 // PocketType constants
@@ -137,8 +138,8 @@ func (input *CreatePocketInput) Validate() error {
 		return ErrInvalidPocketType
 	}
 
-	// Se for RESERVA_CDI e yield_enabled, deve ter yield_cdi_rate
-	if input.PocketType == PocketTypeReservaCDI && input.YieldEnabled {
+	// Se for yield_enabled, deve ter yield_cdi_rate
+	if input.YieldEnabled {
 		if input.YieldCdiRate <= 0 {
 			return ErrInvalidYieldRate
 		}
@@ -146,11 +147,6 @@ func (input *CreatePocketInput) Validate() error {
 			source := "CDI"
 			input.YieldSource = &source
 		}
-	}
-
-	// Se NÃO for RESERVA_CDI, não pode ter yield_enabled
-	if input.PocketType != PocketTypeReservaCDI && input.YieldEnabled {
-		return ErrYieldOnlyForReserva
 	}
 
 	return nil

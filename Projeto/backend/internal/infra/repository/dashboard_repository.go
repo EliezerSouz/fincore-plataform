@@ -82,12 +82,16 @@ func (r *DashboardRepository) GetSummary(ctx context.Context, userID string) (*F
 	// 1. Calculate Liquidity, Patrimony and Emergency Reserve (Accounts)
 	// Liquidez = saldo disponível para gastar (exclui reserva de emergência e investimentos)
 	// Reserva de Emergência = separada, só entra no cálculo do runway
+	// 1. Calculate Liquidity, Patrimony and Emergency Reserve (Pockets)
+	// Liquidez = CAIXA (dinheiro para gastar)
+	// Patrimônio = INVESTIMENTO
+	// Reserva de Emergência = RESERVA_CDI
 	queryAccounts := `
 		SELECT 
-			COALESCE(SUM(CASE WHEN type IN ('corrente', 'poupanca', 'carteira', 'outros', 'digital', 'vale_alimentacao', 'internacional') THEN balance ELSE 0 END), 0) as liquidez,
-			COALESCE(SUM(CASE WHEN type = 'investimento' THEN balance ELSE 0 END), 0) as patrimonio,
-			COALESCE(SUM(CASE WHEN type = 'reserva_emergencia' THEN balance ELSE 0 END), 0) as reserva_emergencia
-		FROM accounts
+			COALESCE(SUM(CASE WHEN pocket_type = 'CAIXA' THEN balance ELSE 0 END), 0) as liquidez,
+			COALESCE(SUM(CASE WHEN pocket_type = 'INVESTIMENTO' THEN balance ELSE 0 END), 0) as patrimonio,
+			COALESCE(SUM(CASE WHEN pocket_type = 'RESERVA_CDI' THEN balance ELSE 0 END), 0) as reserva_emergencia
+		FROM pockets
 		WHERE user_id = $1::uuid AND is_active = true
 	`
 	err := r.db.QueryRow(ctx, queryAccounts, userID).Scan(&summary.Liquidez, &summary.Patrimonio, &summary.ReservaEmergencia)
