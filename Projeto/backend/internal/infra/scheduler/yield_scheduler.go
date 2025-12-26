@@ -20,7 +20,8 @@ type YieldScheduler struct {
 func NewYieldScheduler(db *pgxpool.Pool) *YieldScheduler {
 	yieldRepo := repository.NewLiquidityYieldRepository(db)
 	accountRepo := repository.NewAccountRepository(db)
-	yieldService := usecase.NewLiquidityYieldService(yieldRepo, accountRepo)
+	pocketRepo := repository.NewPocketRepository(db)
+	yieldService := usecase.NewLiquidityYieldService(yieldRepo, accountRepo, pocketRepo)
 	cdiService := usecase.NewCDIService()
 
 	return &YieldScheduler{

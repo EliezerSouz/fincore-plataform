@@ -14,6 +14,8 @@ import { ptBR } from "date-fns/locale"
 import { InvoiceLinkIcon } from "@/features/cards/components/invoice-link-icon"
 import { PayableLinkIcon } from "@/features/payables/components/payable-link-icon"
 import { TransactionActions } from "./transaction-actions"
+import { TransferDetailsDialog } from "./transfer-details-dialog"
+import { TransferLinkIcon } from "./transfer-link-icon"
 
 // Mapeamento simples de ícones de categoria
 const categoryIcons: Record<string, any> = {
@@ -85,11 +87,23 @@ export function TransactionRow({ tx }: { tx: any }) {
         TypeIcon = ArrowDownCircle
         typeColor = "text-rose-600 bg-rose-100 dark:bg-rose-950/30 dark:text-rose-400"
     } else if (tx.type === 'transferencia') {
-        TypeIcon = ArrowRightLeft
-        if (tx.amount < 0) {
+        // Detectar se é entrada ou saída pela descrição
+        const descLower = tx.description?.toLowerCase() || ''
+        const isIncoming = descLower.includes('de ') || descLower.includes('recebida')
+        const isOutgoing = descLower.includes('para ') || descLower.includes('enviada')
+
+        if (isIncoming) {
+            // Transferência RECEBIDA (entrada) - Verde com seta para CIMA (aumentou saldo)
+            TypeIcon = ArrowUpCircle
+            typeColor = "text-emerald-600 bg-emerald-100 dark:bg-emerald-950/30 dark:text-emerald-400"
+        } else if (isOutgoing) {
+            // Transferência ENVIADA (saída) - Vermelho com seta para BAIXO (diminuiu saldo)
+            TypeIcon = ArrowDownCircle
             typeColor = "text-rose-600 bg-rose-100 dark:bg-rose-950/30 dark:text-rose-400"
         } else {
-            typeColor = "text-emerald-600 bg-emerald-100 dark:bg-emerald-950/30 dark:text-emerald-400"
+            // Fallback: usar ícone de transferência padrão
+            TypeIcon = ArrowRightLeft
+            typeColor = "text-blue-600 bg-blue-100 dark:bg-blue-950/30 dark:text-blue-400"
         }
     }
 
@@ -138,6 +152,9 @@ export function TransactionRow({ tx }: { tx: any }) {
                                 categoryIcon={tx.category?.icon}
                                 categoryColor={tx.category?.color}
                             />
+                        )}
+                        {tx.type === 'transferencia' && (
+                            <TransferLinkIcon transaction={tx} />
                         )}
                         {tx.description}
                     </span>
@@ -200,9 +217,17 @@ export function TransactionRow({ tx }: { tx: any }) {
 
             <td className="p-3 text-right">
                 <div className={`font-bold text-base tracking-tight ${tx.type === 'receita' ? 'text-emerald-600 dark:text-emerald-400' :
-                    tx.type === 'despesa' ? 'text-rose-600 dark:text-rose-400' : 'text-slate-600 dark:text-slate-400'
+                    tx.type === 'despesa' ? 'text-rose-600 dark:text-rose-400' :
+                        tx.type === 'transferencia' ? (
+                            (tx.description?.toLowerCase().includes('de ') || tx.description?.toLowerCase().includes('recebida'))
+                                ? 'text-emerald-600 dark:text-emerald-400'  // Entrada - Verde
+                                : (tx.description?.toLowerCase().includes('para ') || tx.description?.toLowerCase().includes('enviada'))
+                                    ? 'text-rose-600 dark:text-rose-400'  // Saída - Vermelho
+                                    : 'text-blue-600 dark:text-blue-400'  // Fallback
+                        ) : 'text-slate-600 dark:text-slate-400'
                     }`}>
-                    {tx.type === 'despesa' && '- '}{formatCurrency(tx.amount)}
+                    {(tx.type === 'despesa' || (tx.type === 'transferencia' && (tx.description?.toLowerCase().includes('para ') || tx.description?.toLowerCase().includes('enviada')))) && '- '}
+                    {formatCurrency(tx.amount)}
                 </div>
             </td>
 

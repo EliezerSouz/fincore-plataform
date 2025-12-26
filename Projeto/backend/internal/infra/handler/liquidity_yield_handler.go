@@ -18,7 +18,8 @@ type LiquidityYieldHandler struct {
 func NewLiquidityYieldHandler(db *pgxpool.Pool) *LiquidityYieldHandler {
 	yieldRepo := repository.NewLiquidityYieldRepository(db)
 	accountRepo := repository.NewAccountRepository(db)
-	service := usecase.NewLiquidityYieldService(yieldRepo, accountRepo)
+	pocketRepo := repository.NewPocketRepository(db)
+	service := usecase.NewLiquidityYieldService(yieldRepo, accountRepo, pocketRepo)
 
 	return &LiquidityYieldHandler{
 		service: service,

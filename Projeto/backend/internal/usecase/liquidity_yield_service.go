@@ -13,84 +13,87 @@ import (
 type LiquidityYieldService struct {
 	yieldRepo   *repository.LiquidityYieldRepository
 	accountRepo *repository.AccountRepository
+	pocketRepo  *repository.PocketRepository
 }
 
 func NewLiquidityYieldService(
 	yieldRepo *repository.LiquidityYieldRepository,
 	accountRepo *repository.AccountRepository,
+	pocketRepo *repository.PocketRepository,
 ) *LiquidityYieldService {
 	return &LiquidityYieldService{
 		yieldRepo:   yieldRepo,
 		accountRepo: accountRepo,
+		pocketRepo:  pocketRepo,
 	}
 }
 
-// CalculateDailyYields processes yield calculation for all eligible accounts
+// CalculateDailyYields processes yield calculation for all eligible pockets
 // This should run ONCE per day, only on business days
 func (s *LiquidityYieldService) CalculateDailyYields(ctx context.Context, targetDate time.Time, cdiRate float64) error {
 	// Normalize date to midnight
 	targetDate = time.Date(targetDate.Year(), targetDate.Month(), targetDate.Day(), 0, 0, 0, 0, targetDate.Location())
 
-	// Get all accounts with yield enabled (across all users)
-	accounts, err := s.accountRepo.FindAllWithYieldEnabled(ctx)
+	// Get all pockets with yield enabled (across all users)
+	pockets, err := s.pocketRepo.FindAllWithYieldEnabled(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to fetch accounts: %w", err)
+		return fmt.Errorf("failed to fetch pockets: %w", err)
 	}
 
 	processedCount := 0
 	skippedCount := 0
 	errorCount := 0
 
-	for _, account := range accounts {
+	for _, pocket := range pockets {
 		// ✅ RULE 1: Check eligibility - yield_enabled = true AND yield_source = "CDI"
-		if !account.YieldEnabled {
+		if !pocket.YieldEnabled {
 			skippedCount++
 			continue
 		}
 
-		if account.YieldSource == nil || *account.YieldSource != "CDI" {
+		if pocket.YieldSource == nil || *pocket.YieldSource != "CDI" {
 			skippedCount++
 			continue
 		}
 
-		if account.YieldCdiRate <= 0 {
-			fmt.Printf("⚠️  Account %s has yield enabled but CDI rate is 0\n", account.ID)
+		if pocket.YieldCdiRate <= 0 {
+			fmt.Printf("⚠️  Pocket %s has yield enabled but CDI rate is 0\n", pocket.ID)
 			skippedCount++
 			continue
 		}
 
 		// Check if yield already exists for this date
-		exists, err := s.yieldRepo.CheckYieldExists(ctx, account.ID, targetDate)
+		exists, err := s.yieldRepo.CheckYieldExistsForPocket(ctx, pocket.ID, targetDate)
 		if err != nil {
-			fmt.Printf("❌ Error checking yield existence for account %s: %v\n", account.ID, err)
+			fmt.Printf("❌ Error checking yield existence for pocket %s: %v\n", pocket.ID, err)
 			errorCount++
 			continue
 		}
 
 		if exists {
-			fmt.Printf("⏭️  Yield already calculated for account %s on %s\n", account.ID, targetDate.Format("2006-01-02"))
+			fmt.Printf("⏭️  Yield already calculated for pocket %s on %s\n", pocket.ID, targetDate.Format("2006-01-02"))
 			skippedCount++
 			continue
 		}
 
 		// Calculate base amount (operational balance + previous yields)
-		baseAmount, err := s.yieldRepo.GetBaseAmount(ctx, account.ID, targetDate)
+		baseAmount, err := s.yieldRepo.GetBaseAmountForPocket(ctx, pocket.ID, targetDate)
 		if err != nil {
-			fmt.Printf("❌ Error calculating base amount for account %s: %v\n", account.ID, err)
+			fmt.Printf("❌ Error calculating base amount for pocket %s: %v\n", pocket.ID, err)
 			errorCount++
 			continue
 		}
 
-		// Calculate yield: yield_amount = base_amount × CDI_day × (yield_cdi_rate / 100)
-		// CDI is annual, so we divide by 252 (business days) to get daily rate
-		dailyCDI := cdiRate / 252.0
-		yieldPercentage := account.YieldCdiRate // Percentage of CDI (e.g., 100, 105, 120)
+		// Calculate yield: yield_amount = base_amount × CDI_daily × (yield_cdi_rate / 100)
+		// NOTE: CDI rate from Banco Central API is ALREADY daily, no need to divide by 252
+		dailyCDI := cdiRate                    // Already daily from API
+		yieldPercentage := pocket.YieldCdiRate // Percentage of CDI (e.g., 100, 105, 120)
 		yieldAmount := baseAmount * (dailyCDI / 100.0) * (yieldPercentage / 100.0)
 
 		// Create yield record
 		yield := &entity.LiquidityYield{
 			ID:          uuid.New().String(),
-			AccountID:   account.ID,
+			PocketID:    &pocket.ID, // Use PocketID instead of AccountID
 			Date:        targetDate,
 			BaseAmount:  baseAmount,
 			YieldAmount: yieldAmount,
@@ -100,13 +103,13 @@ func (s *LiquidityYieldService) CalculateDailyYields(ctx context.Context, target
 
 		err = s.yieldRepo.CreateYield(ctx, yield)
 		if err != nil {
-			fmt.Printf("❌ Error creating yield for account %s: %v\n", account.ID, err)
+			fmt.Printf("❌ Error creating yield for pocket %s: %v\n", pocket.ID, err)
 			errorCount++
 			continue
 		}
 
-		fmt.Printf("✅ Yield calculated for account %s: Base=%.2f, Yield=%.2f, Rate=%.4f%%\n",
-			account.ID, baseAmount, yieldAmount, yield.RateApplied*100)
+		fmt.Printf("✅ Yield calculated for pocket %s (%s): Base=%.2f, Yield=%.2f, Rate=%.4f%%\n",
+			pocket.ID, pocket.Name, baseAmount, yieldAmount, yield.RateApplied*100)
 		processedCount++
 	}
 
@@ -182,7 +185,8 @@ func (s *LiquidityYieldService) ReprocessYield(ctx context.Context, accountID, u
 		return fmt.Errorf("failed to calculate base amount: %w", err)
 	}
 
-	dailyCDI := cdiRate / 252.0
+	// NOTE: CDI rate is ALREADY daily from API
+	dailyCDI := cdiRate
 	yieldPercentage := account.YieldCdiRate
 	yieldAmount := baseAmount * (dailyCDI / 100.0) * (yieldPercentage / 100.0)
 

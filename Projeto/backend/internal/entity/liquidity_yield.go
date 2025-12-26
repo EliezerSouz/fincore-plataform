@@ -2,11 +2,12 @@ package entity
 
 import "time"
 
-// LiquidityYield represents a daily yield calculation for a liquidity account
+// LiquidityYield represents a daily yield calculation for a liquidity account or pocket
 // This is NOT a financial transaction - it's a patrimonial record
 type LiquidityYield struct {
 	ID          string    `json:"id"`
-	AccountID   string    `json:"account_id"`
+	AccountID   string    `json:"account_id,omitempty"` // Legacy: for accounts
+	PocketID    *string   `json:"pocket_id,omitempty"`  // New: for pockets
 	Date        time.Time `json:"date"`
 	BaseAmount  float64   `json:"base_amount"`  // Operational balance + previous yields
 	YieldAmount float64   `json:"yield_amount"` // Calculated yield for this day

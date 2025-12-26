@@ -63,11 +63,17 @@ func (r *LiquidityYieldRepository) GetBaseAmount(ctx context.Context, accountID 
 
 // CreateYield creates a new liquidity yield record
 func (r *LiquidityYieldRepository) CreateYield(ctx context.Context, yield *entity.LiquidityYield) error {
+	// Convert empty AccountID to nil for proper NULL insertion
+	var accountID *string
+	if yield.AccountID != "" {
+		accountID = &yield.AccountID
+	}
+
 	_, err := r.db.Exec(ctx, `
 		INSERT INTO liquidity_yields (
-			id, account_id, date, base_amount, yield_amount, rate_applied, created_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7)
-	`, yield.ID, yield.AccountID, yield.Date, yield.BaseAmount, yield.YieldAmount, yield.RateApplied, yield.CreatedAt)
+			id, account_id, pocket_id, date, base_amount, yield_amount, rate_applied, created_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+	`, yield.ID, accountID, yield.PocketID, yield.Date, yield.BaseAmount, yield.YieldAmount, yield.RateApplied, yield.CreatedAt)
 
 	if err != nil {
 		return fmt.Errorf("failed to create yield record: %w", err)
@@ -134,4 +140,92 @@ func (r *LiquidityYieldRepository) DeleteYield(ctx context.Context, accountID st
 	}
 
 	return nil
+}
+
+// =====================================================
+// POCKET-SPECIFIC METHODS
+// =====================================================
+
+// CheckYieldExistsForPocket verifies if a yield record already exists for the given pocket and date
+func (r *LiquidityYieldRepository) CheckYieldExistsForPocket(ctx context.Context, pocketID string, date time.Time) (bool, error) {
+	var exists bool
+	err := r.db.QueryRow(ctx, `
+		SELECT EXISTS(
+			SELECT 1 FROM liquidity_yields 
+			WHERE pocket_id = $1 AND date = $2
+		)
+	`, pocketID, date).Scan(&exists)
+
+	return exists, err
+}
+
+// GetBaseAmountForPocket calculates the base amount for yield calculation for a pocket
+// base_amount = balance at END of previous day (operational balance + previous yields - today's transactions)
+// Following banking standard: today's yield is calculated on yesterday's closing balance
+func (r *LiquidityYieldRepository) GetBaseAmountForPocket(ctx context.Context, pocketID string, date time.Time) (float64, error) {
+	var currentBalance float64
+	var previousYields float64
+	var todaysTransactions float64
+
+	// Get current operational balance from pockets
+	err := r.db.QueryRow(ctx, `
+		SELECT COALESCE(balance, 0) 
+		FROM pockets 
+		WHERE id = $1
+	`, pocketID).Scan(&currentBalance)
+
+	if err != nil {
+		return 0, fmt.Errorf("failed to get operational balance: %w", err)
+	}
+
+	// Sum all previous yields up to (but NOT including) the target date
+	err = r.db.QueryRow(ctx, `
+		SELECT COALESCE(SUM(yield_amount), 0)
+		FROM liquidity_yields
+		WHERE pocket_id = $1 AND date < $2
+	`, pocketID, date).Scan(&previousYields)
+
+	if err != nil {
+		return 0, fmt.Errorf("failed to get previous yields: %w", err)
+	}
+
+	// Get parent account ID to find transactions
+	var parentAccountID string
+	err = r.db.QueryRow(ctx, `
+		SELECT parent_account_id FROM pockets WHERE id = $1
+	`, pocketID).Scan(&parentAccountID)
+
+	if err != nil {
+		return 0, fmt.Errorf("failed to get parent account: %w", err)
+	}
+
+	// Calculate net change from today's transactions
+	// We need to subtract today's transactions to get yesterday's closing balance
+	err = r.db.QueryRow(ctx, `
+		SELECT COALESCE(SUM(
+			CASE 
+				WHEN type = 'receita' THEN amount
+				WHEN type = 'despesa' THEN -amount
+				WHEN type = 'transferencia' AND description ILIKE '%de%' THEN amount
+				WHEN type = 'transferencia' AND description ILIKE '%para%' THEN -amount
+				ELSE 0
+			END
+		), 0)
+		FROM transactions
+		WHERE account_id = $1
+		AND date = $2
+		AND is_historical = false
+		AND deleted_at IS NULL
+	`, parentAccountID, date).Scan(&todaysTransactions)
+
+	if err != nil {
+		return 0, fmt.Errorf("failed to get today's transactions: %w", err)
+	}
+
+	// Calculate balance at END of previous day:
+	// current_balance - today's_transactions + previous_yields
+	// This gives us the balance that was there at the end of yesterday
+	baseAmount := currentBalance - todaysTransactions + previousYields
+
+	return baseAmount, nil
 }

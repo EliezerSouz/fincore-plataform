@@ -6,6 +6,7 @@ type Transaction struct {
 	ID                   string         `json:"id" db:"id"`
 	UserID               string         `json:"user_id" db:"user_id"`
 	AccountID            string         `json:"account_id" db:"account_id"`
+	PocketID             *string        `json:"pocket_id,omitempty" db:"pocket_id"`
 	CategoryID           *string        `json:"category_id" db:"category_id"`
 	SubcategoryID        *string        `json:"subcategory_id" db:"subcategory_id"`
 	PaymentMethodID      *string        `json:"payment_method_id" db:"payment_method_id"`
@@ -14,7 +15,7 @@ type Transaction struct {
 	RelatedTransactionID *string        `json:"related_transaction_id" db:"related_transaction_id"`
 	Description          string         `json:"description" db:"description"`
 	Amount               float64        `json:"amount" db:"amount"`
-	Type                 string         `json:"type" db:"type"` // 'receita' ou 'despesa'
+	Type                 string         `json:"type" db:"type"` // 'receita', 'despesa' ou 'transferencia'
 	Date                 time.Time      `json:"date" db:"date"`
 	IsHistorical         bool           `json:"is_historical" db:"is_historical"`
 	CreatedAt            time.Time      `json:"created_at" db:"created_at"`
@@ -27,12 +28,13 @@ type Transaction struct {
 
 type CreateTransactionInput struct {
 	AccountID       string    `json:"account_id" binding:"required"`
+	PocketID        *string   `json:"pocket_id,omitempty"`
 	CategoryID      *string   `json:"category_id"`
 	SubcategoryID   *string   `json:"subcategory_id"`
 	PaymentMethodID *string   `json:"payment_method_id"`
 	Description     string    `json:"description" binding:"required"`
 	Amount          float64   `json:"amount" binding:"required,gt=0"`
-	Type            string    `json:"type" binding:"required,oneof=receita despesa"`
+	Type            string    `json:"type" binding:"required,oneof=receita despesa transferencia"`
 	Date            time.Time `json:"date" binding:"required"`
 	PayableID       *string   `json:"payable_id"`
 	InvoiceID       *string   `json:"invoice_id"`
@@ -40,6 +42,7 @@ type CreateTransactionInput struct {
 
 type UpdateTransactionInput struct {
 	AccountID       *string    `json:"account_id"`
+	PocketID        *string    `json:"pocket_id,omitempty"`
 	CategoryID      *string    `json:"category_id"`
 	SubcategoryID   *string    `json:"subcategory_id"`
 	PaymentMethodID *string    `json:"payment_method_id"`

@@ -35,7 +35,8 @@ func main() {
 	// Initialize repositories and services
 	yieldRepo := repository.NewLiquidityYieldRepository(db)
 	accountRepo := repository.NewAccountRepository(db)
-	yieldService := usecase.NewLiquidityYieldService(yieldRepo, accountRepo)
+	pocketRepo := repository.NewPocketRepository(db)
+	yieldService := usecase.NewLiquidityYieldService(yieldRepo, accountRepo, pocketRepo)
 	cdiService := usecase.NewCDIService()
 
 	// Step 1: Apply Migration

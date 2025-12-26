@@ -4,6 +4,7 @@ import (
 	"context"
 	"financeiro-api/internal/entity"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -253,21 +254,26 @@ func (r *TransactionRepository) createWithTx(ctx context.Context, tx pgx.Tx, use
 		SELECT adjustment_date 
 		FROM account_balance_adjustments
 		WHERE account_id = $1
-		ORDER BY adjustment_date DESC
+			AND deleted_at IS NULL
+		ORDER BY adjustment_date DESC, created_at DESC
 		LIMIT 1
 	`
 	err := tx.QueryRow(ctx, adjustmentQuery, input.AccountID).Scan(&lastAdjustmentDate)
 	if err != nil {
 		if err.Error() == "no rows in result set" {
+			fmt.Printf("⚠️  No adjustment found for account %s, using created_at as fallback\n", input.AccountID)
 			// Fallback: use account creation date if no adjustment record found
 			var createdAt time.Time
 			err := tx.QueryRow(ctx, "SELECT created_at FROM accounts WHERE id = $1", input.AccountID).Scan(&createdAt)
 			if err == nil {
 				lastAdjustmentDate = &createdAt
+				fmt.Printf("   Fallback adjustment date: %v\n", createdAt)
 			}
 		} else {
 			return nil, fmt.Errorf("failed to check balance adjustments: %w", err)
 		}
+	} else {
+		fmt.Printf("✅ Adjustment found for account %s: %v\n", input.AccountID, *lastAdjustmentDate)
 	}
 
 	// Determine if transaction is historical
@@ -285,40 +291,47 @@ func (r *TransactionRepository) createWithTx(ctx context.Context, tx pgx.Tx, use
 		transactionDate := time.Date(tYear, tMonth, tDay, 0, 0, 0, 0, time.UTC)
 		adjustmentDate := time.Date(aYear, aMonth, aDay, 0, 0, 0, 0, time.UTC)
 
-		fmt.Printf("DEBUG: Tx Date: %v (Orig: %v), Adj Date: %v (Orig: %v)\n", transactionDate, input.Date, adjustmentDate, lastAdjustmentDate)
+		fmt.Printf("📅 DATE COMPARISON:\n")
+		fmt.Printf("   Transaction Date: %v (Original: %v)\n", transactionDate, input.Date)
+		fmt.Printf("   Adjustment Date:  %v (Original: %v)\n", adjustmentDate, *lastAdjustmentDate)
 
 		if transactionDate.Before(adjustmentDate) {
 			isHistorical = true
+			fmt.Printf("   ➡️  Transaction is BEFORE adjustment → is_historical = TRUE\n")
 		}
 
 		// Explicitly ensure same-day is NOT historical (matches user expectation)
 		if transactionDate.Equal(adjustmentDate) {
 			isHistorical = false
-			fmt.Println("DEBUG: Transaction is on Adjustment Day -> Forcing Active (Not Historical)")
+			fmt.Printf("   ➡️  Transaction is ON adjustment day → is_historical = FALSE (forced)\n")
+		}
+
+		if transactionDate.After(adjustmentDate) {
+			fmt.Printf("   ➡️  Transaction is AFTER adjustment → is_historical = FALSE\n")
 		}
 	}
-	fmt.Printf("DEBUG: Is Historical: %v\n", isHistorical)
+	fmt.Printf("🎯 FINAL is_historical: %v\n", isHistorical)
 
-	// 2. Insert transaction with is_historical flag
+	// 2. Insert transaction with is_historical flag and pocket_id
 	query := `
 		INSERT INTO transactions (
-			user_id, account_id, category_id, subcategory_id,
+			user_id, account_id, pocket_id, category_id, subcategory_id,
 			payment_method_id, description, amount, type, date, payable_id, credit_card_invoice_id,
 			is_historical
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-		RETURNING id, user_id, account_id, category_id, subcategory_id,
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+		RETURNING id, user_id, account_id, pocket_id, category_id, subcategory_id,
 		          payment_method_id, credit_card_invoice_id, payable_id, related_transaction_id,
 		          description, amount, type, date, created_at, updated_at
 	`
 
 	var transaction entity.Transaction
 	err = tx.QueryRow(ctx, query,
-		userID, input.AccountID, input.CategoryID, input.SubcategoryID,
+		userID, input.AccountID, input.PocketID, input.CategoryID, input.SubcategoryID,
 		input.PaymentMethodID, input.Description, input.Amount, input.Type, input.Date, input.PayableID, input.InvoiceID,
 		isHistorical,
 	).Scan(
-		&transaction.ID, &transaction.UserID, &transaction.AccountID,
+		&transaction.ID, &transaction.UserID, &transaction.AccountID, &transaction.PocketID,
 		&transaction.CategoryID, &transaction.SubcategoryID, &transaction.PaymentMethodID,
 		&transaction.InvoiceID, &transaction.PayableID, &transaction.RelatedTransactionID,
 		&transaction.Description, &transaction.Amount, &transaction.Type,
@@ -329,22 +342,83 @@ func (r *TransactionRepository) createWithTx(ctx context.Context, tx pgx.Tx, use
 	}
 
 	// 3. Update account balance ONLY if transaction is NOT historical
+	fmt.Printf("🔍 CREATE DEBUG - Transaction created\n")
+	fmt.Printf("   Account ID: %s\n", input.AccountID)
+	fmt.Printf("   Amount: %.2f\n", input.Amount)
+	fmt.Printf("   Type: %s\n", input.Type)
+	fmt.Printf("   IsHistorical: %v\n", isHistorical)
+
 	if !isHistorical {
 		balanceChange := input.Amount
+
+		// Determine balance change based on transaction type
 		if input.Type == "despesa" {
 			balanceChange = -balanceChange
+		} else if input.Type == "transferencia" {
+			// For transfers, determine if this is source (saída) or target (entrada)
+			// Source: "Transferência para [conta]" → decrease balance
+			// Target: "Transferência de [conta]" → increase balance
+			descLower := strings.ToLower(input.Description)
+			if strings.Contains(descLower, "para") {
+				// Source transaction - decrease balance
+				balanceChange = -balanceChange
+				fmt.Printf("   📤 Transfer OUT (source) detected\n")
+			} else if strings.Contains(descLower, "de") {
+				// Target transaction - increase balance
+				fmt.Printf("   � Transfer IN (target) detected\n")
+			} else {
+				// Fallback: if description doesn't match pattern, don't change balance
+				fmt.Printf("   ⚠️  Transfer type unclear from description, skipping balance update\n")
+				balanceChange = 0
+			}
 		}
 
-		updateBalanceQuery := `
-			UPDATE accounts
-			SET balance = balance + $1, updated_at = NOW()
-			WHERE id = $2 AND user_id = $3
-		`
+		if balanceChange != 0 {
+			fmt.Printf("   ✅ UPDATING BALANCE: %.2f (original amount: %.2f, type: %s)\n", balanceChange, input.Amount, input.Type)
 
-		_, err = tx.Exec(ctx, updateBalanceQuery, balanceChange, input.AccountID, userID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to update account balance: %w", err)
+			// Atualizar saldo do POCKET se pocket_id foi especificado, senão atualizar ACCOUNT
+			if input.PocketID != nil && *input.PocketID != "" {
+				// Atualizar saldo do POCKET
+				updateBalanceQuery := `
+					UPDATE pockets
+					SET balance = balance + $1, updated_at = NOW()
+					WHERE id = $2 AND user_id = $3
+				`
+
+				result, err := tx.Exec(ctx, updateBalanceQuery, balanceChange, *input.PocketID, userID)
+				if err != nil {
+					return nil, fmt.Errorf("failed to update pocket balance: %w", err)
+				}
+
+				rowsAffected := result.RowsAffected()
+				fmt.Printf("   ✅ POCKET balance updated successfully! Rows affected: %d\n", rowsAffected)
+
+				if rowsAffected == 0 {
+					fmt.Printf("   ⚠️  WARNING: No rows affected! Pocket might not exist or user_id mismatch\n")
+				}
+			} else {
+				// Atualizar saldo da ACCOUNT (comportamento legado)
+				updateBalanceQuery := `
+					UPDATE accounts
+					SET balance = balance + $1, updated_at = NOW()
+					WHERE id = $2 AND user_id = $3
+				`
+
+				result, err := tx.Exec(ctx, updateBalanceQuery, balanceChange, input.AccountID, userID)
+				if err != nil {
+					return nil, fmt.Errorf("failed to update account balance: %w", err)
+				}
+
+				rowsAffected := result.RowsAffected()
+				fmt.Printf("   ✅ ACCOUNT balance updated successfully! Rows affected: %d\n", rowsAffected)
+
+				if rowsAffected == 0 {
+					fmt.Printf("   ⚠️  WARNING: No rows affected! Account might not exist or user_id mismatch\n")
+				}
+			}
 		}
+	} else {
+		fmt.Printf("   ⏭️  SKIPPING balance update (IsHistorical = true)\n")
 	}
 
 	return &transaction, nil
@@ -357,15 +431,27 @@ func (r *TransactionRepository) CreateTransfer(ctx context.Context, userID strin
 	}
 	defer tx.Rollback(ctx)
 
+	fmt.Printf("\n🔄 CREATING TRANSFER\n")
+	fmt.Printf("   Source Account: %s (Amount: %.2f)\n", sourceInput.AccountID, sourceInput.Amount)
+	fmt.Printf("   Target Account: %s (Amount: %.2f)\n", targetInput.AccountID, targetInput.Amount)
+
+	// Force type to 'transferencia' for both transactions
+	sourceInput.Type = "transferencia"
+	targetInput.Type = "transferencia"
+
+	// Source transaction (saída)
 	sourceTx, err := r.createWithTx(ctx, tx, userID, sourceInput)
 	if err != nil {
 		return nil, nil, err
 	}
+	fmt.Printf("   ✅ Source transaction created: %s\n", sourceTx.ID)
 
+	// Target transaction (entrada)
 	targetTx, err := r.createWithTx(ctx, tx, userID, targetInput)
 	if err != nil {
 		return nil, nil, err
 	}
+	fmt.Printf("   ✅ Target transaction created: %s\n", targetTx.ID)
 
 	// Link them
 	linkQuery := `UPDATE transactions SET related_transaction_id = $1 WHERE id = $2`
@@ -379,9 +465,13 @@ func (r *TransactionRepository) CreateTransfer(ctx context.Context, userID strin
 	sourceTx.RelatedTransactionID = &targetTx.ID
 	targetTx.RelatedTransactionID = &sourceTx.ID
 
+	fmt.Printf("   🔗 Transactions linked successfully\n")
+
 	if err := tx.Commit(ctx); err != nil {
 		return nil, nil, fmt.Errorf("failed to commit transaction: %w", err)
 	}
+
+	fmt.Printf("   ✅ Transfer committed successfully!\n\n")
 
 	return sourceTx, targetTx, nil
 }
@@ -421,7 +511,8 @@ func (r *TransactionRepository) updateWithTx(ctx context.Context, tx pgx.Tx, id,
 			SELECT adjustment_date 
 			FROM account_balance_adjustments
 			WHERE account_id = $1
-			ORDER BY adjustment_date DESC
+				AND deleted_at IS NULL
+			ORDER BY adjustment_date DESC, created_at DESC
 			LIMIT 1
 		`
 		accountID := original.AccountID
@@ -453,6 +544,11 @@ func (r *TransactionRepository) updateWithTx(ctx context.Context, tx pgx.Tx, id,
 		argCount++
 		query += fmt.Sprintf(", account_id = $%d", argCount)
 		args = append(args, *input.AccountID)
+	}
+	if input.PocketID != nil {
+		argCount++
+		query += fmt.Sprintf(", pocket_id = $%d", argCount)
+		args = append(args, *input.PocketID)
 	}
 	if input.CategoryID != nil {
 		argCount++
@@ -496,13 +592,13 @@ func (r *TransactionRepository) updateWithTx(ctx context.Context, tx pgx.Tx, id,
 	}
 
 	query += ` WHERE id = $1 AND user_id = $2 
-	           RETURNING id, user_id, account_id, category_id, subcategory_id,
+	           RETURNING id, user_id, account_id, pocket_id, category_id, subcategory_id,
 	                     payment_method_id, credit_card_invoice_id, payable_id, related_transaction_id,
 	                     description, amount, type, date, is_historical, created_at, updated_at`
 
 	var updated entity.Transaction
 	err = tx.QueryRow(ctx, query, args...).Scan(
-		&updated.ID, &updated.UserID, &updated.AccountID,
+		&updated.ID, &updated.UserID, &updated.AccountID, &updated.PocketID,
 		&updated.CategoryID, &updated.SubcategoryID, &updated.PaymentMethodID,
 		&updated.InvoiceID, &updated.PayableID, &updated.RelatedTransactionID,
 		&updated.Description, &updated.Amount, &updated.Type,
@@ -516,88 +612,135 @@ func (r *TransactionRepository) updateWithTx(ctx context.Context, tx pgx.Tx, id,
 	if !original.IsHistorical && !updated.IsHistorical {
 		if input.Amount != nil || input.Type != nil || input.AccountID != nil {
 			// Revert result of original transaction
+			// 1. Calculate Original Change
 			originalChange := original.Amount
 			if original.Type == "despesa" {
 				originalChange = -originalChange
+			} else if original.Type == "transferencia" {
+				if strings.Contains(strings.ToLower(original.Description), "para") {
+					originalChange = -originalChange
+				} else if !strings.Contains(strings.ToLower(original.Description), "de") {
+					originalChange = 0
+				}
 			}
 
-			// Calculate result of updated transaction
+			// 2. Calculate New Change
 			newChange := updated.Amount
 			if updated.Type == "despesa" {
 				newChange = -newChange
+			} else if updated.Type == "transferencia" {
+				if strings.Contains(strings.ToLower(updated.Description), "para") {
+					newChange = -newChange
+				} else if !strings.Contains(strings.ToLower(updated.Description), "de") {
+					newChange = 0
+				}
 			}
 
-			if original.AccountID != updated.AccountID {
-				// Account changed: Revert from Old and Apply to New
+			// 3. Determine if Location Changed (Account or Pocket)
+			pocketsChanged := false
+			if (original.PocketID == nil && updated.PocketID != nil) ||
+				(original.PocketID != nil && updated.PocketID == nil) ||
+				(original.PocketID != nil && updated.PocketID != nil && *original.PocketID != *updated.PocketID) {
+				pocketsChanged = true
+			}
 
-				// 1. Revert from Old Account (Subtract original change)
-				revertQuery := `
-					UPDATE accounts
-					SET balance = balance - $1, updated_at = NOW()
-					WHERE id = $2 AND user_id = $3
-				`
-				_, err = tx.Exec(ctx, revertQuery, originalChange, original.AccountID, userID)
-				if err != nil {
-					return nil, fmt.Errorf("failed to revert balance from old account: %w", err)
+			accountsChanged := original.AccountID != updated.AccountID
+
+			if accountsChanged || pocketsChanged {
+				// Location changed: Revert from Old and Apply to New
+
+				// A. Revert from Old Location
+				if original.PocketID != nil && *original.PocketID != "" {
+					revertQuery := `UPDATE pockets SET balance = balance - $1, updated_at = NOW() WHERE id = $2 AND user_id = $3`
+					if _, err := tx.Exec(ctx, revertQuery, originalChange, *original.PocketID, userID); err != nil {
+						return nil, fmt.Errorf("failed to revert balance from old pocket: %w", err)
+					}
+				} else {
+					revertQuery := `UPDATE accounts SET balance = balance - $1, updated_at = NOW() WHERE id = $2 AND user_id = $3`
+					if _, err := tx.Exec(ctx, revertQuery, originalChange, original.AccountID, userID); err != nil {
+						return nil, fmt.Errorf("failed to revert balance from old account: %w", err)
+					}
 				}
 
-				// 2. Apply to New Account (Add new change)
-				applyQuery := `
-					UPDATE accounts
-					SET balance = balance + $1, updated_at = NOW()
-					WHERE id = $2 AND user_id = $3
-				`
-				_, err = tx.Exec(ctx, applyQuery, newChange, updated.AccountID, userID)
-				if err != nil {
-					return nil, fmt.Errorf("failed to apply balance to new account: %w", err)
+				// B. Apply to New Location
+				if updated.PocketID != nil && *updated.PocketID != "" {
+					applyQuery := `UPDATE pockets SET balance = balance + $1, updated_at = NOW() WHERE id = $2 AND user_id = $3`
+					if _, err := tx.Exec(ctx, applyQuery, newChange, *updated.PocketID, userID); err != nil {
+						return nil, fmt.Errorf("failed to apply balance to new pocket: %w", err)
+					}
+				} else {
+					applyQuery := `UPDATE accounts SET balance = balance + $1, updated_at = NOW() WHERE id = $2 AND user_id = $3`
+					if _, err := tx.Exec(ctx, applyQuery, newChange, updated.AccountID, userID); err != nil {
+						return nil, fmt.Errorf("failed to apply balance to new account: %w", err)
+					}
 				}
+
 			} else {
-				// Same Account: Apply difference
-				balanceDiff := newChange - originalChange
-				if balanceDiff != 0 {
-					updateBalanceQuery := `
-                    UPDATE accounts
-                    SET balance = balance + $1, updated_at = NOW()
-                    WHERE id = $2 AND user_id = $3
-                `
-					_, err = tx.Exec(ctx, updateBalanceQuery, balanceDiff, updated.AccountID, userID)
-					if err != nil {
-						return nil, fmt.Errorf("failed to update account balance: %w", err)
+				// Same Location (Account & Pocket same), just apply difference
+				diff := newChange - originalChange
+
+				if diff != 0 {
+					if updated.PocketID != nil && *updated.PocketID != "" {
+						updateQuery := `UPDATE pockets SET balance = balance + $1, updated_at = NOW() WHERE id = $2 AND user_id = $3`
+						if _, err := tx.Exec(ctx, updateQuery, diff, *updated.PocketID, userID); err != nil {
+							return nil, fmt.Errorf("failed to update pocket balance: %w", err)
+						}
+					} else {
+						updateQuery := `UPDATE accounts SET balance = balance + $1, updated_at = NOW() WHERE id = $2 AND user_id = $3`
+						if _, err := tx.Exec(ctx, updateQuery, diff, updated.AccountID, userID); err != nil {
+							return nil, fmt.Errorf("failed to update account balance: %w", err)
+						}
 					}
 				}
 			}
 		}
 	} else if !original.IsHistorical && updated.IsHistorical {
-		// Transaction became historical: revert the balance
+		// Transaction became historical: revert the balance from ORIGINAL location
 		originalChange := original.Amount
 		if original.Type == "despesa" {
 			originalChange = -originalChange
+		} else if original.Type == "transferencia" {
+			if strings.Contains(strings.ToLower(original.Description), "para") {
+				originalChange = -originalChange
+			} else if !strings.Contains(strings.ToLower(original.Description), "de") {
+				originalChange = 0
+			}
 		}
 
-		revertQuery := `
-			UPDATE accounts
-			SET balance = balance - $1, updated_at = NOW()
-			WHERE id = $2 AND user_id = $3
-		`
-		_, err = tx.Exec(ctx, revertQuery, originalChange, original.AccountID, userID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to revert balance (became historical): %w", err)
+		if original.PocketID != nil && *original.PocketID != "" {
+			revertQuery := `UPDATE pockets SET balance = balance - $1, updated_at = NOW() WHERE id = $2 AND user_id = $3`
+			if _, err := tx.Exec(ctx, revertQuery, originalChange, *original.PocketID, userID); err != nil {
+				return nil, fmt.Errorf("failed to revert balance from pocket (became historical): %w", err)
+			}
+		} else {
+			revertQuery := `UPDATE accounts SET balance = balance - $1, updated_at = NOW() WHERE id = $2 AND user_id = $3`
+			if _, err := tx.Exec(ctx, revertQuery, originalChange, original.AccountID, userID); err != nil {
+				return nil, fmt.Errorf("failed to revert balance from account (became historical): %w", err)
+			}
 		}
 	} else if original.IsHistorical && !updated.IsHistorical {
-		// Transaction became current: apply the balance
+		// Transaction became current: apply the balance to NEW location
 		newChange := updated.Amount
 		if updated.Type == "despesa" {
 			newChange = -newChange
+		} else if updated.Type == "transferencia" {
+			if strings.Contains(strings.ToLower(updated.Description), "para") {
+				newChange = -newChange
+			} else if !strings.Contains(strings.ToLower(updated.Description), "de") {
+				newChange = 0
+			}
 		}
 
-		applyQuery := `
-			UPDATE accounts
-			SET balance = balance + $1, updated_at = NOW()
-			WHERE id = $2 AND user_id = $3
-		`
-		_, err = tx.Exec(ctx, applyQuery, newChange, updated.AccountID, userID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to apply balance (became current): %w", err)
+		if updated.PocketID != nil && *updated.PocketID != "" {
+			applyQuery := `UPDATE pockets SET balance = balance + $1, updated_at = NOW() WHERE id = $2 AND user_id = $3`
+			if _, err := tx.Exec(ctx, applyQuery, newChange, *updated.PocketID, userID); err != nil {
+				return nil, fmt.Errorf("failed to apply balance to pocket (became current): %w", err)
+			}
+		} else {
+			applyQuery := `UPDATE accounts SET balance = balance + $1, updated_at = NOW() WHERE id = $2 AND user_id = $3`
+			if _, err := tx.Exec(ctx, applyQuery, newChange, updated.AccountID, userID); err != nil {
+				return nil, fmt.Errorf("failed to apply balance to account (became current): %w", err)
+			}
 		}
 	}
 
@@ -667,6 +810,13 @@ func (r *TransactionRepository) deleteWithTx(ctx context.Context, tx pgx.Tx, id,
 		return err
 	}
 
+	fmt.Printf("🔍 DELETE DEBUG - Transaction ID: %s\n", id)
+	fmt.Printf("   Account ID: %s\n", t.AccountID)
+	fmt.Printf("   Amount: %.2f\n", t.Amount)
+	fmt.Printf("   Type: %s\n", t.Type)
+	fmt.Printf("   IsHistorical: %v\n", t.IsHistorical)
+	fmt.Printf("   RelatedTransactionID: %v\n", t.RelatedTransactionID)
+
 	// Delete
 	deleteQuery := `DELETE FROM transactions WHERE id = $1 AND user_id = $2`
 	if _, err := tx.Exec(ctx, deleteQuery, id, userID); err != nil {
@@ -678,16 +828,55 @@ func (r *TransactionRepository) deleteWithTx(ctx context.Context, tx pgx.Tx, id,
 		balanceChange := t.Amount
 		if t.Type == "despesa" {
 			balanceChange = -balanceChange
+		} else if t.Type == "transferencia" {
+			// Logic for transfer reversion
+			// If it was valid source (decrease), we add back (revert is subtraction of negative = addition)
+			// If it was valid target (increase), we subtract (revert is subtraction of positive)
+
+			// Note: The logic below "balance - $1" means we subtract the balanceChange.
+			// So if original was -100 (despesa), we do balance - (-100) = balance + 100. Correct.
+			// If original was +100 (receita), we do balance - (100) = balance - 100. Correct.
+
+			// For transfer, we just need to reconstruct the original change.
+			descLower := strings.ToLower(t.Description)
+			if strings.Contains(descLower, "para") {
+				// Was source (decrease), so balanceChange should be negative
+				balanceChange = -balanceChange
+			} else if strings.Contains(descLower, "de") {
+				// Was target (increase), balanceChange remains positive
+			} else {
+				balanceChange = 0
+			}
 		}
 
-		updateBalanceQuery := `
-			UPDATE accounts
-			SET balance = balance - $1, updated_at = NOW()
-			WHERE id = $2 AND user_id = $3
-		`
-		if _, err := tx.Exec(ctx, updateBalanceQuery, balanceChange, t.AccountID, userID); err != nil {
-			return fmt.Errorf("failed to update account balance: %w", err)
+		if balanceChange != 0 {
+			fmt.Printf("   ✅ REVERTING BALANCE: %.2f (original amount: %.2f, type: %s)\n", balanceChange, t.Amount, t.Type)
+
+			// Check if we need to revert from POCKET or ACCOUNT
+			if t.PocketID != nil && *t.PocketID != "" {
+				updateBalanceQuery := `
+					UPDATE pockets
+					SET balance = balance - $1, updated_at = NOW()
+					WHERE id = $2 AND user_id = $3
+				`
+				if _, err := tx.Exec(ctx, updateBalanceQuery, balanceChange, *t.PocketID, userID); err != nil {
+					return fmt.Errorf("failed to update pocket balance: %w", err)
+				}
+				fmt.Printf("   ✅ Balance reverted successfully for pocket %s\n", *t.PocketID)
+			} else {
+				updateBalanceQuery := `
+					UPDATE accounts
+					SET balance = balance - $1, updated_at = NOW()
+					WHERE id = $2 AND user_id = $3
+				`
+				if _, err := tx.Exec(ctx, updateBalanceQuery, balanceChange, t.AccountID, userID); err != nil {
+					return fmt.Errorf("failed to update account balance: %w", err)
+				}
+				fmt.Printf("   ✅ Balance reverted successfully for account %s\n", t.AccountID)
+			}
 		}
+	} else {
+		fmt.Printf("   ⏭️  SKIPPING balance revert (IsHistorical = true)\n")
 	}
 	return nil
 }
