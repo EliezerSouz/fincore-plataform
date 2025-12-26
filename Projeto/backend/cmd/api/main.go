@@ -65,6 +65,10 @@ func main() {
 	eventRepo := repository.NewFinancialEventRepository(dbPool)
 	creditRepo := repository.NewCreditRepository(dbPool)
 
+	// Novos repositórios para Parent Accounts + Pockets
+	parentAccountRepo := repository.NewParentAccountRepository(dbPool)
+	pocketRepo := repository.NewPocketRepository(dbPool)
+
 	// Initialize use cases/services
 	userService := usecase.NewUserService(userRepo)
 	// invoiceService := usecase.NewInvoiceService(invoiceRepo, transactionRepo) // TEMPORARIAMENTE COMENTADO
@@ -85,6 +89,10 @@ func main() {
 	paymentMethodHandler := handler.NewPaymentMethodHandler(paymentMethodRepo)
 	aiHandler := handler.NewAIHandler()
 	liquidityYieldHandler := handler.NewLiquidityYieldHandler(dbPool)
+
+	// Novos handlers para Parent Accounts + Pockets
+	parentAccountHandler := handler.NewParentAccountHandler(parentAccountRepo)
+	pocketHandler := handler.NewPocketHandler(pocketRepo)
 
 	// Setup Gin
 	r := gin.Default()
@@ -210,6 +218,31 @@ func main() {
 			yields.POST("/calculate", liquidityYieldHandler.CalculateDailyYields)
 			yields.GET("/account/:id", liquidityYieldHandler.GetAccountYieldSummary)
 			yields.POST("/reprocess", liquidityYieldHandler.ReprocessYield)
+		}
+
+		// Parent Account routes (Instituições)
+		parentAccounts := api.Group("/parent-accounts")
+		{
+			parentAccounts.GET("", parentAccountHandler.GetAll)
+			parentAccounts.GET("/:id", parentAccountHandler.GetByID)
+			parentAccounts.GET("/:id/with-pockets", parentAccountHandler.GetWithPockets)
+			parentAccounts.POST("", parentAccountHandler.Create)
+			parentAccounts.PUT("/:id", parentAccountHandler.Update)
+			parentAccounts.DELETE("/:id", parentAccountHandler.Delete)
+
+			// Pockets de uma Parent Account específica
+			parentAccounts.GET("/:parent_id/pockets", pocketHandler.GetByParentAccount)
+		}
+
+		// Pocket routes (Subcontas)
+		pockets := api.Group("/pockets")
+		{
+			pockets.GET("", pocketHandler.GetAll)
+			pockets.GET("/:id", pocketHandler.GetByID)
+			pockets.POST("", pocketHandler.Create)
+			pockets.PUT("/:id", pocketHandler.Update)
+			pockets.DELETE("/:id", pocketHandler.Delete)
+			pockets.POST("/:id/recalculate-balance", pocketHandler.RecalculateBalance)
 		}
 
 		// TODO: Add more routes
