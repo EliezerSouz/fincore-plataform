@@ -11,6 +11,8 @@ type Account struct {
 	Color         *string    `json:"color" db:"color"`
 	IsActive      bool       `json:"is_active" db:"is_active"`
 	YieldRate     float64    `json:"yield_rate" db:"yield_rate"`
+	YieldEnabled  bool       `json:"yield_enabled" db:"yield_enabled"`
+	YieldSource   *string    `json:"yield_source" db:"yield_source"`
 	LastYieldDate *time.Time `json:"last_yield_date" db:"last_yield_date"`
 	CreatedAt     time.Time  `json:"created_at" db:"created_at"`
 	UpdatedAt     time.Time  `json:"updated_at" db:"updated_at"`
