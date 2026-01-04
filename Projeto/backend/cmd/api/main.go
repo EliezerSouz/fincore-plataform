@@ -70,7 +70,7 @@ func main() {
 	pocketRepo := repository.NewPocketRepository(dbPool)
 
 	// Initialize use cases/services
-	userService := usecase.NewUserService(userRepo)
+	userService := usecase.NewUserService(userRepo, cardRepo)
 	// invoiceService := usecase.NewInvoiceService(invoiceRepo, transactionRepo) // TEMPORARIAMENTE COMENTADO
 	payableService := usecase.NewPayableService(payableRepo, transactionRepo)
 
@@ -120,7 +120,6 @@ func main() {
 	api := r.Group("/api")
 
 	// ✅ AUTENTICAÇÃO REAL ATIVADA - Pega user_id do token JWT do Supabase
-	// api.Use(middleware.AuthBypass()) // DESATIVADO - Estava usando ID hardcoded antigo
 	api.Use(middleware.AuthMiddleware())
 
 	// Ensure authenticated users exist in the database

@@ -18,11 +18,15 @@ var ValidPromoCodes = map[string]time.Duration{
 }
 
 type UserService struct {
-	Repo *repository.UserRepository
+	Repo     *repository.UserRepository
+	CardRepo *repository.CardRepository
 }
 
-func NewUserService(repo *repository.UserRepository) *UserService {
-	return &UserService{Repo: repo}
+func NewUserService(repo *repository.UserRepository, cardRepo *repository.CardRepository) *UserService {
+	return &UserService{
+		Repo:     repo,
+		CardRepo: cardRepo,
+	}
 }
 
 func (s *UserService) GetUserProfile(ctx context.Context, id uuid.UUID) (*entity.User, error) {
@@ -68,47 +72,10 @@ func (s *UserService) SetupUser(ctx context.Context, userID uuid.UUID, promoCode
 		return fmt.Errorf("user already used a promo code: %s", *user.UsedPromoCode)
 	}
 
-	// 2. Fetch Promo Code from DB (assuming we had a repo method, otherwise direct SQL or map for now as requested by user prompts which implies "Global" codes)
-	// The prompt requested a migration for promo_codes.
-	// We should ideally query this table. Since I haven't added PromoCodeRepository yet, I'll use a direct query or helper in UserRepository.
-	// For simplicity and to fit "Migration safe" and "Global" prompt, I will implement a check in UserRepository or here.
-
-	// UPDATED LOGIC to match "PREMIUM" and "IA5" from prompt.
-	// TODO: Replace with DB lookup `SELECT * FROM promo_codes WHERE code = $1 AND active = true`
-
-	var duration time.Duration
-	var plan entity.SubscriptionPlan
-
-	switch promoCode {
-	case "PREMIUM":
-		duration = 14 * 24 * time.Hour
-		plan = entity.SubscriptionPlanPremium
-	case "IA5":
-		duration = 7 * 24 * time.Hour
-		plan = entity.SubscriptionPlanPremiumIA
-	case "PREMIUM7":
-		duration = 7 * 24 * time.Hour
-		plan = entity.SubscriptionPlanPremium
-	case "PREMIUM30":
-		duration = 30 * 24 * time.Hour
-		plan = entity.SubscriptionPlanPremium
-	default:
-		return fmt.Errorf("invalid promo code")
-	}
-
-	// 3. Apply Promo
-	now := time.Now()
-	expiresAt := now.Add(duration)
-
-	user.IsTempAccess = true
-	user.TempAccessExpiresAt = &expiresAt
-	user.TempAccessOrigin = &promoCode
-	user.UsedPromoCode = &promoCode
-	user.SubscriptionPlan = plan
-
-	// Update User
-	if err := s.Repo.UpdatePlanDetails(ctx, user); err != nil {
-		return fmt.Errorf("failed to apply promo code: %w", err)
+	// 2. Redeem promo code using database
+	// This will validate the code, check if user already used it, and apply the benefits
+	if err := s.Repo.RedeemPromoCode(ctx, userID, promoCode); err != nil {
+		return fmt.Errorf("failed to redeem promo code: %w", err)
 	}
 
 	return nil
@@ -124,12 +91,11 @@ func (s *UserService) SetPrimaryCard(ctx context.Context, userID uuid.UUID, card
 		return fmt.Errorf("primary card selection is locked")
 	}
 
-	// TODO: Verify if card belongs to user?
-	// The frontend does it, but backend should too.
-	// However, we don't have CardRepository here easily injected without cycle or extra param.
-	// For now, assume Handler checks it or we inject CardRepo.
-	// But `UserService` usually only depends on `UserRepository`.
-	// Let's assume CardID validity is checked by caller (Handler) or we trust the input if valid UUID.
+	// Verify if card belongs to user
+	_, err = s.CardRepo.FindByID(ctx, cardID, userID.String())
+	if err != nil {
+		return fmt.Errorf("card not found or does not belong to user: %w", err)
+	}
 
 	return s.Repo.UpdatePrimaryCard(ctx, userID, cardID, locked)
 }
