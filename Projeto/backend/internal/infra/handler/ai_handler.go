@@ -216,7 +216,7 @@ Dados:
 	fmt.Println("------------- [AI PROMPT END] -------------")
 
 	groqReq := GroqRequest{
-		Model: "mixtral-8x7b-32768", // Changed from llama-3.3-70b-versatile
+		Model: "llama-3.3-70b-versatile", // Reverted to Llama 3.3 per user request
 		Messages: []GroqMessage{
 			{Role: "user", Content: prompt},
 		},

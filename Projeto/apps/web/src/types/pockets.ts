@@ -64,6 +64,7 @@ export interface CreateParentAccountInput {
     institution_type?: InstitutionType
     color?: string
     logo_url?: string
+    initial_balance?: number
 }
 
 export interface CreatePocketInput {

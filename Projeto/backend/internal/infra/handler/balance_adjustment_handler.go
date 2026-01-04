@@ -46,15 +46,23 @@ func (h *BalanceAdjustmentHandler) Create(c *gin.Context) {
 		return
 	}
 
+	// Validate: Either AccountID or PocketID must be present
+	hasAccount := input.AccountID != nil && *input.AccountID != ""
+	hasPocket := input.PocketID != nil && *input.PocketID != ""
+
+	if !hasAccount && !hasPocket {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "either account_id or pocket_id is required"})
+		return
+	}
+
 	// Validate: Check if there are any transactions after the adjustment date
-	// This prevents retroactive adjustments that would invalidate the transaction history
-	hasTransactions, err := h.repo.HasTransactionsAfterDate(c.Request.Context(), input.AccountID, input.AdjustmentDate)
+	hasTransactions, err := h.repo.HasTransactionsAfterDate(c.Request.Context(), input.AccountID, input.PocketID, input.AdjustmentDate)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to validate adjustment date"})
 		return
 	}
 	if hasTransactions {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Não é possível realizar ajuste de saldo com data retroativa em contas que já possuem movimentações"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Não é possível realizar ajuste de saldo com data retroativa pois já existem movimentações posteriores"})
 		return
 	}
 
@@ -62,6 +70,7 @@ func (h *BalanceAdjustmentHandler) Create(c *gin.Context) {
 		ID:                     uuid.New().String(),
 		UserID:                 userID,
 		AccountID:              input.AccountID,
+		PocketID:               input.PocketID,
 		AdjustmentDate:         input.AdjustmentDate,
 		Balance:                input.Balance,
 		Type:                   input.Type,

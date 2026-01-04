@@ -1,0 +1,104 @@
+DATA;DESCRICAO;CATEGORIA;TIPO;VALOR;INVOICE_ID
+2025-12-01;Adriele Borda da Mata;RENDA EXTRA;receita;60.00;NULL
+2025-12-01;Agua 24 horas;ALIMENTAÇÃO;despesa;3.00;NULL
+2025-12-01;Auto Pista Fernao Dias;TRANSPORTE;despesa;6.00;NULL
+2025-12-01;Batizado Mateus - Campanha;TRANSPORTE;despesa;100.00;NULL
+2025-12-01;Fut7 - ;ESPORTES;despesa;8.00;NULL
+2025-12-01;Futebol de Segunda;ESPORTES;despesa;15.50;NULL
+2025-12-01;Isotonico Treino;ESPORTES;despesa;15.00;NULL
+2025-12-01;Juarez Sao Cristovao;RENDA EXTRA;receita;30.00;NULL
+2025-12-01;Lurdinha Borda da Mata;RENDA EXTRA;receita;30.00;NULL
+2025-12-01;Tecnologia LTDA;TRANSPORTE;despesa;14.50;NULL
+2025-12-02;Richard Campanha;RENDA EXTRA;receita;30.00;NULL
+2025-12-02;Rosana Foch;RENDA EXTRA;receita;27.00;NULL
+2025-12-03;Cicero Sao Bernardo;RENDA EXTRA;receita;30.00;NULL
+2025-12-03;Compra Livro - Apegados;EDUCAÇÃO E DESENVOLVIMENTO;despesa;36.83;NULL
+2025-12-03;Rafael Tibiriça;RENDA EXTRA;receita;25.00;NULL
+2025-12-03;Reginaldo Colina Verde;RENDA EXTRA;receita;30.00;NULL
+2025-12-05;Credito Salario BB;EMPRESTIMOS;despesa;184.62;NULL
+2025-12-05;Fabiano Colina Verde;RENDA EXTRA;receita;30.00;NULL
+2025-12-05;Franceilem - Eder CDJ;RENDA EXTRA;receita;30.00;NULL
+2025-12-05;Salario Farsoft;SALÁRIO;receita;2335.36;NULL
+2025-12-08; PADARIA E CONFEITARI;ALIMENTAÇÃO;despesa;12.50;NULL
+2025-12-08;ACQUA SHOP;ALIMENTAÇÃO;despesa;2.00;NULL
+2025-12-08;Bingo - Campanha;TRANSPORTE;despesa;90.02;NULL
+2025-12-08;Bla Bla Car;TRANSPORTE;despesa;28.00;NULL
+2025-12-08;Carol Foch;RENDA EXTRA;receita;27.00;NULL
+2025-12-08;Casa da Criança;LAZER;despesa;8.00;NULL
+2025-12-08;Crédito Renovação BB;EMPRESTIMOS;despesa;233.85;NULL
+2025-12-08;Credito Slario BB;BENEFICIOS FINANCEIROS;receita;1.03;NULL
+2025-12-08;Eliete Oliveira;RENDA EXTRA;receita;30.00;NULL
+2025-12-08;Everton Parque Real;RENDA EXTRA;receita;30.00;NULL
+2025-12-08;Juninho Cruzeiro;RENDA EXTRA;receita;30.00;NULL
+2025-12-08;Luciando INO;RENDA EXTRA;receita;30.00;NULL
+2025-12-08;Luiz Gonzaga Aniceto;TRANSPORTE;despesa;17.60;NULL
+2025-12-08;Passagem Bla Bla Car;TRANSPORTE;despesa;45.12;NULL
+2025-12-08;Tim;TELECOMUNICAÇOES;despesa;26.99;NULL
+2025-12-09;Joelma Santa Branca;RENDA EXTRA;receita;30.00;NULL
+2025-12-09;Renata Cristina;RENDA EXTRA;receita;30.00;NULL
+2025-12-11;Adalgisa Borda da Mata;RENDA EXTRA;receita;35.00;NULL
+2025-12-11;Cliente Serviços Digitais;RENDA EXTRA;receita;30.00;NULL
+2025-12-11;Edualcey Alexandre;TRANSPORTE;despesa;14.50;NULL
+2025-12-11;Fernanda Borda da Mata;RENDA EXTRA;receita;30.00;NULL
+2025-12-11;Isotonico Treino;ESPORTES;despesa;9.00;NULL
+2025-12-11;Tecnoclogia LTDA;TRANSPORTE;despesa;13.50;NULL
+2025-12-11;Willian Magno;RENDA EXTRA;receita;30.00;NULL
+2025-12-12;Corte de cabelo e barba;ESTETICA E BELEZA;despesa;40.00;NULL
+2025-12-12;Eduardo Colina Verde;RENDA EXTRA;receita;30.00;NULL
+2025-12-12;Evaldo Rodrigues;TRANSPORTE;despesa;13.50;NULL
+2025-12-12;Hideraldo;RENDA EXTRA;receita;30.00;NULL
+2025-12-12;Rogerio Dias;RENDA EXTRA;receita;30.00;NULL
+2025-12-12;Sergio Soares;TRANSPORTE;despesa;12.00;NULL
+2025-12-15;Ailton Sao Cristovao;RENDA EXTRA;receita;30.00;NULL
+2025-12-15;Ana Paula VM;RENDA EXTRA;receita;20.00;NULL
+2025-12-15;Beth;RENDA EXTRA;receita;30.00;NULL
+2025-12-15;Cliente Serviços Digitais;RENDA EXTRA;receita;30.00;NULL
+2025-12-15;Guilherme Sao Gonçalo;RENDA EXTRA;receita;30.00;NULL
+2025-12-15;Jessica Cezarini;RENDA EXTRA;receita;30.00;NULL
+2025-12-15;Joa Paulo Condomino Jades;RENDA EXTRA;receita;55.00;NULL
+2025-12-15;Leidfujimoto;OUTROS;despesa;36.00;NULL
+2025-12-15;Orlando Cruzeiro;RENDA EXTRA;receita;100.00;NULL
+2025-12-15;Tecnoclogia LTDA;TRANSPORTE;despesa;14.60;NULL
+2025-12-15;Thayla Fernandinho;RENDA EXTRA;receita;20.00;NULL
+2025-12-15;Valdiclecia Rosa;RENDA EXTRA;receita;30.00;NULL
+2025-12-15;Wagner Borda da Mata;RENDA EXTRA;receita;30.00;NULL
+2025-12-16;Pagamento de Fatura de Cartão;PAGAMENTO DE FATURA;despesa;1236.14;ccc1d751-1b75-4e38-8849-2c4b7663735b
+2025-12-16;Pagamento de Fatura de Cartão;PAGAMENTO DE FATURA;despesa;1236.14;ccc1d751-1b75-4e38-8849-2c4b7663735b
+2025-12-17;Flavia Leticia;RENDA EXTRA;receita;30.00;NULL
+2025-12-17;Luiz Gustavo - Black;RENDA EXTRA;receita;150.00;NULL
+2025-12-18;13º Salario;SALÁRIO;receita;861.96;NULL
+2025-12-18;Ana Paula VM;RENDA EXTRA;receita;20.00;NULL
+2025-12-18;Elaine Arvore Grande;RENDA EXTRA;receita;30.00;NULL
+2025-12-19;Elizabeth Parque Real;RENDA EXTRA;receita;30.00;NULL
+2025-12-22;Ana Paula Condominio Jades;RENDA EXTRA;receita;30.00;NULL
+2025-12-22;Claudiney Centro;RENDA EXTRA;receita;27.50;NULL
+2025-12-22;Daniela Unimed;RENDA EXTRA;receita;30.00;NULL
+2025-12-22;Guilherme Paschoal;RENDA EXTRA;receita;25.00;NULL
+2025-12-22;Mariza Helena;RENDA EXTRA;receita;30.00;NULL
+2025-12-22;Papelaria;MORADIA;despesa;32.00;NULL
+2025-12-23;Bruno Borda da Mata;RENDA EXTRA;receita;30.00;NULL
+2025-12-23;Luana Centro;RENDA EXTRA;receita;55.00;NULL
+2025-12-23;Mauro Centro;RENDA EXTRA;receita;30.00;NULL
+2025-12-23;Sara Campanha;RENDA EXTRA;receita;20.00;NULL
+2025-12-23;Tamara Poços de Caldas;RENDA EXTRA;receita;30.00;NULL
+2025-12-24;Dani Ribeiro Arvore Grande;RENDA EXTRA;receita;30.00;NULL
+2025-12-24;Karen Colina Verde;RENDA EXTRA;receita;30.00;NULL
+2025-12-25;Mariana Sao Bernardo;RENDA EXTRA;receita;30.00;NULL
+2025-12-26;Compras de Credito Revenda;RENDA EXTRA;despesa;300.00;NULL
+2025-12-26;Jeferson Jardim Ype;RENDA EXTRA;receita;35.00;NULL
+
+TOTAL DESPESAS:;3804.91
+
+--- POR CATEGORIA ---
+PAGAMENTO DE FATURA;2472.28
+EMPRESTIMOS;418.47
+TRANSPORTE;369.34
+RENDA EXTRA;300.00
+ESPORTES;47.50
+ESTETICA E BELEZA;40.00
+EDUCAÇÃO E DESENVOLVIMENTO;36.83
+OUTROS;36.00
+MORADIA;32.00
+TELECOMUNICAÇOES;26.99
+ALIMENTAÇÃO;17.50
+LAZER;8.00

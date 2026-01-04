@@ -13,7 +13,8 @@ const (
 type BalanceAdjustment struct {
 	ID                     string                `json:"id" db:"id"`
 	UserID                 string                `json:"user_id" db:"user_id"`
-	AccountID              string                `json:"account_id" db:"account_id"`
+	AccountID              *string               `json:"account_id" db:"account_id"` // Changed to pointer/optional
+	PocketID               *string               `json:"pocket_id" db:"pocket_id"`
 	AdjustmentDate         time.Time             `json:"adjustment_date" db:"adjustment_date"`
 	Balance                float64               `json:"balance" db:"balance"`
 	Type                   BalanceAdjustmentType `json:"type" db:"type"`
@@ -24,7 +25,8 @@ type BalanceAdjustment struct {
 }
 
 type CreateBalanceAdjustmentInput struct {
-	AccountID              string                `json:"account_id" binding:"required"`
+	AccountID              *string               `json:"account_id"`
+	PocketID               *string               `json:"pocket_id"`
 	AdjustmentDate         time.Time             `json:"adjustment_date" binding:"required"`
 	Balance                float64               `json:"balance"`
 	Type                   BalanceAdjustmentType `json:"type" binding:"required"`

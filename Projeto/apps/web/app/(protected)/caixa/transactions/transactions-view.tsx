@@ -12,7 +12,7 @@ import { TransactionsFilters } from "@/features/transactions/components/transact
 import { TransactionRow } from "@/features/transactions/components/transactions-row"
 import { TransactionItem } from "@/features/transactions/components/transaction-item"
 import { CreateTransactionDialog } from "@/features/transactions/components/create-transaction-dialog"
-import { ReceiptText, CircleDashed, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown, Zap, BrainCircuit, AlertTriangle, TrendingUp, Info, CheckCircle, TrendingDown, Wallet, Filter, AlertCircle } from "lucide-react"
+import { ReceiptText, CircleDashed, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown, Zap, BrainCircuit, AlertTriangle, TrendingUp, Info, CheckCircle, TrendingDown, Wallet, Filter, AlertCircle, Download } from "lucide-react"
 import { useMemo, useState, useEffect } from 'react'
 import { useAccounts } from '@/hooks/use-accounts'
 import { getGroqTransactionInsight } from '@/features/ai/actions/groq-insight'
@@ -156,6 +156,69 @@ export function TransactionsView({ accounts, categories, initialInsights, lastUp
         }
     }
 
+    const handleExportExcel = () => {
+        // Use chartTransactions (all data) for export
+        if (chartTransactions.length === 0) {
+            alert('Nenhuma transação para exportar')
+            return
+        }
+
+        // Prepare CSV data
+        const headers = ['Data', 'Descrição', 'Categoria', 'Conta', 'Tipo', 'Valor']
+        const rows = chartTransactions.map(t => {
+            // Determine sign based on transaction type and description
+            let amount = t.amount
+
+            if (t.type === 'receita') {
+                // Receitas são sempre positivas
+                amount = t.amount
+            } else if (t.type === 'despesa') {
+                // Despesas são sempre negativas
+                amount = -t.amount
+            } else if (t.type === 'transferencia') {
+                // Transferências: verificar descrição
+                const desc = t.description.toLowerCase()
+                if (desc.includes('recebida') || desc.includes('de ')) {
+                    // Transferência recebida (entrada) = positivo
+                    amount = t.amount
+                } else {
+                    // Transferência enviada (saída) = negativo
+                    amount = -t.amount
+                }
+            }
+
+            return [
+                new Date(t.date).toLocaleDateString('pt-BR'),
+                t.description,
+                (t as any).category?.name || 'Sem categoria',
+                (t as any).account?.name || 'Sem conta',
+                t.type === 'receita' ? 'Receita' : t.type === 'despesa' ? 'Despesa' : 'Transferência',
+                amount
+            ]
+        })
+
+        // Create CSV content
+        const csvContent = [
+            headers.join(';'),
+            ...rows.map(row => row.map(cell =>
+                typeof cell === 'number' ? cell.toFixed(2).replace('.', ',') : `"${cell}"`
+            ).join(';'))
+        ].join('\n')
+
+        // Add BOM for Excel to recognize UTF-8
+        const BOM = '\uFEFF'
+        const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' })
+        const link = document.createElement('a')
+        const url = URL.createObjectURL(blob)
+
+        link.setAttribute('href', url)
+        link.setAttribute('download', `transacoes_${new Date().toISOString().split('T')[0]}.csv`)
+        link.style.visibility = 'hidden'
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+    }
+
     const SortIcon = ({ field }: { field: string }) => {
         if (sortBy !== field) return <ArrowUpDown className="w-4 h-4 opacity-20" />
         if (sortOrder === 'asc') return <ArrowUp className="w-4 h-4 text-blue-500" />
@@ -185,6 +248,14 @@ export function TransactionsView({ accounts, categories, initialInsights, lastUp
             icon={ReceiptText}
             action={
                 <div className="flex gap-2">
+                    <Button
+                        onClick={handleExportExcel}
+                        variant="outline"
+                        className="border-emerald-200 dark:border-emerald-900 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950"
+                    >
+                        <Download className="w-4 h-4 mr-2" />
+                        Exportar Excel
+                    </Button>
                     <Button
                         onClick={handleGenerateInsight}
                         className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white border-0 shadow-md shadow-violet-500/20"

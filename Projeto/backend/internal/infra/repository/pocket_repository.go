@@ -319,6 +319,20 @@ func (r *PocketRepository) UpdateBalance(ctx context.Context, pocketID string, b
 	return nil
 }
 
+// IncrementBalance adiciona um valor ao saldo existente
+func (r *PocketRepository) IncrementBalance(ctx context.Context, pocketID string, amount float64) error {
+	query := `
+		UPDATE pockets 
+		SET balance = balance + $1, updated_at = NOW()
+		WHERE id = $2
+	`
+	_, err := r.db.Exec(ctx, query, amount, pocketID)
+	if err != nil {
+		return fmt.Errorf("failed to increment pocket balance: %w", err)
+	}
+	return nil
+}
+
 // RecalculateBalance recalcula o saldo de um Pocket baseado em transações e rendimentos
 func (r *PocketRepository) RecalculateBalance(ctx context.Context, pocketID string) (float64, error) {
 	query := `SELECT calculate_pocket_balance($1)`

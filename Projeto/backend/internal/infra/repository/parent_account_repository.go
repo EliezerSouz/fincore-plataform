@@ -17,8 +17,15 @@ func NewParentAccountRepository(db *pgxpool.Pool) *ParentAccountRepository {
 	return &ParentAccountRepository{db: db}
 }
 
-// Create cria uma nova Conta Mãe (Instituição)
+// Create cria uma nova Conta Mãe (Instituição) e um Pocket padrão "Conta Corrente"
 func (r *ParentAccountRepository) Create(ctx context.Context, userID string, input entity.CreateParentAccountInput) (*entity.ParentAccount, error) {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	// 1. Create Parent Account
 	query := `
 		INSERT INTO parent_accounts (user_id, institution_name, institution_type, color, logo_url)
 		VALUES ($1::uuid, $2, $3, $4, $5)
@@ -26,7 +33,7 @@ func (r *ParentAccountRepository) Create(ctx context.Context, userID string, inp
 	`
 
 	var pa entity.ParentAccount
-	err := r.db.QueryRow(ctx, query,
+	err = tx.QueryRow(ctx, query,
 		userID,
 		strings.ToUpper(input.InstitutionName),
 		input.InstitutionType,
@@ -39,6 +46,45 @@ func (r *ParentAccountRepository) Create(ctx context.Context, userID string, inp
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to create parent account: %w", err)
+	}
+
+	// 2. Create Default Pocket (Conta Corrente)
+	pocketQuery := `
+		INSERT INTO pockets (
+			user_id, parent_account_id, name, pocket_type, balance, is_active, display_order, created_at, updated_at, yield_enabled
+		) VALUES (
+			$1::uuid, $2::uuid, 'Conta Corrente', 'CAIXA', $3, true, 0, NOW(), NOW(), false
+		) RETURNING id
+	`
+
+	var pocketID string
+	err = tx.QueryRow(ctx, pocketQuery,
+		userID,
+		pa.ID,
+		input.InitialBalance, // Set initial balance
+	).Scan(&pocketID)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to create default pocket: %w", err)
+	}
+
+	// 3. Register Initial Balance Adjustment for history
+	if input.InitialBalance != 0 {
+		adjQuery := `
+			INSERT INTO account_balance_adjustments (
+				user_id, pocket_id, adjustment_date, balance, type, notes
+			) VALUES (
+				$1::uuid, $2::uuid, NOW(), $3, 'adjustment', 'Saldo Inicial - Criação da Conta'
+			)
+		`
+		_, err = tx.Exec(ctx, adjQuery, userID, pocketID, input.InitialBalance)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create initial balance adjustment: %w", err)
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	return &pa, nil

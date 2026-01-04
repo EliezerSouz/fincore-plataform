@@ -108,6 +108,12 @@ func (s *LiquidityYieldService) CalculateDailyYields(ctx context.Context, target
 			continue
 		}
 
+		// Update pocket balance with yield
+		if err := s.pocketRepo.IncrementBalance(ctx, pocket.ID, yieldAmount); err != nil {
+			fmt.Printf("❌ Error updating balance for pocket %s: %v\n", pocket.ID, err)
+			// Don't count as full error since yield was created, but log it
+		}
+
 		fmt.Printf("✅ Yield calculated for pocket %s (%s): Base=%.2f, Yield=%.2f, Rate=%.4f%%\n",
 			pocket.ID, pocket.Name, baseAmount, yieldAmount, yield.RateApplied*100)
 		processedCount++

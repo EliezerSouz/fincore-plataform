@@ -1,13 +1,15 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { ArrowDownCircle, ArrowLeftRight, ArrowUpCircle, Lock, Loader2, CreditCard, RefreshCw } from "lucide-react"
+import { ArrowDownCircle, ArrowLeftRight, ArrowUpCircle, Lock, Loader2, CreditCard, RefreshCw, Info } from "lucide-react"
 import { getAccounts, Account } from "@/app/(protected)/caixa/accounts/actions"
-import { getCategories, getSubcategories, getPaymentMethods, Category, Subcategory } from "@/app/(protected)/caixa/transactions/actions"
+import { getCategories, getSubcategories, getPaymentMethods, getInitialTransactionData, Category, Subcategory } from "@/app/(protected)/caixa/transactions/actions"
 import { getCreditCards } from "@/app/(protected)/compromissos/cards/actions"
+import { getPockets, getParentAccounts } from "@/features/pockets/actions"
+import { Pocket, ParentAccount } from "@/types/pockets"
 import { usePermission } from "@/hooks/use-permission"
 import { useUser } from "@/providers/user-provider"
 import { usePrimaryCard } from "@/hooks/use-primary-card"
@@ -19,14 +21,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { format } from "date-fns"
 import { toast } from "sonner"
 import { useFormData } from "@/hooks/use-form-data"
+import { useQuery } from "@tanstack/react-query" // Added import
 
 export interface FinancialTransactionFormData {
     type: 'receita' | 'despesa' | 'transferencia' | 'compra'
     amount: number
     description: string
     notes?: string
-    accountId: string
-    targetAccountId?: string
+    accountId?: string // Deprecated, kept for retro-compatibility
+    targetAccountId?: string // Deprecated
+    pocketId?: string
+    targetPocketId?: string
     categoryId?: string
     subcategoryId?: string
     paymentMethodId?: string
@@ -98,24 +103,47 @@ export function FinancialTransactionForm({
     const [totalInstallments, setTotalInstallments] = useState(12)
     const [startInstallment, setStartInstallment] = useState(1)
     const [endInstallment, setEndInstallment] = useState(12)
+    // isLoadingInitialData (state removido em favor de React Query)
+
+    // React Query para buscar dados iniciais com Cache (Top Level para Hydration)
+    const { data: serverData, isLoading: isLoadingQuery } = useQuery({
+        queryKey: ['initialTransactionData'],
+        queryFn: getInitialTransactionData,
+        staleTime: 1000 * 30, // 30 segundos de cache fresco
+        refetchOnWindowFocus: true
+    })
+
+    // Preparar dados para hidratar o hook useFormData
+    const initialFormData = useMemo(() => {
+        if (!serverData) return undefined
+        return {
+            categories: serverData.categories,
+            paymentMethods: serverData.paymentMethods,
+            accounts: serverData.accounts
+        }
+    }, [serverData])
 
     // Listas - AGORA COM CACHE
-    const [accounts, setAccounts] = useState<Account[]>([])
+    const [accounts, setAccounts] = useState<Account[]>([]) // Mantendo accounts por compatibilidade temporária
+    const [pockets, setPockets] = useState<Pocket[]>([])
+    const [parentAccounts, setParentAccounts] = useState<ParentAccount[]>([])
     const [creditCards, setCreditCards] = useState<any[]>([])
 
+    // Pocket States
+    const [pocketId, setPocketId] = useState(initialData?.pocketId || "")
+    const [targetPocketId, setTargetPocketId] = useState(initialData?.targetPocketId || "")
+
     // Hook com cache para categorias, subcategorias e métodos de pagamento
-    // Passa o tipo de transação para filtrar categorias corretas
-    const formDataCache = useFormData({ transactionType: type })
+    // Passa initialData vindo do React Query para evitar request extra
+    const formDataCache = useFormData({
+        transactionType: type,
+        initialData: initialFormData
+    })
 
     // Usar dados do cache
     const categories = formDataCache.categories
     const subcategories = formDataCache.subcategories
     const methods = formDataCache.paymentMethods
-
-    // Carregar dados iniciais (apenas contas e cartões, o resto vem do cache)
-    useEffect(() => {
-        loadInitialData()
-    }, [])
 
     // Resetar Retroativo quando o tipo mudar
     useEffect(() => {
@@ -138,6 +166,8 @@ export function FinancialTransactionForm({
             if (initialData.notes !== undefined) setNotes(initialData.notes)
             if (initialData.accountId !== undefined) setAccountId(initialData.accountId)
             if (initialData.targetAccountId !== undefined) setTargetAccountId(initialData.targetAccountId)
+            if (initialData.pocketId !== undefined) setPocketId(initialData.pocketId)
+            if (initialData.targetPocketId !== undefined) setTargetPocketId(initialData.targetPocketId)
             if (initialData.categoryId !== undefined) setCategoryId(initialData.categoryId)
             if (initialData.subcategoryId !== undefined) setSubcategoryId(initialData.subcategoryId)
             if (initialData.paymentMethodId !== undefined) setPaymentMethodId(initialData.paymentMethodId)
@@ -159,29 +189,37 @@ export function FinancialTransactionForm({
         }
     }, [type, methods])
 
-    async function loadInitialData() {
-        try {
-            const [accs, cards] = await Promise.all([
-                getAccounts(),
-                getCreditCards()
-            ])
-            const safeAccs = accs || []
-            setAccounts(safeAccs)
-            setCreditCards(cards || [])
+    // Sincronizar dados do Server com Estado Local
+    useEffect(() => {
+        if (serverData) {
+            const { accounts: accs, cards, pockets: pocketsList, parents } = serverData
 
-            if (mode === 'create' && safeAccs.length > 0 && !accountId) {
-                setAccountId(safeAccs[0].id)
-                if (safeAccs.length > 1) setTargetAccountId(safeAccs[1].id)
+            setAccounts(accs || [])
+            setCreditCards(cards || [])
+            setPockets(pocketsList || [])
+            setParentAccounts(parents || [])
+
+            // Lógica de pré-seleção para CREATE mode
+            if (mode === 'create' && pocketsList && pocketsList.length > 0 && !pocketId) {
+                // Default to first pocket of first parent if available, or just first pocket
+                const caixa = pocketsList.find((p: any) => p.pocket_type === 'CAIXA')
+                if (caixa) setPocketId(caixa.id)
+                else setPocketId(pocketsList[0].id)
             }
 
-            // Se for aba "Cartão" e tivermos cartões mas nenhum selecionado, pega o primário
+            // Se for aba "Cartão" e tivermos cartões mas nenhum selecionado
             if (type === 'compra' && !selectedCardId && primaryCardId) {
                 setSelectedCardId(String(primaryCardId));
             }
-        } catch (error) {
-            console.error("Error loading initial data:", error)
         }
-    }
+    }, [serverData, mode, pocketId, selectedCardId, primaryCardId, type])
+
+    // Loading State Aggregation
+    // Se isLoadingQuery for true, estamos buscando dados iniciais no server.
+    // Se formDataCache.loading for true (e não tiver initialData), estamos buscando cats/methods.
+    const isLoadingData = isLoadingQuery || (!initialFormData && formDataCache.loading)
+
+    // (Removido loadInitialData manual)
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -199,15 +237,18 @@ export function FinancialTransactionForm({
         }
 
         if (type === 'transferencia') {
-            if (!accountId || !targetAccountId) return
-            if (accountId === targetAccountId) {
-                toast.warning("As contas de origem e destino devem ser diferentes.")
+            if (!pocketId || !targetPocketId) {
+                // Fallback check for old accountId if needed, but we prefer pockets now
+                if (!accountId && !targetAccountId) return
+            }
+            if (pocketId && targetPocketId && pocketId === targetPocketId) {
+                toast.warning("Os pockets de origem e destino devem ser diferentes.")
                 return
             }
         } else {
-            // Conta só é obrigatória se o seletor estiver visível (transações reais)
-            if (showAccountSelector && !accountId) {
-                toast.warning("Selecione uma conta bancária.")
+            // Conta/Pocket só é obrigatória se o seletor estiver visível (transações reais)
+            if (showAccountSelector && !pocketId && !accountId) {
+                toast.warning("Selecione um pocket (conta).")
                 return
             }
             // Categoria é obrigatória se o seletor estiver visível
@@ -225,8 +266,10 @@ export function FinancialTransactionForm({
                 amount: isRetroactive ? installmentAmount * (endInstallment - startInstallment + 1) : amount,
                 description: description || (type === 'transferencia' ? 'Transferência' : ''),
                 notes,
-                accountId,
-                targetAccountId,
+                pocketId,
+                targetPocketId,
+                accountId, // Legacy/Fallback
+                targetAccountId, // Legacy/Fallback
                 categoryId,
                 subcategoryId,
                 paymentMethodId,
@@ -258,6 +301,18 @@ export function FinancialTransactionForm({
         if (type === 'transferencia') return !!m.allows_transfer
         return true
     })
+
+    if (isLoadingData) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4 animate-in fade-in zoom-in-95 duration-300">
+                <div className="relative">
+                    <div className="w-12 h-12 rounded-full border-4 border-slate-100 dark:border-slate-800"></div>
+                    <div className="absolute top-0 left-0 w-12 h-12 rounded-full border-4 border-blue-600 border-t-transparent animate-spin"></div>
+                </div>
+                <p className="text-sm font-medium text-slate-500 animate-pulse">Carregando informações...</p>
+            </div>
+        )
+    }
 
     return (
         <form id={formId} onSubmit={handleSubmit}>
@@ -456,23 +511,26 @@ export function FinancialTransactionForm({
                                     {categories
                                         .filter(c => (!c.is_premium || can('manage_categories')) && (c.is_active || c.id === categoryId))
                                         .map(cat => (
-                                            <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                                            <SelectItem key={cat.id} value={cat.id}>
+                                                <span className="flex items-center gap-2">
+                                                    {cat.name}
+                                                    {cat.type === 'ambas' && <span className="text-[10px] bg-blue-100 text-blue-600 px-1 rounded">H</span>}
+                                                </span>
+                                            </SelectItem>
                                         ))}
                                 </SelectContent>
                             </Select>
+                            {categoryId && categories.find(c => c.id === categoryId)?.type === 'ambas' && (
+                                <p className="text-[10px] text-blue-500 mt-1 flex items-center gap-1">
+                                    <Info className="w-3 h-3" />
+                                    Categoria híbrida: utilizada para Receitas e Despesas
+                                </p>
+                            )}
                         </div>
                         <div className="space-y-2">
                             <div className="flex items-center justify-between">
                                 <Label className="text-xs font-semibold uppercase text-slate-500">Subcategoria (Opcional)</Label>
-                                <button
-                                    type="button"
-                                    onClick={() => categoryId && getSubcategories(categoryId).then(setSubcategories)}
-                                    disabled={!categoryId}
-                                    className="text-slate-400 hover:text-blue-600 transition-colors disabled:opacity-30"
-                                    title="Atualizar subcategorias"
-                                >
-                                    <RefreshCw className="w-3 h-3" />
-                                </button>
+                                { /* Botão Refresh removido pois o carregamento é automático via hook */}
                             </div>
                             <Select
                                 value={subcategoryId || "default"}
@@ -501,16 +559,56 @@ export function FinancialTransactionForm({
                         {showAccountSelector ? (
                             <div className="space-y-2">
                                 <Label className="text-xs font-semibold uppercase text-slate-500">
-                                    {type === 'receita' ? 'Conta de Entrada' : type === 'despesa' ? 'Conta de Saída' : 'Conta de Origem'}
+                                    {type === 'receita' ? 'Pocket de Entrada' : type === 'despesa' ? 'Pocket de Saída' : 'Pocket de Origem'}
                                 </Label>
-                                <Select value={accountId} onValueChange={setAccountId} required={showAccountSelector}>
+                                <Select value={pocketId} onValueChange={setPocketId} required={showAccountSelector}>
                                     <SelectTrigger className="h-11 w-full">
                                         <SelectValue placeholder="Selecione..." />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {accounts.map(acc => (
-                                            <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>
-                                        ))}
+                                        {parentAccounts.map(parent => {
+                                            // Filtra pockets conforme o tipo de transação
+                                            // Se for Receita/Despesa/Compra, mostra apenas CAIXA (Conta Corrente)
+                                            // Se for Transferência, mostra todos (Caixa e Reservas)
+                                            const parentPockets = pockets.filter(p => {
+                                                if (p.parent_account_id !== parent.id) return false
+                                                if (type !== 'transferencia' && p.pocket_type !== 'CAIXA') return false
+                                                return true
+                                            })
+
+                                            if (parentPockets.length === 0) return null
+                                            return (
+                                                <div key={parent.id}>
+                                                    {/* Ocultamos o header do grupo pois o nome da instituição já estará no item,
+                                                        mas mantemos o div para estrutura ou usamos SelectGroup se quisermos o header visual.
+                                                        Como o usuario pediu "aparecer nome da instituição", vamos colocar no item para ficar visivel quando selecionado. */}
+
+                                                    {parentPockets.map(pocket => {
+                                                        const isDefaultName = ['Conta Corrente', 'General', 'Principal', 'Caixa'].includes(pocket.name)
+                                                        const displayName = isDefaultName ? parent.institution_name : `${parent.institution_name} - ${pocket.name}`
+
+                                                        return (
+                                                            <SelectItem key={pocket.id} value={pocket.id}>
+                                                                {displayName}
+                                                                {pocket.pocket_type !== 'CAIXA' && <span className="text-[10px] ml-2 text-slate-400 border border-slate-200 rounded px-1">{pocket.pocket_type === 'RESERVA_CDI' ? 'Reserva' : 'Inv.'}</span>}
+                                                            </SelectItem>
+                                                        )
+                                                    })}
+                                                </div>
+                                            )
+                                        })}
+                                        {/* Pockets sem pai (fallback) - aplica o mesmo filtro */}
+                                        {pockets.filter(p => !p.parent_account_id && (type === 'transferencia' || p.pocket_type === 'CAIXA')).length > 0 && (
+                                            <div>
+                                                <div className="px-2 py-1.5 text-xs font-semibold text-slate-500 bg-slate-50 dark:bg-slate-900/50">Outros</div>
+                                                {pockets.filter(p => !p.parent_account_id && (type === 'transferencia' || p.pocket_type === 'CAIXA')).map(pocket => (
+                                                    <SelectItem key={pocket.id} value={pocket.id}>
+                                                        {pocket.name}
+                                                        {pocket.pocket_type !== 'CAIXA' && <span className="text-[10px] ml-2 text-slate-400 border border-slate-200 rounded px-1">{pocket.pocket_type === 'RESERVA_CDI' ? 'Reserva' : 'Inv.'}</span>}
+                                                    </SelectItem>
+                                                ))}
+                                            </div>
+                                        )}
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -519,15 +617,31 @@ export function FinancialTransactionForm({
                         <div className="space-y-2">
                             {type === 'transferencia' ? (
                                 <>
-                                    <Label className="text-xs font-semibold uppercase text-slate-500">Conta de Destino</Label>
-                                    <Select value={targetAccountId} onValueChange={setTargetAccountId} required>
+                                    <Label className="text-xs font-semibold uppercase text-slate-500">Pocket de Destino</Label>
+                                    <Select value={targetPocketId} onValueChange={setTargetPocketId} required>
                                         <SelectTrigger className="h-11 w-full">
                                             <SelectValue placeholder="Selecione..." />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            {accounts.filter(a => a.id !== accountId).map(acc => (
-                                                <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>
-                                            ))}
+                                            {parentAccounts.map(parent => {
+                                                const parentPockets = pockets.filter(p => p.parent_account_id === parent.id && p.id !== pocketId)
+                                                if (parentPockets.length === 0) return null
+                                                return (
+                                                    <div key={parent.id}>
+                                                        {parentPockets.map(pocket => {
+                                                            const isDefaultName = ['Conta Corrente', 'General', 'Principal', 'Caixa'].includes(pocket.name)
+                                                            const displayName = isDefaultName ? parent.institution_name : `${parent.institution_name} - ${pocket.name}`
+
+                                                            return (
+                                                                <SelectItem key={pocket.id} value={pocket.id}>
+                                                                    {displayName}
+                                                                    {pocket.pocket_type !== 'CAIXA' && <span className="text-[10px] ml-2 text-slate-400 border border-slate-200 rounded px-1">{pocket.pocket_type === 'RESERVA_CDI' ? 'Reserva' : 'Inv.'}</span>}
+                                                                </SelectItem>
+                                                            )
+                                                        })}
+                                                    </div>
+                                                )
+                                            })}
                                         </SelectContent>
                                     </Select>
                                 </>

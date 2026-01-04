@@ -36,6 +36,21 @@ func NewTransactionRepository(db *pgxpool.Pool) *TransactionRepository {
 	return &TransactionRepository{db: db}
 }
 
+// GetPocketParentAccountID returns the parent_account_id for a given pocket_id
+func (r *TransactionRepository) GetPocketParentAccountID(ctx context.Context, pocketID string) (string, error) {
+	var parentAccountID string
+	err := r.db.QueryRow(ctx, "SELECT parent_account_id FROM pockets WHERE id = $1", pocketID).Scan(&parentAccountID)
+	if err != nil {
+		return "", fmt.Errorf("pocket not found: %w", err)
+	}
+	return parentAccountID, nil
+}
+
+// GetDB returns the database connection pool
+func (r *TransactionRepository) GetDB() *pgxpool.Pool {
+	return r.db
+}
+
 // Filtros de transação
 type TransactionFilter struct {
 	AccountID  string
@@ -49,18 +64,22 @@ type TransactionFilter struct {
 
 func (r *TransactionRepository) FindAll(ctx context.Context, userID string, filter TransactionFilter, limit, offset int) ([]entity.Transaction, error) {
 	query := `
-		SELECT t.id, t.user_id, t.account_id, t.category_id, t.subcategory_id, 
+		SELECT t.id, t.user_id, t.account_id, t.pocket_id, t.category_id, t.subcategory_id, 
 		       t.payment_method_id, t.credit_card_invoice_id, t.payable_id, t.related_transaction_id,
 		       t.description, t.amount, t.type, t.date, t.created_at, t.updated_at,
 		       c.name, c.icon, c.color,
 		       a.name, a.type,
 		       s.name,
-		       pm.name
+		       pm.name,
+		       p.name, p.pocket_type, p.parent_account_id,
+		       pa.institution_name, pa.institution_type
 		FROM transactions t
 		LEFT JOIN categories c ON t.category_id = c.id
 		LEFT JOIN accounts a ON t.account_id = a.id
 		LEFT JOIN subcategories s ON t.subcategory_id = s.id
 		LEFT JOIN payment_methods pm ON t.payment_method_id = pm.id
+		LEFT JOIN pockets p ON t.pocket_id = p.id
+		LEFT JOIN parent_accounts pa ON p.parent_account_id = pa.id
 		WHERE t.user_id = $1::uuid AND t.deleted_at IS NULL
 	`
 
@@ -84,12 +103,12 @@ func (r *TransactionRepository) FindAll(ctx context.Context, userID string, filt
 	}
 	if filter.DateStart != "" {
 		argCount++
-		query += fmt.Sprintf(" AND t.date >= $%d", argCount)
+		query += fmt.Sprintf(" AND t.date::date >= $%d::date", argCount)
 		args = append(args, filter.DateStart)
 	}
 	if filter.DateEnd != "" {
 		argCount++
-		query += fmt.Sprintf(" AND t.date <= $%d", argCount)
+		query += fmt.Sprintf(" AND t.date::date <= $%d::date", argCount)
 		args = append(args, filter.DateEnd)
 	}
 
@@ -135,14 +154,18 @@ func (r *TransactionRepository) FindAll(ctx context.Context, userID string, filt
 		var catName, catIcon, catColor *string
 		var accName, accType *string
 		var subName, pmName *string
+		var pocketName, pocketType, pocketParentID *string
+		var paName, paType *string
 
 		err := rows.Scan(
-			&tx.ID, &tx.UserID, &tx.AccountID, &tx.CategoryID, &tx.SubcategoryID,
+			&tx.ID, &tx.UserID, &tx.AccountID, &tx.PocketID, &tx.CategoryID, &tx.SubcategoryID,
 			&tx.PaymentMethodID, &tx.InvoiceID, &tx.PayableID, &tx.RelatedTransactionID,
 			&tx.Description, &tx.Amount, &tx.Type, &tx.Date, &tx.CreatedAt, &tx.UpdatedAt,
 			&catName, &catIcon, &catColor,
 			&accName, &accType,
 			&subName, &pmName,
+			&pocketName, &pocketType, &pocketParentID,
+			&paName, &paType,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan transaction: %w", err)
@@ -156,7 +179,18 @@ func (r *TransactionRepository) FindAll(ctx context.Context, userID string, filt
 			}
 		}
 
-		if accName != nil {
+		// Lógica de prioridade para Nome da Conta (Instituição)
+		// 1. Tenta pegar da ParentAccount (via Pocket) -> Nome correto da instituição (Ex: Banco do Brasil)
+		// 2. Se não tiver, pega da Account legada (fallback)
+		if paName != nil {
+			tx.Account = &entity.Account{
+				Name: *paName,
+				Type: "bank", // Default type
+			}
+			if paType != nil {
+				tx.Account.Type = *paType
+			}
+		} else if accName != nil {
 			tx.Account = &entity.Account{
 				Name: *accName,
 				Type: *accType,
@@ -175,6 +209,14 @@ func (r *TransactionRepository) FindAll(ctx context.Context, userID string, filt
 			}
 		}
 
+		if pocketName != nil {
+			tx.Pocket = &entity.Pocket{
+				Name:            *pocketName,
+				PocketType:      *pocketType,
+				ParentAccountID: *pocketParentID,
+			}
+		}
+
 		transactions = append(transactions, tx)
 	}
 
@@ -183,7 +225,7 @@ func (r *TransactionRepository) FindAll(ctx context.Context, userID string, filt
 
 func (r *TransactionRepository) FindByID(ctx context.Context, id, userID string) (*entity.Transaction, error) {
 	query := `
-		SELECT id, user_id, account_id, category_id, subcategory_id,
+		SELECT id, user_id, account_id, pocket_id, category_id, subcategory_id,
 		       payment_method_id, credit_card_invoice_id, payable_id, related_transaction_id,
 		       description, amount, type, date, created_at, updated_at
 		FROM transactions
@@ -192,7 +234,7 @@ func (r *TransactionRepository) FindByID(ctx context.Context, id, userID string)
 
 	var tx entity.Transaction
 	err := r.db.QueryRow(ctx, query, id, userID).Scan(
-		&tx.ID, &tx.UserID, &tx.AccountID, &tx.CategoryID, &tx.SubcategoryID,
+		&tx.ID, &tx.UserID, &tx.AccountID, &tx.PocketID, &tx.CategoryID, &tx.SubcategoryID,
 		&tx.PaymentMethodID, &tx.InvoiceID, &tx.PayableID, &tx.RelatedTransactionID,
 		&tx.Description, &tx.Amount, &tx.Type, &tx.Date, &tx.CreatedAt, &tx.UpdatedAt,
 	)
@@ -205,7 +247,7 @@ func (r *TransactionRepository) FindByID(ctx context.Context, id, userID string)
 
 func (r *TransactionRepository) findByIDWithTx(ctx context.Context, tx pgx.Tx, id, userID string) (*entity.Transaction, error) {
 	query := `
-		SELECT id, user_id, account_id, category_id, subcategory_id,
+		SELECT id, user_id, account_id, pocket_id, category_id, subcategory_id,
 		       payment_method_id, credit_card_invoice_id, payable_id, related_transaction_id,
 		       description, amount, type, date, is_historical, created_at, updated_at
 		FROM transactions
@@ -214,7 +256,7 @@ func (r *TransactionRepository) findByIDWithTx(ctx context.Context, tx pgx.Tx, i
 
 	var t entity.Transaction
 	err := tx.QueryRow(ctx, query, id, userID).Scan(
-		&t.ID, &t.UserID, &t.AccountID, &t.CategoryID, &t.SubcategoryID,
+		&t.ID, &t.UserID, &t.AccountID, &t.PocketID, &t.CategoryID, &t.SubcategoryID,
 		&t.PaymentMethodID, &t.InvoiceID, &t.PayableID, &t.RelatedTransactionID,
 		&t.Description, &t.Amount, &t.Type, &t.Date, &t.IsHistorical, &t.CreatedAt, &t.UpdatedAt,
 	)
@@ -247,44 +289,95 @@ func (r *TransactionRepository) Create(ctx context.Context, userID string, input
 }
 
 func (r *TransactionRepository) createWithTx(ctx context.Context, tx pgx.Tx, userID string, input entity.CreateTransactionInput) (*entity.Transaction, error) {
-	// 1. Check if transaction is retroactive (historical)
-	// Get last balance adjustment date for the account
-	var lastAdjustmentDate *time.Time
-	adjustmentQuery := `
-		SELECT adjustment_date 
-		FROM account_balance_adjustments
-		WHERE account_id = $1
-			AND deleted_at IS NULL
-		ORDER BY adjustment_date DESC, created_at DESC
-		LIMIT 1
-	`
-	err := tx.QueryRow(ctx, adjustmentQuery, input.AccountID).Scan(&lastAdjustmentDate)
-	if err != nil {
-		if err.Error() == "no rows in result set" {
-			fmt.Printf("⚠️  No adjustment found for account %s, using created_at as fallback\n", input.AccountID)
-			// Fallback: use account creation date if no adjustment record found
-			var createdAt time.Time
-			err := tx.QueryRow(ctx, "SELECT created_at FROM accounts WHERE id = $1", input.AccountID).Scan(&createdAt)
-			if err == nil {
-				lastAdjustmentDate = &createdAt
-				fmt.Printf("   Fallback adjustment date: %v\n", createdAt)
+	// 0. Fallback: If PocketID is nil, try to find a default pocket for the account
+	if (input.PocketID == nil || *input.PocketID == "") && input.AccountID != "" {
+		var defaultPocketID string
+
+		// First, try to find pocket using parent_account_id (new structure)
+		err := tx.QueryRow(ctx, "SELECT id FROM pockets WHERE parent_account_id = $1 ORDER BY created_at ASC LIMIT 1", input.AccountID).Scan(&defaultPocketID)
+
+		if err != nil {
+			// If not found, the accountID might be from the old 'accounts' table
+			// Try to find if this account exists in the old structure
+			var oldAccountExists bool
+			err2 := tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM accounts WHERE id = $1)", input.AccountID).Scan(&oldAccountExists)
+
+			if err2 == nil && oldAccountExists {
+				// This is a legacy account from the old 'accounts' table
+				// We need to find or create a corresponding pocket
+				fmt.Printf("   ⚠️  Legacy account detected: %s\n", input.AccountID)
+
+				// Try to find a pocket that was created for this legacy account
+				// (assuming migration created pockets with same user_id)
+				err3 := tx.QueryRow(ctx, `
+					SELECT p.id 
+					FROM pockets p
+					WHERE p.user_id = $1 
+					  AND p.pocket_type = 'CAIXA'
+					ORDER BY p.created_at ASC 
+					LIMIT 1
+				`, userID).Scan(&defaultPocketID)
+
+				if err3 == nil {
+					input.PocketID = &defaultPocketID
+					fmt.Printf("   ℹ️  Found default CAIXA pocket for user: %s\n", defaultPocketID)
+				} else {
+					fmt.Printf("   ❌  No pocket found for legacy account. Error: %v\n", err3)
+					return nil, fmt.Errorf("legacy account %s has no associated pockets - please use the new pocket-based structure", input.AccountID)
+				}
+			} else {
+				fmt.Printf("   ❌  Account %s not found in parent_accounts or accounts. Error: %v\n", input.AccountID, err)
+				return nil, fmt.Errorf("account %s not found", input.AccountID)
 			}
 		} else {
-			return nil, fmt.Errorf("failed to check balance adjustments: %w", err)
+			input.PocketID = &defaultPocketID
+			fmt.Printf("   ℹ️  No PocketID provided. Auto-assigned to default pocket: %s\n", defaultPocketID)
 		}
-	} else {
-		fmt.Printf("✅ Adjustment found for account %s: %v\n", input.AccountID, *lastAdjustmentDate)
 	}
 
-	// Determine if transaction is historical
+	// 1. Check if transaction is retroactive (historical)
+	// Only mark as historical if there's an explicit balance adjustment AND transaction is before it
+	var lastAdjustmentDate *time.Time
+	var err error
 	isHistorical := false
-	if lastAdjustmentDate != nil {
-		// If transaction date is before last adjustment, it's historical
-		// Compare only the date part (ignore time)
-		// Force UTC for comparison to avoid timezone issues
-		// We want to compare the "Calendar Date", effectively ignoring time.
-		// Using the location of the input/db dates to determine their Calendar Day.
 
+	// Try to find balance adjustment for the pocket (if we have one)
+	if input.PocketID != nil && *input.PocketID != "" {
+		adjustmentQuery := `
+			SELECT adjustment_date 
+			FROM account_balance_adjustments
+			WHERE pocket_id = $1
+				AND deleted_at IS NULL
+			ORDER BY adjustment_date DESC, created_at DESC
+			LIMIT 1
+		`
+		err = tx.QueryRow(ctx, adjustmentQuery, *input.PocketID).Scan(&lastAdjustmentDate)
+		if err != nil && err.Error() != "no rows in result set" {
+			fmt.Printf("⚠️  Error checking pocket adjustments: %v\n", err)
+		}
+	}
+
+	// If no pocket adjustment found, try account adjustment (legacy)
+	if lastAdjustmentDate == nil && input.AccountID != "" {
+		adjustmentQuery := `
+			SELECT adjustment_date 
+			FROM account_balance_adjustments
+			WHERE account_id = $1
+				AND deleted_at IS NULL
+			ORDER BY adjustment_date DESC, created_at DESC
+			LIMIT 1
+		`
+		err = tx.QueryRow(ctx, adjustmentQuery, input.AccountID).Scan(&lastAdjustmentDate)
+		if err != nil && err.Error() != "no rows in result set" {
+			fmt.Printf("⚠️  Error checking account adjustments: %v\n", err)
+		}
+	}
+
+	// Only mark as historical if we found an adjustment AND transaction is before it
+	if lastAdjustmentDate != nil {
+		fmt.Printf("✅ Adjustment found: %v\n", *lastAdjustmentDate)
+
+		// Compare dates
 		tYear, tMonth, tDay := input.Date.Date()
 		aYear, aMonth, aDay := lastAdjustmentDate.Date()
 
@@ -298,17 +391,14 @@ func (r *TransactionRepository) createWithTx(ctx context.Context, tx pgx.Tx, use
 		if transactionDate.Before(adjustmentDate) {
 			isHistorical = true
 			fmt.Printf("   ➡️  Transaction is BEFORE adjustment → is_historical = TRUE\n")
-		}
-
-		// Explicitly ensure same-day is NOT historical (matches user expectation)
-		if transactionDate.Equal(adjustmentDate) {
+		} else if transactionDate.Equal(adjustmentDate) {
 			isHistorical = false
 			fmt.Printf("   ➡️  Transaction is ON adjustment day → is_historical = FALSE (forced)\n")
-		}
-
-		if transactionDate.After(adjustmentDate) {
+		} else {
 			fmt.Printf("   ➡️  Transaction is AFTER adjustment → is_historical = FALSE\n")
 		}
+	} else {
+		fmt.Printf("ℹ️  No balance adjustment found → is_historical = FALSE (will update balance)\n")
 	}
 	fmt.Printf("🎯 FINAL is_historical: %v\n", isHistorical)
 
@@ -326,8 +416,17 @@ func (r *TransactionRepository) createWithTx(ctx context.Context, tx pgx.Tx, use
 	`
 
 	var transaction entity.Transaction
+
+	// Use NULL for account_id if it's empty (pocket-only transactions)
+	var accountIDParam interface{}
+	if input.AccountID == "" {
+		accountIDParam = nil
+	} else {
+		accountIDParam = input.AccountID
+	}
+
 	err = tx.QueryRow(ctx, query,
-		userID, input.AccountID, input.PocketID, input.CategoryID, input.SubcategoryID,
+		userID, accountIDParam, input.PocketID, input.CategoryID, input.SubcategoryID,
 		input.PaymentMethodID, input.Description, input.Amount, input.Type, input.Date, input.PayableID, input.InvoiceID,
 		isHistorical,
 	).Scan(
@@ -507,22 +606,56 @@ func (r *TransactionRepository) updateWithTx(ctx context.Context, tx pgx.Tx, id,
 	if input.Date != nil {
 		// Date changed, need to recalculate is_historical
 		var lastAdjustmentDate *time.Time
-		adjustmentQuery := `
-			SELECT adjustment_date 
-			FROM account_balance_adjustments
-			WHERE account_id = $1
-				AND deleted_at IS NULL
-			ORDER BY adjustment_date DESC, created_at DESC
-			LIMIT 1
-		`
-		accountID := original.AccountID
-		if input.AccountID != nil {
-			accountID = *input.AccountID
+		var errCheck error // use separate error var to avoid shadowing if needed, though 'err' is available
+
+		// 1. Try POCKET adjustment first
+		pocketID := ""
+		if original.PocketID != nil {
+			pocketID = *original.PocketID
+		}
+		if input.PocketID != nil && *input.PocketID != "" {
+			pocketID = *input.PocketID
 		}
 
-		err = tx.QueryRow(ctx, adjustmentQuery, accountID).Scan(&lastAdjustmentDate)
-		if err != nil && err.Error() != "no rows in result set" {
-			return nil, fmt.Errorf("failed to check balance adjustments: %w", err)
+		if pocketID != "" {
+			adjustmentQuery := `
+				SELECT adjustment_date 
+				FROM account_balance_adjustments
+				WHERE pocket_id = $1
+					AND deleted_at IS NULL
+				ORDER BY adjustment_date DESC, created_at DESC
+				LIMIT 1
+			`
+			errCheck = tx.QueryRow(ctx, adjustmentQuery, pocketID).Scan(&lastAdjustmentDate)
+			if errCheck != nil && errCheck.Error() != "no rows in result set" {
+				return nil, fmt.Errorf("failed to check pocket balance adjustments: %w", errCheck)
+			}
+		}
+
+		// 2. If no pocket adjustment, try ACCOUNT adjustment
+		if lastAdjustmentDate == nil {
+			accountID := ""
+			if original.AccountID != nil {
+				accountID = *original.AccountID
+			}
+			if input.AccountID != nil && *input.AccountID != "" {
+				accountID = *input.AccountID
+			}
+
+			if accountID != "" {
+				adjustmentQuery := `
+					SELECT adjustment_date 
+					FROM account_balance_adjustments
+					WHERE account_id = $1
+						AND deleted_at IS NULL
+					ORDER BY adjustment_date DESC, created_at DESC
+					LIMIT 1
+				`
+				errCheck = tx.QueryRow(ctx, adjustmentQuery, accountID).Scan(&lastAdjustmentDate)
+				if errCheck != nil && errCheck.Error() != "no rows in result set" {
+					return nil, fmt.Errorf("failed to check account balance adjustments: %w", errCheck)
+				}
+			}
 		}
 
 		if lastAdjustmentDate != nil {
@@ -811,7 +944,11 @@ func (r *TransactionRepository) deleteWithTx(ctx context.Context, tx pgx.Tx, id,
 	}
 
 	fmt.Printf("🔍 DELETE DEBUG - Transaction ID: %s\n", id)
-	fmt.Printf("   Account ID: %s\n", t.AccountID)
+	accID := "nil"
+	if t.AccountID != nil {
+		accID = *t.AccountID
+	}
+	fmt.Printf("   Account ID: %s\n", accID)
 	fmt.Printf("   Amount: %.2f\n", t.Amount)
 	fmt.Printf("   Type: %s\n", t.Type)
 	fmt.Printf("   IsHistorical: %v\n", t.IsHistorical)
@@ -872,7 +1009,7 @@ func (r *TransactionRepository) deleteWithTx(ctx context.Context, tx pgx.Tx, id,
 				if _, err := tx.Exec(ctx, updateBalanceQuery, balanceChange, t.AccountID, userID); err != nil {
 					return fmt.Errorf("failed to update account balance: %w", err)
 				}
-				fmt.Printf("   ✅ Balance reverted successfully for account %s\n", t.AccountID)
+				fmt.Printf("   ✅ Balance reverted successfully for account %v\n", t.AccountID)
 			}
 		}
 	} else {

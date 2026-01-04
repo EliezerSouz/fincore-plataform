@@ -28,13 +28,14 @@ type Subcategory struct {
 
 type CreateCategoryInput struct {
 	Name  string `json:"name" binding:"required"`
-	Type  string `json:"type" binding:"required,oneof=receita despesa"`
+	Type  string `json:"type" binding:"required,oneof=receita despesa ambas"`
 	Icon  string `json:"icon" binding:"required"`
 	Color string `json:"color" binding:"required"`
 }
 
 type UpdateCategoryInput struct {
 	Name     *string `json:"name"`
+	Type     *string `json:"type" binding:"omitempty,oneof=receita despesa ambas"`
 	Icon     *string `json:"icon"`
 	Color    *string `json:"color"`
 	IsActive *bool   `json:"is_active"`

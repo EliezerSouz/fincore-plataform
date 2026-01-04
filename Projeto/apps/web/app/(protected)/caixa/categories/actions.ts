@@ -28,7 +28,7 @@ export interface Category {
     is_premium?: boolean
 }
 
-export async function getCategories(type: 'receita' | 'despesa') {
+export async function getCategories(type: 'receita' | 'despesa' | 'ambas') {
     try {
         const client = await getApiClient()
         const categories = await client.get<Category[]>(`/api/categories?type=${type}`)
@@ -134,7 +134,7 @@ export async function getOrCreateInvoiceCategory() {
 
     try {
         const categories = await getCategories('despesa')
-        
+
         // Try to find existing category (Singular or Plural)
         // Normalizes to lowercase for comparison to be safe
         const existing = categories.find(c => {

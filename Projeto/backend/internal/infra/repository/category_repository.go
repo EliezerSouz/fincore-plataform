@@ -35,7 +35,11 @@ func (r *CategoryRepository) FindAll(ctx context.Context, userID, catType string
 	`
 	args := []interface{}{userID}
 	if catType != "" {
-		queryCat += ` AND type = $2`
+		if catType == "receita" || catType == "despesa" {
+			queryCat += ` AND (type = $2 OR type = 'ambas')`
+		} else {
+			queryCat += ` AND type = $2`
+		}
 		args = append(args, catType)
 	}
 	queryCat += ` ORDER BY name ASC`
@@ -75,7 +79,11 @@ func (r *CategoryRepository) FindAll(ctx context.Context, userID, catType string
 	`
 	subArgs := []interface{}{userID}
 	if catType != "" {
-		querySub += ` AND c.type = $2`
+		if catType == "receita" || catType == "despesa" {
+			querySub += ` AND (c.type = $2 OR c.type = 'ambas')`
+		} else {
+			querySub += ` AND c.type = $2`
+		}
 		subArgs = append(subArgs, catType)
 	}
 	querySub += ` ORDER BY s.name ASC`
@@ -134,6 +142,11 @@ func (r *CategoryRepository) Update(ctx context.Context, id, userID string, inpu
 		argCount++
 		query += fmt.Sprintf(", name = $%d", argCount)
 		args = append(args, strings.ToUpper(*input.Name))
+	}
+	if input.Type != nil {
+		argCount++
+		query += fmt.Sprintf(", type = $%d", argCount)
+		args = append(args, *input.Type)
 	}
 	if input.Icon != nil {
 		argCount++

@@ -5,7 +5,7 @@ import "time"
 type Transaction struct {
 	ID                   string         `json:"id" db:"id"`
 	UserID               string         `json:"user_id" db:"user_id"`
-	AccountID            string         `json:"account_id" db:"account_id"`
+	AccountID            *string        `json:"account_id,omitempty" db:"account_id"`
 	PocketID             *string        `json:"pocket_id,omitempty" db:"pocket_id"`
 	CategoryID           *string        `json:"category_id" db:"category_id"`
 	SubcategoryID        *string        `json:"subcategory_id" db:"subcategory_id"`
@@ -23,11 +23,12 @@ type Transaction struct {
 	Category             *Category      `json:"category,omitempty" db:"-"`
 	Subcategory          *Subcategory   `json:"subcategory,omitempty" db:"-"`
 	Account              *Account       `json:"account,omitempty" db:"-"`
+	Pocket               *Pocket        `json:"pocket,omitempty" db:"-"`
 	PaymentMethod        *PaymentMethod `json:"payment_method,omitempty" db:"-"`
 }
 
 type CreateTransactionInput struct {
-	AccountID       string    `json:"account_id" binding:"required"`
+	AccountID       string    `json:"account_id"` // Optional now, pocket_id is preferred
 	PocketID        *string   `json:"pocket_id,omitempty"`
 	CategoryID      *string   `json:"category_id"`
 	SubcategoryID   *string   `json:"subcategory_id"`

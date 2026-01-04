@@ -35,6 +35,7 @@ const getAccountIcon = (type: string) => {
     const normalized = type?.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim() || '';
 
     if (normalized.includes('carteira')) return Wallet;
+    if (normalized.includes('caixa')) return Wallet;
     if (normalized.includes('poupanca')) return PiggyBank;
     if (normalized.includes('reserva_emergencia') || normalized.includes('reserva')) return PiggyBank;
     if (normalized.includes('investimento')) return TrendingUp;
@@ -107,12 +108,39 @@ export function TransactionRow({ tx }: { tx: any }) {
         }
     }
 
-    // Tratamento de Data
-    const dateObj = new Date(tx.date);
-    const displayDate = dateObj;
-    const year = dateObj.getFullYear();
+    // Lógica Nova de Account/Pocket (Hierarquia: Instituição > Pocket > Pagamento)
+    let DisplayAccountIcon = CreditCard
+    let primaryName = 'Carteira'
+    let secondaryInfo = ''
 
-    const AccountIcon = tx.credit_card ? CreditCard : getAccountIcon(tx.account?.type)
+    const paymentMethodName = tx.payment_method?.name || (tx.credit_card ? 'Cartão de Crédito' : 'Outros')
+
+    if (tx.pocket) {
+        DisplayAccountIcon = getAccountIcon(tx.pocket.pocket_type)
+        const pocketName = tx.pocket.name
+        const instName = tx.account?.name
+
+        if (instName) {
+            // Tem Instituição e Pocket
+            primaryName = instName
+            secondaryInfo = `${pocketName} • ${paymentMethodName}`
+        } else {
+            // Só tem Pocket (sem instituição pai linkada ou carregada)
+            primaryName = pocketName
+            secondaryInfo = paymentMethodName
+        }
+    } else if (tx.credit_card) {
+        DisplayAccountIcon = CreditCard
+        primaryName = tx.credit_card.name
+        secondaryInfo = paymentMethodName
+    } else if (tx.account) {
+        DisplayAccountIcon = getAccountIcon(tx.account.type)
+        primaryName = tx.account.name
+        secondaryInfo = paymentMethodName
+    } else {
+        // Fallback total
+        secondaryInfo = paymentMethodName
+    }
 
     return (
         <tr className="group hover:bg-slate-50/50 dark:hover:bg-slate-900/50 transition-colors">
@@ -206,11 +234,11 @@ export function TransactionRow({ tx }: { tx: any }) {
             <td className="p-3 hidden md:table-cell">
                 <div className="flex flex-col">
                     <span className="text-xs font-medium text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                        <AccountIcon className="w-3 h-3 text-slate-400" />
-                        {tx.account?.name || tx.credit_card?.name || 'Carteira'}
+                        <DisplayAccountIcon className="w-3 h-3 text-slate-400" />
+                        {primaryName}
                     </span>
                     <span className="text-[10px] text-slate-500 capitalize">
-                        {tx.payment_method?.name || (tx.credit_card ? 'Cartão de Crédito' : 'Outros')}
+                        {secondaryInfo}
                     </span>
                 </div>
             </td>

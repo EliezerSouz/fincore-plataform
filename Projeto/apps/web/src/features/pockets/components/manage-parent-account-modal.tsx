@@ -42,6 +42,7 @@ const formSchema = z.object({
     institution_type: z.string().min(1, "Selecione um tipo"),
     color: z.string().optional(),
     logo_url: z.string().optional(),
+    initial_balance: z.coerce.number().optional().default(0),
 })
 
 interface ManageParentAccountModalProps {
@@ -69,6 +70,7 @@ export function ManageParentAccountModal({ open, onOpenChange, account }: Manage
             institution_type: "digital_bank",
             color: "#000000",
             logo_url: "",
+            initial_balance: 0,
         },
     })
 
@@ -80,17 +82,26 @@ export function ManageParentAccountModal({ open, onOpenChange, account }: Manage
                 institution_type: account?.institution_type || "digital_bank",
                 color: account?.color || "#000000",
                 logo_url: account?.logo_url || "",
+                initial_balance: 0,
             })
         }
     }, [open, account, form])
 
     const onSubmit = async (values: z.infer<typeof formSchema>) => {
         try {
+            // Conversão segura de tipos
+            const payload = {
+                ...values,
+                institution_type: values.institution_type as any // Cast para compatibilidade com InstitutionType
+            }
+
             if (isEditing && account) {
-                await updateParentAccount(account.id, values)
+                // Remover initial_balance na edição
+                const { initial_balance, ...editPayload } = payload
+                await updateParentAccount(account.id, editPayload)
                 toast.success("Instituição atualizada com sucesso")
             } else {
-                await createParentAccount(values)
+                await createParentAccount(payload)
                 toast.success("Instituição criada com sucesso")
             }
             onOpenChange(false)
@@ -153,6 +164,34 @@ export function ManageParentAccountModal({ open, onOpenChange, account }: Manage
                                 </FormItem>
                             )}
                         />
+
+                        {!isEditing && (
+                            <FormField
+                                control={form.control}
+                                name="initial_balance"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Saldo Inicial (Conta Corrente)</FormLabel>
+                                        <FormControl>
+                                            <div className="relative">
+                                                <span className="absolute left-3 top-2.5 text-slate-500">R$</span>
+                                                <Input
+                                                    type="number"
+                                                    placeholder="0,00"
+                                                    step="0.01"
+                                                    className="pl-9"
+                                                    {...field}
+                                                />
+                                            </div>
+                                        </FormControl>
+                                        <p className="text-[10px] text-slate-500">
+                                            Será criado um pocket "Conta Corrente" com este saldo.
+                                        </p>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        )}
 
                         <div className="grid grid-cols-2 gap-4">
                             <FormField

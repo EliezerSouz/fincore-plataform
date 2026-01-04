@@ -147,6 +147,7 @@ func main() {
 		api.PUT("/transactions/:id", transactionHandler.Update)
 		api.DELETE("/transactions/:id", transactionHandler.Delete)
 		api.POST("/transfers", transactionHandler.CreateTransfer)
+		api.POST("/transactions/pocket-transfer", transactionHandler.CreatePocketTransfer)
 
 		// AI Routes
 		api.POST("/ai/insight", aiHandler.GenerateInsight)

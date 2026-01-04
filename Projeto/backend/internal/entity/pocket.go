@@ -65,6 +65,7 @@ type CreateParentAccountInput struct {
 	InstitutionType string  `json:"institution_type"`
 	Color           *string `json:"color"`
 	LogoURL         *string `json:"logo_url"`
+	InitialBalance  float64 `json:"initial_balance"`
 }
 
 // UpdateParentAccountInput representa os dados para atualizar uma Conta Mãe

@@ -213,11 +213,29 @@ func (r *AccountRepository) FindAll(ctx context.Context, userID string, includeI
 		return nil, fmt.Errorf("invalid user id: %w", err)
 	}
 
+	// Query updated to sum yields from pockets
 	query := `
 		SELECT 
 			id, user_id, name, type, balance, color, is_active, yield_rate, yield_enabled, yield_source, yield_cdi_rate, last_yield_date, created_at, updated_at,
-			COALESCE((SELECT yield_amount FROM liquidity_yields WHERE account_id = accounts.id ORDER BY date DESC LIMIT 1), 0) as yield_today,
-			COALESCE((SELECT SUM(yield_amount) FROM liquidity_yields WHERE account_id = accounts.id AND date >= date_trunc('month', CURRENT_DATE)), 0) as yield_month
+			COALESCE((
+				SELECT SUM(ly.yield_amount) 
+				FROM liquidity_yields ly 
+				LEFT JOIN pockets p ON ly.pocket_id = p.id 
+				WHERE (ly.account_id = accounts.id OR p.parent_account_id = accounts.id)
+				AND ly.date = (
+					SELECT MAX(date) 
+					FROM liquidity_yields ly2 
+					LEFT JOIN pockets p2 ON ly2.pocket_id = p2.id 
+					WHERE ly2.account_id = accounts.id OR p2.parent_account_id = accounts.id
+				)
+			), 0) as yield_today,
+			COALESCE((
+				SELECT SUM(ly.yield_amount) 
+				FROM liquidity_yields ly 
+				LEFT JOIN pockets p ON ly.pocket_id = p.id 
+				WHERE (ly.account_id = accounts.id OR p.parent_account_id = accounts.id)
+				AND ly.date >= date_trunc('month', CURRENT_DATE)
+			), 0) as yield_month
 		FROM accounts
 		WHERE user_id = $1
 	`
@@ -287,11 +305,29 @@ func (r *AccountRepository) FindByID(ctx context.Context, id, userID string) (*e
 		return nil, fmt.Errorf("invalid user id: %w", err)
 	}
 
+	// Query updated to sum yields from pockets
 	query := `
 		SELECT 
 			id, user_id, name, type, balance, color, is_active, yield_rate, yield_enabled, yield_source, yield_cdi_rate, last_yield_date, created_at, updated_at,
-			COALESCE((SELECT yield_amount FROM liquidity_yields WHERE account_id = accounts.id ORDER BY date DESC LIMIT 1), 0) as yield_today,
-			COALESCE((SELECT SUM(yield_amount) FROM liquidity_yields WHERE account_id = accounts.id AND date >= date_trunc('month', CURRENT_DATE)), 0) as yield_month
+			COALESCE((
+				SELECT SUM(ly.yield_amount) 
+				FROM liquidity_yields ly 
+				LEFT JOIN pockets p ON ly.pocket_id = p.id 
+				WHERE (ly.account_id = accounts.id OR p.parent_account_id = accounts.id)
+				AND ly.date = (
+					SELECT MAX(date) 
+					FROM liquidity_yields ly2 
+					LEFT JOIN pockets p2 ON ly2.pocket_id = p2.id 
+					WHERE ly2.account_id = accounts.id OR p2.parent_account_id = accounts.id
+				)
+			), 0) as yield_today,
+			COALESCE((
+				SELECT SUM(ly.yield_amount) 
+				FROM liquidity_yields ly 
+				LEFT JOIN pockets p ON ly.pocket_id = p.id 
+				WHERE (ly.account_id = accounts.id OR p.parent_account_id = accounts.id)
+				AND ly.date >= date_trunc('month', CURRENT_DATE)
+			), 0) as yield_month
 		FROM accounts
 		WHERE id = $1 AND user_id = $2
 	`

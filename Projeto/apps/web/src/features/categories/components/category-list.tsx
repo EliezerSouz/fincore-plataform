@@ -14,7 +14,7 @@ import { UpsellModal } from "@/components/ui/upsell-modal"
 import { useRouter } from "next/navigation"
 import { useMediaQuery } from "@/hooks/use-media-query"
 
-export function CategoryList({ categories, type }: { categories: Category[], type: 'receita' | 'despesa' }) {
+export function CategoryList({ categories, type }: { categories: Category[], type: 'receita' | 'despesa' | 'ambas' }) {
     const isDesktop = useMediaQuery("(min-width: 768px)")
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
     const [search, setSearch] = useState("")
@@ -31,7 +31,7 @@ export function CategoryList({ categories, type }: { categories: Category[], typ
     const filtered = categories.filter(c => c.type === type && c.name.toLowerCase().includes(search.toLowerCase()))
     const active = filtered.filter(c => c.is_active !== false)
     const inactive = filtered.filter(c => c.is_active === false)
-    
+
     // Derive editingCategory from props to ensure it stays in sync with server data
     const editingCategory = categories.find(c => c.id === editingCategoryId) || null
 
@@ -57,8 +57,8 @@ export function CategoryList({ categories, type }: { categories: Category[], typ
             <div className="flex flex-col sm:flex-row gap-4 justify-between items-center">
                 <div className="relative w-full sm:w-72">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <Input 
-                        placeholder="Buscar categoria..." 
+                    <Input
+                        placeholder="Buscar categoria..."
                         className="pl-9 bg-white dark:bg-slate-900"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
@@ -94,11 +94,11 @@ export function CategoryList({ categories, type }: { categories: Category[], typ
                 viewMode === 'grid' ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" : "grid-cols-1"
             )}>
                 {active.map(cat => (
-                    <CategoryItem 
-                        key={cat.id} 
-                        category={cat} 
-                        viewMode={viewMode} 
-                        onEdit={() => handleEdit(cat)} 
+                    <CategoryItem
+                        key={cat.id}
+                        category={cat}
+                        viewMode={viewMode}
+                        onEdit={() => handleEdit(cat)}
                     />
                 ))}
             </div>
@@ -121,17 +121,17 @@ export function CategoryList({ categories, type }: { categories: Category[], typ
                         </h3>
                         <div className="h-px flex-1 bg-slate-100 dark:bg-slate-800"></div>
                     </div>
-                    
+
                     <div className={cn(
                         "grid gap-4 opacity-60 hover:opacity-100 transition-opacity",
                         viewMode === 'grid' ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" : "grid-cols-1"
                     )}>
                         {inactive.map(cat => (
-                            <CategoryItem 
-                                key={cat.id} 
-                                category={cat} 
-                                viewMode={viewMode} 
-                                onEdit={() => handleEdit(cat)} 
+                            <CategoryItem
+                                key={cat.id}
+                                category={cat}
+                                viewMode={viewMode}
+                                onEdit={() => handleEdit(cat)}
                             />
                         ))}
                     </div>
@@ -140,28 +140,28 @@ export function CategoryList({ categories, type }: { categories: Category[], typ
 
             {/* Edit Sheet */}
             {editingCategory && (
-                <EditCategorySheet 
+                <EditCategorySheet
                     key={editingCategory.id}
-                    category={editingCategory} 
-                    open={isSheetOpen} 
+                    category={editingCategory}
+                    open={isSheetOpen}
                     onOpenChange={(open) => {
                         setIsSheetOpen(open)
                         if (!open) setEditingCategoryId(null)
-                    }} 
+                    }}
                 />
             )}
         </div>
     )
 }
 
-function CategoryItem({ 
-    category, 
-    viewMode, 
-    onEdit 
-}: { 
-    category: Category, 
-    viewMode: 'grid' | 'list', 
-    onEdit: () => void 
+function CategoryItem({
+    category,
+    viewMode,
+    onEdit
+}: {
+    category: Category,
+    viewMode: 'grid' | 'list',
+    onEdit: () => void
 }) {
     const router = useRouter()
     const { can, isFree, plan } = usePermission()
@@ -175,7 +175,7 @@ function CategoryItem({
     const IconComponent = CATEGORY_ICONS[category.icon]?.icon || Tag
     const subCount = category.subcategories?.length || 0
     const isActive = category.is_active !== false
-    
+
     // Check for Premium IA plan
     const isPremiumIA = plan === 'premium_ia' || plan === 'enterprise' || plan?.includes('premium_ia')
 
@@ -220,21 +220,21 @@ function CategoryItem({
     if (viewMode === 'list') {
         return (
             <>
-                <div 
+                <div
                     onClick={handleClick}
                     className={cn(
                         "group flex items-center gap-4 p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl transition-all",
                         (canEdit || isFree) && "hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer active:scale-[0.98]"
                     )}
                 >
-                    <div 
+                    <div
                         className={cn(
                             "w-10 h-10 rounded-lg flex items-center justify-center shrink-0 transition-transform",
                             canEdit && "group-hover:scale-105"
                         )}
-                        style={{ 
-                            backgroundColor: isActive ? `${category.color}15` : '#f1f5f9', 
-                            color: isActive ? category.color : '#94a3b8' 
+                        style={{
+                            backgroundColor: isActive ? `${category.color}15` : '#f1f5f9',
+                            color: isActive ? category.color : '#94a3b8'
                         }}
                     >
                         <IconComponent className="w-5 h-5" />
@@ -263,8 +263,8 @@ function CategoryItem({
                         {!canEdit && isFree && <Lock className="w-4 h-4 text-slate-300" />}
                     </div>
                 </div>
-                <UpsellModal 
-                    open={showUpsell} 
+                <UpsellModal
+                    open={showUpsell}
                     onOpenChange={setShowUpsell}
                     title="Funcionalidade Premium"
                     description="No plano gratuito você não pode editar categorias. Faça o upgrade para personalizar seu financeiro."
@@ -275,7 +275,7 @@ function CategoryItem({
 
     return (
         <>
-            <div 
+            <div
                 onClick={handleClick}
                 className={cn(
                     "group relative bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 transition-all overflow-hidden",
@@ -283,23 +283,23 @@ function CategoryItem({
                 )}
             >
                 <div className="absolute top-0 left-0 w-1 h-full" style={{ backgroundColor: isActive ? category.color : 'transparent' }} />
-                
+
                 <div className="flex items-start justify-between mb-3">
-                    <div 
+                    <div
                         className={cn(
                             "w-12 h-12 rounded-xl flex items-center justify-center transition-transform shadow-sm",
                             canEdit && "group-hover:scale-110"
                         )}
-                        style={{ 
-                            backgroundColor: isActive ? `${category.color}15` : '#f1f5f9', 
-                            color: isActive ? category.color : '#94a3b8' 
+                        style={{
+                            backgroundColor: isActive ? `${category.color}15` : '#f1f5f9',
+                            color: isActive ? category.color : '#94a3b8'
                         }}
                     >
                         <IconComponent className="w-6 h-6" />
                     </div>
-                    
+
                     {canEdit ? (
-                        <div 
+                        <div
                             role="button"
                             onClick={handleToggleActive}
                             className={cn(
@@ -310,8 +310,8 @@ function CategoryItem({
                         />
                     ) : (
                         <div className="flex gap-1">
-                             {isPremiumCategory && <Crown className="w-4 h-4 text-amber-500" />}
-                             {!isPremiumCategory && <Lock className="w-4 h-4 text-slate-300" />}
+                            {isPremiumCategory && <Crown className="w-4 h-4 text-amber-500" />}
+                            {!isPremiumCategory && <Lock className="w-4 h-4 text-slate-300" />}
                         </div>
                     )}
                 </div>
@@ -325,8 +325,8 @@ function CategoryItem({
                     </div>
                 </div>
             </div>
-            <UpsellModal 
-                open={showUpsell} 
+            <UpsellModal
+                open={showUpsell}
                 onOpenChange={setShowUpsell}
                 title="Funcionalidade Premium"
                 description="No plano gratuito você não pode editar categorias. Faça o upgrade para personalizar seu financeiro."

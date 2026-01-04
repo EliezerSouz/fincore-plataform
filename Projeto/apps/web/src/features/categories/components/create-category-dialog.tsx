@@ -8,7 +8,7 @@ import { createCategory } from "@/app/(protected)/caixa/categories/actions"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { usePermission } from "@/hooks/use-permission"
-import { Lock, Tag, Check, ArrowDownCircle, ArrowUpCircle } from "lucide-react"
+import { Lock, Tag, Check, ArrowDownCircle, ArrowUpCircle, ArrowRightLeft } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { UpsellModal } from "@/components/ui/upsell-modal"
 import { CATEGORY_ICONS } from "@/lib/icons"
@@ -21,7 +21,7 @@ export function CreateCategoryDialog() {
     const { can } = usePermission()
 
     const [name, setName] = useState("")
-    const [type, setType] = useState<'receita' | 'despesa'>('despesa')
+    const [type, setType] = useState<'receita' | 'despesa' | 'ambas'>('despesa')
     const [color, setColor] = useState(COLOR_PRESETS[0].hex)
     const [icon, setIcon] = useState('tag')
 
@@ -125,6 +125,17 @@ export function CreateCategoryDialog() {
                         >
                             <ArrowUpCircle className={cn("w-4 h-4", type === 'receita' && "text-emerald-600")} />
                             Receita
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setType('ambas')}
+                            className={cn(
+                                "flex-1 h-11 text-sm font-medium rounded-md transition-all flex items-center justify-center gap-2",
+                                type === 'ambas' ? "bg-white dark:bg-slate-700 shadow-sm text-blue-600" : "text-slate-500 hover:text-slate-700"
+                            )}
+                        >
+                            <ArrowRightLeft className={cn("w-4 h-4", type === 'ambas' && "text-blue-600")} />
+                            Híbrida
                         </button>
                     </div>
 

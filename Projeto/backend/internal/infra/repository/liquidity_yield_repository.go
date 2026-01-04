@@ -160,14 +160,13 @@ func (r *LiquidityYieldRepository) CheckYieldExistsForPocket(ctx context.Context
 }
 
 // GetBaseAmountForPocket calculates the base amount for yield calculation for a pocket
-// base_amount = balance at END of previous day (operational balance + previous yields - today's transactions)
-// Following banking standard: today's yield is calculated on yesterday's closing balance
+// base_amount = balance at END of previous day (operational balance - today's transactions - future transactions)
+// NOTE: Since pockets.balance now includes accumulated yields, we DO NOT add previous_yields again.
 func (r *LiquidityYieldRepository) GetBaseAmountForPocket(ctx context.Context, pocketID string, date time.Time) (float64, error) {
 	var currentBalance float64
-	var previousYields float64
-	var todaysTransactions float64
+	var txAdjustment float64
 
-	// Get current operational balance from pockets
+	// Get current total balance from pockets (includes previous yields)
 	err := r.db.QueryRow(ctx, `
 		SELECT COALESCE(balance, 0) 
 		FROM pockets 
@@ -178,29 +177,18 @@ func (r *LiquidityYieldRepository) GetBaseAmountForPocket(ctx context.Context, p
 		return 0, fmt.Errorf("failed to get operational balance: %w", err)
 	}
 
-	// Sum all previous yields up to (but NOT including) the target date
-	err = r.db.QueryRow(ctx, `
-		SELECT COALESCE(SUM(yield_amount), 0)
-		FROM liquidity_yields
-		WHERE pocket_id = $1 AND date < $2
-	`, pocketID, date).Scan(&previousYields)
+	// Calculate net change from transactions occurring ON or AFTER the target date
+	// If we want Closing Balance of 'date', we subtract transactions that happened AFTER 'date'.
+	// If we want Opening Balance of 'date' (which is Closing of date-1), we subtract transactions ON 'date' too.
+	// Assuming Conservative Logic (Opening Balance): Subtract transactions >= date
+	// Assuming Aggressive Logic (Closing Balance): Subtract transactions > date
+	//
+	// Given the context of "Juros Composto", we typically yield on the closing balance.
+	// But let's stick to the previous logic structure but CORRECTED for PocketID and No Double Yields.
+	//
+	// Current Logic Impl: Subtract transactions ON the date. This yields on Opening Balance.
+	// Filter: pocket_id = $1
 
-	if err != nil {
-		return 0, fmt.Errorf("failed to get previous yields: %w", err)
-	}
-
-	// Get parent account ID to find transactions
-	var parentAccountID string
-	err = r.db.QueryRow(ctx, `
-		SELECT parent_account_id FROM pockets WHERE id = $1
-	`, pocketID).Scan(&parentAccountID)
-
-	if err != nil {
-		return 0, fmt.Errorf("failed to get parent account: %w", err)
-	}
-
-	// Calculate net change from today's transactions
-	// We need to subtract today's transactions to get yesterday's closing balance
 	err = r.db.QueryRow(ctx, `
 		SELECT COALESCE(SUM(
 			CASE 
@@ -212,20 +200,18 @@ func (r *LiquidityYieldRepository) GetBaseAmountForPocket(ctx context.Context, p
 			END
 		), 0)
 		FROM transactions
-		WHERE account_id = $1
-		AND date = $2
+		WHERE pocket_id = $1
+		AND date >= $2
 		AND is_historical = false
 		AND deleted_at IS NULL
-	`, parentAccountID, date).Scan(&todaysTransactions)
+	`, pocketID, date).Scan(&txAdjustment)
 
 	if err != nil {
-		return 0, fmt.Errorf("failed to get today's transactions: %w", err)
+		return 0, fmt.Errorf("failed to get transaction adjustments: %w", err)
 	}
 
-	// Calculate balance at END of previous day:
-	// current_balance - today's_transactions + previous_yields
-	// This gives us the balance that was there at the end of yesterday
-	baseAmount := currentBalance - todaysTransactions + previousYields
+	// Base Amount = Current Total Balance - Adjustments looking forward
+	baseAmount := currentBalance - txAdjustment
 
 	return baseAmount, nil
 }

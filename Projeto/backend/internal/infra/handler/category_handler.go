@@ -26,7 +26,7 @@ func (h *CategoryHandler) List(c *gin.Context) {
 
 	catType := c.Query("type")
 	// If type is provided, validate it. If empty, allow it (returns all).
-	if catType != "" && catType != "receita" && catType != "despesa" {
+	if catType != "" && catType != "receita" && catType != "despesa" && catType != "ambas" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid type param"})
 		return
 	}

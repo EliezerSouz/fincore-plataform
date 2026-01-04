@@ -4,6 +4,8 @@ import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { getCurrentUser } from '@/lib/user'
 import { getAccounts } from '../accounts/actions'
+import { getPockets, getParentAccounts } from '@/features/pockets/actions'
+import { getCreditCards } from '@/app/(protected)/compromissos/cards/actions'
 import { ApiClient } from '@/lib/api-client'
 
 export type TransactionType = 'receita' | 'despesa' | 'transferencia'
@@ -124,6 +126,35 @@ export async function getTransactions(filters?: TransactionFilters) {
 }
 
 /**
+ * Buscar dados iniciais agregados para o formulário de transação
+ * (Otimização para reduzir requests HTTP)
+ */
+export async function getInitialTransactionData() {
+    try {
+        const [accounts, cards, pockets, parents, catReceita, catDespesa, methods] = await Promise.all([
+            getAccounts().catch(e => []),
+            getCreditCards().catch(e => []),
+            getPockets(true).catch(e => []),
+            getParentAccounts(true).catch(e => []),
+            getCategories('receita', true).catch(e => []),
+            getCategories('despesa', true).catch(e => []),
+            getPaymentMethods('all').catch(e => [])
+        ])
+        return {
+            accounts,
+            cards,
+            pockets,
+            parents,
+            categories: { receita: catReceita, despesa: catDespesa },
+            paymentMethods: methods
+        }
+    } catch (e) {
+        console.error('Error fetching initial data:', e)
+        return { accounts: [], cards: [], pockets: [], parents: [], categories: { receita: [], despesa: [] }, paymentMethods: [] }
+    }
+}
+
+/**
  * Criar transação via Backend API
  * O backend atualiza o saldo automaticamente!
  */
@@ -143,13 +174,14 @@ export async function createTransaction(formData: FormData) {
     const type = formData.get('type') as TransactionType
     const date = formData.get('date') as string
     const accountId = formData.get('accountId') as string
+    const pocketId = formData.get('pocketId') as string
     const categoryId = formData.get('category_id') as string
     const subcategoryId = formData.get('subcategory_id') as string
     const paymentMethodId = formData.get('paymentMethodId') as string
     const creditCardInvoiceId = formData.get('credit_card_invoice_id') as string
 
-    if (!description || !amount || !accountId || !date) {
-        throw new Error('Dados inválidos')
+    if (!description || !amount || (!accountId && !pocketId) || !date) {
+        throw new Error('Dados inválidos - Selecione uma conta ou pocket')
     }
 
     const isValidUUID = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
@@ -160,6 +192,7 @@ export async function createTransaction(formData: FormData) {
 
     await client.post('/api/transactions', {
         account_id: accountId,
+        pocket_id: pocketId || undefined,
         category_id: isValidUUID(categoryId) ? categoryId : undefined,
         subcategory_id: isValidUUID(subcategoryId) ? subcategoryId : undefined,
         payment_method_id: isValidUUID(paymentMethodId) ? paymentMethodId : undefined,
@@ -198,10 +231,12 @@ export async function createTransfer(formData: FormData) {
     const date = formData.get('date') as string
     const sourceAccountId = formData.get('sourceAccountId') as string
     const targetAccountId = formData.get('targetAccountId') as string
+    const sourcePocketId = formData.get('sourcePocketId') as string
+    const targetPocketId = formData.get('targetPocketId') as string
     const paymentMethodId = formData.get('paymentMethodId') as string
     const isValidUUID = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
 
-    if (!amount || !sourceAccountId || !targetAccountId || !date) {
+    if (!amount || (!sourceAccountId && !sourcePocketId) || (!targetAccountId && !targetPocketId) || !date) {
         throw new Error('Dados incompletos para transferência')
     }
 
@@ -244,17 +279,35 @@ export async function createTransfer(formData: FormData) {
         }
     }
 
-    const [accounts, expenseCategoryId, incomeCategoryId] = await Promise.all([
+    const [accounts, pockets, expenseCategoryId, incomeCategoryId] = await Promise.all([
         getAccounts(),
+        getPockets(),
         getTransferCategory('despesa'),
         getTransferCategory('receita')
     ]);
 
-    // Obter nomes das contas
-    const sourceAccount = accounts.find(a => a.id === sourceAccountId)
-    const targetAccount = accounts.find(a => a.id === targetAccountId)
+    // Resolver Nomes
+    let sourceName = 'Origem'
+    if (sourceAccountId) {
+        const acc = accounts.find(a => a.id === sourceAccountId)
+        if (acc) sourceName = acc.name
+    } else if (sourcePocketId) {
+        const pocket = pockets.find(p => p.id === sourcePocketId)
+        if (pocket) sourceName = pocket.name
+    }
 
-    if (!sourceAccount || !targetAccount) throw new Error("Conta não encontrada")
+    let targetName = 'Destino'
+    if (targetAccountId) {
+        const acc = accounts.find(a => a.id === targetAccountId)
+        if (acc) targetName = acc.name
+    } else if (targetPocketId) {
+        const pocket = pockets.find(p => p.id === targetPocketId)
+        if (pocket) targetName = pocket.name
+    }
+
+    // Validação
+    if (sourceName === 'Origem' && !sourcePocketId && !sourceAccountId) throw new Error("Origem não encontrada")
+    if (targetName === 'Destino' && !targetPocketId && !targetAccountId) throw new Error("Destino não encontrado")
 
     // Ajustar Data
     const [y, m, d] = date.split('-').map(Number)
@@ -264,7 +317,8 @@ export async function createTransfer(formData: FormData) {
         const payload = {
             source: {
                 account_id: sourceAccountId,
-                description: `Transferência Enviada para ${targetAccount.name}`,
+                pocket_id: sourcePocketId || undefined,
+                description: `Transferência Enviada para ${targetName}`,
                 amount: amount,
                 type: 'despesa',
                 date: fixedDate,
@@ -273,7 +327,8 @@ export async function createTransfer(formData: FormData) {
             },
             target: {
                 account_id: targetAccountId,
-                description: `Transferência Recebida de ${sourceAccount.name}`,
+                pocket_id: targetPocketId || undefined,
+                description: `Transferência Recebida de ${sourceName}`,
                 amount: amount,
                 type: 'receita',
                 date: fixedDate,
@@ -313,13 +368,14 @@ export async function updateTransaction(id: string, formData: FormData) {
     const date = formData.get('date') as string
     const accountId = formData.get('accountId') as string
     const categoryId = formData.get('category_id') as string
+    const pocketId = formData.get('pocketId') as string
     const subcategoryId = formData.get('subcategory_id') as string
     const paymentMethodId = formData.get('paymentMethodId') as string
 
     const isValidUUID = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
 
-    if (!isValidUUID(accountId)) {
-        throw new Error('Conta inválida ou não selecionada')
+    if (!isValidUUID(accountId) && !isValidUUID(pocketId)) {
+        throw new Error('Conta/Pocket inválido ou não selecionado')
     }
 
     // Ajustar Data para evitar timezone issue (fixar meio-dia UTC)
@@ -329,6 +385,7 @@ export async function updateTransaction(id: string, formData: FormData) {
     // O Backend agora lida com a propagação para transações relacionadas (Transferências)
     await client.put(`/api/transactions/${id}`, {
         account_id: accountId,
+        pocket_id: pocketId || undefined,
         category_id: isValidUUID(categoryId) ? categoryId : undefined,
         subcategory_id: isValidUUID(subcategoryId) ? subcategoryId : undefined,
         payment_method_id: isValidUUID(paymentMethodId) ? paymentMethodId : undefined,
@@ -364,7 +421,9 @@ export async function duplicateTransaction(id: string) {
     // 2. Create copy
     await client.post('/api/transactions', {
         account_id: original.account_id,
-        category_id: original.category_id,
+        pocket_id: original.pocket_id,
+        target_pocket_id: original.target_pocket_id,
+        category_id: original.category_id || "",
         subcategory_id: original.subcategory_id,
         payment_method_id: original.payment_method_id,
         invoice_id: original.invoice_id,

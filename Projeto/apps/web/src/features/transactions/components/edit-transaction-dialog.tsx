@@ -27,6 +27,8 @@ export function EditTransactionDialog({ open, onOpenChange, transaction, isCardT
         amount: transaction.amount,
         description: transaction.description,
         accountId: transaction.account_id,
+        pocketId: transaction.pocket_id,
+        targetPocketId: transaction.target_pocket_id,
         categoryId: transaction.category_id || "",
         subcategoryId: transaction.subcategory_id || "",
         paymentMethodId: transaction.payment_method_id || "",

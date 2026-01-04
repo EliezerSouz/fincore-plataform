@@ -22,6 +22,11 @@ const cache = {
 
 interface UseFormDataOptions {
     transactionType?: 'receita' | 'despesa' | 'transferencia' | 'compra'
+    initialData?: {
+        categories?: { receita: any[], despesa: any[] }
+        paymentMethods?: any[]
+        accounts?: any[]
+    }
 }
 
 export function useFormData(options: UseFormDataOptions = {}) {
@@ -52,6 +57,16 @@ export function useFormData(options: UseFormDataOptions = {}) {
                 return
             }
 
+            // Hydrate from Initial Data
+            if (options.initialData?.categories) {
+                const initCats = categoryType === 'receita' ? options.initialData.categories.receita : options.initialData.categories.despesa
+                if (initCats && initCats.length > 0) {
+                    setCategories(initCats)
+                    cache[cacheKey] = initCats
+                    return
+                }
+            }
+
             if (cache.promises[cacheKey]) {
                 const data = await cache.promises[cacheKey]
                 setCategories(data!)
@@ -66,13 +81,20 @@ export function useFormData(options: UseFormDataOptions = {}) {
         }
 
         loadCategories()
-    }, [transactionType, categoryType, cacheKey])
+    }, [transactionType, categoryType, cacheKey, options.initialData?.categories])
 
     // Carregar contas (com cache)
     useEffect(() => {
         async function loadAccounts() {
             if (cache.accounts) {
                 setAccounts(cache.accounts)
+                return
+            }
+
+            // Hydrate from Initial Data
+            if (options.initialData?.accounts && options.initialData.accounts.length > 0) {
+                setAccounts(options.initialData.accounts)
+                cache.accounts = options.initialData.accounts
                 return
             }
 
@@ -90,13 +112,21 @@ export function useFormData(options: UseFormDataOptions = {}) {
         }
 
         loadAccounts()
-    }, [])
+    }, [options.initialData?.accounts])
 
     // Carregar formas de pagamento (com cache)
     useEffect(() => {
         async function loadPaymentMethods() {
             if (cache.paymentMethods) {
                 setPaymentMethods(cache.paymentMethods)
+                setLoading(false)
+                return
+            }
+
+            // Hydrate from Initial Data
+            if (options.initialData?.paymentMethods && options.initialData.paymentMethods.length > 0) {
+                setPaymentMethods(options.initialData.paymentMethods)
+                cache.paymentMethods = options.initialData.paymentMethods
                 setLoading(false)
                 return
             }
@@ -117,7 +147,7 @@ export function useFormData(options: UseFormDataOptions = {}) {
         }
 
         loadPaymentMethods()
-    }, [])
+    }, [options.initialData?.paymentMethods])
 
     // Carregar subcategorias quando categoria muda (com cache por categoria)
     useEffect(() => {
